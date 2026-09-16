@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tra cứu phiếu cầm - Kim Bảo Lâm</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" integrity="sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.legacy.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <style>
+    :root{--navy:#082443;--gold:#d49f13;--ink:#14243a;--bg:#f8f7f2}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--ink)}
+    header{padding:20px;display:flex;justify-content:space-between;align-items:center;background:var(--navy);color:#fff}
+    header b{font-size:22px} header a{color:#ffe08b;text-decoration:none;font-weight:800}
+    .wrap{width:min(900px,calc(100% - 28px));margin:28px auto}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .card{padding:24px;background:#fff;border-radius:18px;box-shadow:0 10px 30px #08244316}
+    h1{margin:0 0 7px;color:var(--navy);font-size:27px}
+    .muted{color:#64748b;line-height:1.5;font-size:14px}
+    label{display:block;font-size:13px;font-weight:800;margin:14px 0 6px}
+    input{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:9px;font-size:16px}
+    button{border:0;border-radius:9px;padding:13px 16px;margin-top:13px;background:var(--navy);color:#fff;font-weight:900;cursor:pointer}
+    button.gold{background:var(--gold)} button.light{background:#eef3f8;color:var(--navy)}
+    .scan-tools{display:flex;gap:10px;flex-wrap:wrap}
+    .scan-tools button,.scan-tools label{flex:1;min-width:190px}
+    .scan-file-label{display:inline-flex;align-items:center;justify-content:center;border-radius:9px;padding:13px 16px;margin-top:13px;background:#eef3f8;color:var(--navy);font-weight:900;cursor:pointer;text-align:center}
+    #reader{position:relative;margin-top:14px;overflow:hidden;border-radius:14px;background:#050d18;min-height:270px;isolation:isolate}
+    #reader video{width:100% !important;height:auto !important;min-height:270px;display:block;border-radius:14px;object-fit:cover;-webkit-transform:translateZ(0);transform:translateZ(0)}
+    #reader video::-webkit-media-controls{display:none !important}
+    #reader .scan-frame{position:absolute;z-index:20;top:50%;left:50%;width:min(68vw,260px);height:min(68vw,260px);border:2px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,.28),0 0 28px rgba(212,159,19,.15);transform:translate(-50%,-50%);pointer-events:none}
+    #reader .scan-frame::before,#reader .scan-frame::after{position:absolute;inset:-3px;content:"";border:5px solid transparent;border-top-color:#f2c54a;border-left-color:#f2c54a;border-radius:18px}
+    #reader .scan-frame::after{border-top-color:transparent;border-left-color:transparent;border-right-color:#f2c54a;border-bottom-color:#f2c54a}
+    #reader .scan-laser{position:absolute;z-index:21;left:8%;right:8%;top:11%;height:2px;border-radius:999px;background:linear-gradient(90deg,transparent,#ffe897 18%,#d49f13 50%,#ffe897 82%,transparent);box-shadow:0 0 10px rgba(242,197,74,.95);animation:kblQrLaser 1.7s ease-in-out infinite;pointer-events:none}
+    @keyframes kblQrLaser{0%,100%{top:10%;opacity:.55}50%{top:88%;opacity:1}}
+    @keyframes kblQrFramePulse{0%,100%{filter:drop-shadow(0 0 3px rgba(242,197,74,.45))}50%{filter:drop-shadow(0 0 12px rgba(242,197,74,.95))}}
+    #reader .scan-frame{animation:kblQrFramePulse 1.15s ease-in-out infinite}
+    #reader.scan-success .scan-frame{border-color:#49d88a;animation:none;filter:drop-shadow(0 0 14px rgba(73,216,138,.95))}
+    #reader.scan-success .scan-frame::before,#reader.scan-success .scan-frame::after{border-top-color:#49d88a;border-left-color:#49d88a}
+    #reader.scan-success .scan-frame::after{border-top-color:transparent;border-left-color:transparent;border-right-color:#49d88a;border-bottom-color:#49d88a}
+    #reader.scan-success .scan-laser{background:#49d88a;box-shadow:0 0 14px rgba(73,216,138,.95);animation:none;top:50%}
+    #reader .scan-tip{position:absolute;z-index:22;right:16px;bottom:18px;left:16px;color:#fff;text-align:center;font-size:12px;font-weight:800;line-height:1.45;text-shadow:0 1px 4px #000}
+    #reader .scan-close{position:absolute;z-index:24;top:14px;right:14px;width:44px;height:44px;margin:0;padding:0;border:1px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(0,0,0,.48);color:#fff;font-size:24px;line-height:1;display:grid;place-items:center}
+    #reader__dashboard_section_csr button{margin-top:8px !important}
+    body.qr-scanning{overflow:hidden}
+    @media(max-width:680px){
+      body.qr-scanning #reader{position:fixed;z-index:9999;inset:0;margin:0;border-radius:0;min-height:100dvh;width:100vw;height:100dvh;background:#000}
+      body.qr-scanning #reader video{width:100vw !important;height:100dvh !important;min-height:100dvh !important;border-radius:0;object-fit:cover}
+      body.qr-scanning #reader .scan-frame{width:min(72vw,292px);height:min(72vw,292px);border-radius:22px}
+      body.qr-scanning #reader .scan-tip{bottom:max(42px,calc(env(safe-area-inset-bottom) + 28px));font-size:13px}
+      body.qr-scanning #reader .scan-close{top:max(16px,env(safe-area-inset-top));right:16px}
+      body.qr-scanning #reader__dashboard{position:absolute!important;z-index:23;inset:auto 12px max(84px,calc(env(safe-area-inset-bottom) + 68px)) 12px;background:transparent!important;color:#fff!important}
+      body.qr-scanning #reader__dashboard_section_csr{display:none!important}
+    }
+    #status{min-height:24px;margin-top:12px;font-weight:800}
+    .qr-version{margin-top:6px;color:#94a3b8;font-size:10px;text-align:right}
+    .result{margin-top:20px;display:none;border:1px solid #e9c86a;border-radius:13px;padding:18px;background:#fffaf0}
+    .row{display:flex;justify-content:space-between;gap:18px;border-bottom:1px solid #eee;padding:9px 0}
+    .row b{color:#7a5b11}.pill{display:inline-block;background:#eaf8ef;color:#168b57;padding:5px 9px;border-radius:99px;font-weight:800}
+    .records{margin-top:16px}.record{padding:13px;margin-top:8px;border:1px solid #dbe4ef;border-radius:10px;background:#fbfdff}
+    .record button{margin-top:5px;padding:8px 10px;font-size:12px}
+    .empty{color:#64748b;font-size:14px;margin-top:14px}
+    @media(max-width:680px){.grid{grid-template-columns:1fr}header{gap:12px;flex-direction:column;align-items:flex-start}}
+  </style>
+
+    <!-- KBL PWA N10 -->
+    <link rel="manifest" href="/manifest.webmanifest?v=n10-loyalty-growth-ai" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/pwa/kbl-app-r8-1-64.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/pwa/kbl-app-r8-1-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Kim Bảo Lâm" />
+    <meta name="mobile-web-app-capable" content="yes" />
+</head>
+<body>
+  <header><b>◆ KIM BẢO LÂM</b><nav><a href="/">Trang chủ</a>　<a href="/dang-nhap">Đăng nhập</a></nav></header>
+  <main class="wrap">
+    <div class="grid">
+      <section class="card">
+        <h1>Tra cứu phiếu cầm</h1>
+        <p class="muted">Quét QR trên phiếu hoặc nhập mã tra cứu. Thông tin chỉ xem, không thể sửa hay can thiệp dữ liệu tiệm.</p>
+        <label for="code">Đường link hoặc mã QR trên phiếu</label>
+        <input id="code" placeholder="Dán đường link QR hoặc quét bằng camera">
+        <div class="scan-tools">
+          <button class="gold" id="lookup" type="button">🔎 TRA CỨU</button>
+          <button class="light" id="scan" type="button">📷 QUÉT QR BẰNG CAMERA</button>
+          <button class="light" id="stop-scan" type="button" hidden>⏹ DỪNG CAMERA</button>
+          <label class="scan-file-label" for="scan-file">🖼️ CHỌN ẢNH QR TRONG THƯ VIỆN</label>
+        </div>
+        <input id="scan-file" type="file" accept="image/*" hidden>
+        <div id="reader" hidden></div>
+        <div id="status"></div><div class="qr-version">QR LIVE R8.2 · iPhone/PWA decoder fix</div>
+      </section>
+      <section class="card">
+        <h1>Phiếu của tôi</h1>
+        <p class="muted">Đăng nhập bằng SĐT để xem các phiếu đã lập tại tiệm.</p>
+        <button id="load" type="button">↻ TẢI PHIẾU CỦA TÔI</button>
+        <div id="records" class="records"></div>
+      </section>
+    </div>
+    <section id="result" class="result"></section>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const nf = new Intl.NumberFormat('vi-VN');
+    let scanner = null;
+
+    function money(value) {
+      return nf.format(Number(value) || 0) + 'đ';
+    }
+
+    function escapeText(value) {
+      return String(value === undefined || value === null ? '' : value);
+    }
+
+    function safeDecodeLookup(value) {
+      let decoded = String(value || '').trim().replace(/^["']|["']$/g, '');
+      for (let index = 0; index < 2; index += 1) {
+        try {
+          const next = decodeURIComponent(decoded.replace(/\+/g, '%20'));
+          if (next === decoded) break;
+          decoded = next.trim();
+        } catch (_) { break; }
+      }
+      return decoded;
+    }
+
+    function lookupFromUrl(value) {
+      const raw = safeDecodeLookup(value);
+      const embedded = raw.match(/https?:\/\/[^\s<>"']+/i);
+      const candidate = embedded ? embedded[0] : raw;
+      if (!/^(?:https?:\/\/|\/)/i.test(candidate)) return null;
+      try {
+        const url = new URL(candidate, location.origin);
+        const hashParams = new URLSearchParams(String(url.hash || '').replace(/^#\??/, ''));
+        const first = (keys) => {
+          for (const key of keys) {
+            const found = url.searchParams.get(key) || hashParams.get(key);
+            if (found) return safeDecodeLookup(found);
+          }
+          return '';
+        };
+        return {
+          token: first(['token', 't']),
+          code: first(['code', 'c', 'id', 'ma'])
+        };
+      } catch (_) { return null; }
+    }
+
+    function parseLookupInput(value) {
+      const raw = safeDecodeLookup(value);
+      if (!raw) return { token: '', code: '' };
+      const fromUrl = lookupFromUrl(raw);
+      if (fromUrl && (fromUrl.token || fromUrl.code)) return fromUrl;
+      const internal = raw.match(/^KBLPOS[-_:| ]*PAWN[-_:| ]*(.+)$/i);
+      if (internal) return { token: '', code: internal[1].trim() };
+      if (/^kbl_[a-z0-9_-]{16,124}$/i.test(raw)) return { token: raw, code: '' };
+      return { token: '', code: raw };
+    }
+
+    function queryValue() {
+      return $('code').value.trim();
+    }
+
+    function addResultRow(parent, label, value, className) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const left = document.createElement('b');
+      left.textContent = label;
+      const right = document.createElement(className === 'pill' ? 'span' : 'strong');
+      if (className) right.className = className;
+      right.textContent = escapeText(value);
+      row.append(left, right);
+      parent.appendChild(row);
+    }
+
+    function show(record) {
+      const result = $('result');
+      result.replaceChildren();
+      addResultRow(result, 'Mã phiếu', record.id || '');
+      addResultRow(result, 'Khách hàng', record.name || '');
+      if (record.phoneMasked) addResultRow(result, 'Số điện thoại', record.phoneMasked);
+      addResultRow(result, 'Tài sản', record.asset || '—');
+      addResultRow(result, 'Tiền gốc', money(record.money));
+      addResultRow(result, 'Ngày cầm', record.dateStart || '—');
+      addResultRow(result, 'Số ngày tạm tính', (Number(record.days) || 0) + ' ngày');
+      addResultRow(result, 'Lãi tạm tính', money(record.tienLai));
+      addResultRow(result, 'Phí tạm tính', money(record.tienPhi));
+      addResultRow(result, 'Tổng phải trả tạm tính', money(record.totalDue));
+      addResultRow(result, 'Ngày đến hạn', record.dateEnd || '—');
+      addResultRow(result, 'Trạng thái', record.status || 'Đang cầm', 'pill');
+      result.style.display = 'block';
+      result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function find(value) {
+      $('status').style.color = '';
+      $('status').textContent = 'Đang tra cứu...';
+      try {
+        const parsed = parseLookupInput(value || queryValue());
+        if (!parsed.token && !parsed.code) throw new Error('Dán đường link hoặc quét QR trước');
+        const attempts = [];
+        if (parsed.token) attempts.push('/api/lookup?token=' + encodeURIComponent(parsed.token));
+        if (parsed.code) attempts.push('/api/lookup?code=' + encodeURIComponent(parsed.code));
+        let lastMessage = 'Không tìm thấy phiếu';
+        for (const endpoint of attempts) {
+          const response = await fetch(endpoint, { cache: 'no-store' });
+          const data = await response.json().catch(() => ({}));
+          if (response.ok && data.success) {
+            show(data.record);
+            $('status').style.color = '#168b57';
+            $('status').textContent = '✅ Phiếu ở chế độ xem · Lãi/phí tạm tính đến hôm nay';
+            return;
+          }
+          lastMessage = data.message || lastMessage;
+        }
+        throw new Error(lastMessage);
+      } catch (error) {
+        $('status').style.color = '#c0392b';
+        $('status').textContent = '❌ ' + error.message;
+      }
+    }
+
+    function renderRecords(records) {
+      const box = $('records');
+      box.replaceChildren();
+      if (!records.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'Chưa có phiếu được liên kết với tài khoản này.';
+        box.appendChild(empty);
+        return;
+      }
+      records.forEach((record) => {
+        const item = document.createElement('div');
+        item.className = 'record';
+        const summary = document.createElement('div');
+        summary.textContent = (record.id || '') + ' · ' + (record.asset || 'Chưa nhập tài sản') + ' · ' + money(record.totalDue);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = 'Xem';
+        button.addEventListener('click', () => show(record));
+        item.append(summary, button);
+        box.appendChild(item);
+      });
+    }
+
+    $('lookup').addEventListener('click', () => find());
+    $('load').addEventListener('click', async () => {
+      $('status').textContent = 'Đang tải danh sách phiếu...';
+      try {
+        const response = await fetch('/api/my/pawns', { cache: 'no-store' });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || 'Cần đăng nhập');
+        renderRecords(Array.isArray(data.records) ? data.records : []);
+        $('status').style.color = '#168b57';
+        $('status').textContent = '✅ Đã tải phiếu của tài khoản';
+      } catch (_) {
+        $('records').innerHTML = '<a href="/dang-nhap">Đăng nhập để xem phiếu của tôi →</a>';
+        $('status').style.color = '#c0392b';
+        $('status').textContent = 'Vui lòng đăng nhập trước.';
+      }
+    });
+
+    let scanLocked = false;
+    let nativeStream = null;
+    let nativeVideo = null;
+    let nativeDetector = null;
+    let nativeScanTimer = null;
+    let inlineVideoObserver = null;
+    let robustQrScanner = null;
+
+    function setScanStatus(message, color) {
+      $('status').style.color = color || '';
+      $('status').textContent = message;
+    }
+
+    function isIOSDevice() {
+      return /iPad|iPhone|iPod/i.test(navigator.userAgent || '')
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    function isStandalonePwa() {
+      return window.matchMedia?.('(display-mode: standalone)')?.matches
+        || window.navigator.standalone === true;
+    }
+
+    function isEmbeddedIOSBrowser() {
+      if (!isIOSDevice() || isStandalonePwa()) return false;
+      const ua = navigator.userAgent || '';
+      const knownEmbedded = /FBAN|FBAV|FB_IAB|Messenger|Instagram|Zalo|Line|TikTok|MicroMessenger/i.test(ua);
+      const fullSafari = /Version\/[\d.]+.*Safari/i.test(ua)
+        && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(ua);
+      return knownEmbedded || !fullSafari;
+    }
+
+    async function leavePictureInPicture(video) {
+      try {
+        if (document.pictureInPictureElement === video && document.exitPictureInPicture) {
+          await document.exitPictureInPicture();
+        }
+      } catch (_) {}
+      try {
+        if (typeof video.webkitSetPresentationMode === 'function' && video.webkitPresentationMode !== 'inline') {
+          video.webkitSetPresentationMode('inline');
+        }
+      } catch (_) {}
+    }
+
+    function forceInlineVideo(video) {
+      if (!video || video.dataset.kblInlineVideo === '1') return;
+      video.dataset.kblInlineVideo = '1';
+      video.autoplay = true;
+      video.muted = true;
+      video.controls = false;
+      video.playsInline = true;
+      video.setAttribute('autoplay', '');
+      video.setAttribute('muted', '');
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');
+      video.setAttribute('disablepictureinpicture', '');
+      video.setAttribute('controlslist', 'nodownload noplaybackrate noremoteplayback');
+      video.setAttribute('x-webkit-airplay', 'deny');
+      try { video.disablePictureInPicture = true; } catch (_) {}
+      try { video.disableRemotePlayback = true; } catch (_) {}
+      video.addEventListener('enterpictureinpicture', () => leavePictureInPicture(video));
+      video.addEventListener('webkitpresentationmodechanged', () => leavePictureInPicture(video));
+    }
+
+    function watchReaderVideos() {
+      if (inlineVideoObserver) inlineVideoObserver.disconnect();
+      const reader = $('reader');
+      const apply = () => reader.querySelectorAll('video').forEach(forceInlineVideo);
+      inlineVideoObserver = new MutationObserver(apply);
+      inlineVideoObserver.observe(reader, { childList: true, subtree: true });
+      apply();
+    }
+
+    function addScanOverlay() {
+      const reader = $('reader');
+      reader.querySelectorAll('.scan-frame,.scan-tip,.scan-close').forEach((node) => node.remove());
+      const frame = document.createElement('div');
+      frame.className = 'scan-frame';
+      const laser = document.createElement('span');
+      laser.className = 'scan-laser';
+      frame.appendChild(laser);
+      const tip = document.createElement('div');
+      tip.className = 'scan-tip';
+      tip.textContent = 'Đưa mã QR vào giữa khung · camera sẽ tự nhận, không cần bấm chụp';
+      const close = document.createElement('button');
+      close.className = 'scan-close';
+      close.type = 'button';
+      close.setAttribute('aria-label', 'Đóng camera quét QR');
+      close.textContent = '×';
+      close.addEventListener('click', () => stopScanner());
+      reader.append(frame, tip, close);
+    }
+
+    async function stopScanner() {
+      scanLocked = true;
+      if (inlineVideoObserver) {
+        inlineVideoObserver.disconnect();
+        inlineVideoObserver = null;
+      }
+      if (robustQrScanner) {
+        try { await robustQrScanner.stop(); } catch (_) {}
+        try { robustQrScanner.destroy(); } catch (_) {}
+        robustQrScanner = null;
+      }
+      if (nativeScanTimer) {
+        clearInterval(nativeScanTimer);
+        nativeScanTimer = null;
+      }
+      if (nativeStream) {
+        nativeStream.getTracks().forEach((track) => track.stop());
+        nativeStream = null;
+      }
+      nativeVideo = null;
+      nativeDetector = null;
+      if (scanner) {
+        try { await scanner.stop(); } catch (_) {}
+        try { scanner.clear(); } catch (_) {}
+        scanner = null;
+      }
+      $('reader').replaceChildren();
+      $('reader').hidden = true;
+      document.body.classList.remove('qr-scanning');
+      $('stop-scan').hidden = true;
+    }
+
+    function scannerConfig() {
+      return {
+        fps: 10,
+        qrbox: (width, height) => {
+          const size = Math.floor(Math.min(width, height) * 0.68);
+          return { width: Math.max(160, size), height: Math.max(160, size) };
+        },
+        ...(window.Html5QrcodeSupportedFormats ? { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] } : {})
+      };
+    }
+
+    async function onDecoded(text) {
+      if (scanLocked || !text) return;
+      scanLocked = true;
+      try { $('reader').classList.add('scan-success'); } catch (_) {}
+      try { navigator.vibrate?.(60); } catch (_) {}
+      setScanStatus('✅ Đã nhận mã QR · đang mở phiếu...', '#168b57');
+      await new Promise((resolve) => setTimeout(resolve, 180));
+      await stopScanner();
+      $('code').value = text;
+      find(text);
+    }
+
+    async function startRobustQrScanner() {
+      if (!window.QrScanner) throw new Error('robust-qr-engine-unavailable');
+      await stopScanner();
+      scanLocked = false;
+      $('reader').hidden = false;
+      $('stop-scan').hidden = false;
+      document.body.classList.add('qr-scanning');
+      const video = document.createElement('video');
+      forceInlineVideo(video);
+      nativeVideo = video;
+      $('reader').appendChild(video);
+      watchReaderVideos();
+      addScanOverlay();
+
+      robustQrScanner = new QrScanner(
+        video,
+        (result) => {
+          const text = typeof result === 'string' ? result : (result?.data || '');
+          if (text) onDecoded(text);
+        },
+        {
+          preferredCamera: 'environment',
+          maxScansPerSecond: 12,
+          highlightScanRegion: false,
+          highlightCodeOutline: false,
+          returnDetailedScanResult: true,
+          calculateScanRegion: (sourceVideo) => {
+            const width = Math.max(1, sourceVideo.videoWidth || 1280);
+            const height = Math.max(1, sourceVideo.videoHeight || 720);
+            const side = Math.max(1, Math.floor(Math.min(width, height) * 0.94));
+            const scaled = Math.min(960, side);
+            return {
+              x: Math.max(0, Math.floor((width - side) / 2)),
+              y: Math.max(0, Math.floor((height - side) / 2)),
+              width: side,
+              height: side,
+              downScaledWidth: scaled,
+              downScaledHeight: scaled
+            };
+          }
+        }
+      );
+      await robustQrScanner.start();
+      forceInlineVideo(video);
+      setScanStatus('Camera LIVE đang mở · đưa QR vào khung vàng, app sẽ tự nhận.', '#168b57');
+    }
+
+    async function startNativeScanner() {
+      if (!navigator.mediaDevices?.getUserMedia || !('BarcodeDetector' in window)) throw new Error('native-qr-unavailable');
+      await stopScanner();
+      scanLocked = false;
+      $('reader').hidden = false;
+      $('stop-scan').hidden = false;
+      document.body.classList.add('qr-scanning');
+      const video = document.createElement('video');
+      forceInlineVideo(video);
+      nativeVideo = video;
+      watchReaderVideos();
+      $('reader').appendChild(video);
+      addScanOverlay();
+      try {
+        nativeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+      } catch (_) {
+        nativeDetector = new BarcodeDetector();
+      }
+      const preferred = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+      try {
+        nativeStream = await navigator.mediaDevices.getUserMedia(preferred);
+      } catch (_) {
+        nativeStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+      video.srcObject = nativeStream;
+      await video.play();
+      setScanStatus('Camera đang mở · đưa mã QR vào khung màu vàng.', '#168b57');
+      nativeScanTimer = setInterval(async () => {
+        if (scanLocked || !nativeDetector || !nativeVideo || nativeVideo.readyState < 2) return;
+        try {
+          const codes = await nativeDetector.detect(nativeVideo);
+          if (codes?.[0]?.rawValue) onDecoded(codes[0].rawValue);
+        } catch (_) {}
+      }, 180);
+    }
+
+    async function startLegacyScanner() {
+      if (!window.Html5Qrcode) throw new Error('Bộ quét QR chưa tải xong. Hãy tải lại trang.');
+      await stopScanner();
+      scanLocked = false;
+      $('reader').hidden = false;
+      $('stop-scan').hidden = false;
+      document.body.classList.add('qr-scanning');
+      scanner = new Html5Qrcode('reader', { verbose: false });
+      watchReaderVideos();
+      const camera = { facingMode: 'environment' };
+      const config = scannerConfig();
+      config.fps = 15;
+      config.disableFlip = true;
+      await scanner.start(camera, config, (text) => onDecoded(text), () => {});
+      $('reader').querySelectorAll('video').forEach(forceInlineVideo);
+      addScanOverlay();
+      setScanStatus('Camera đang mở · đưa mã QR vào khung màu vàng.', '#168b57');
+    }
+
+    async function startScanner() {
+      setScanStatus('Đang mở camera quét QR trực tiếp...', '');
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error('LIVE_CAMERA_BLOCKED');
+
+      // R8.2: iPhone/Safari/PWA ưu tiên QrScanner worker decoder.
+      // Engine này tự quét video LIVE, không mở input chụp ảnh và không cần BarcodeDetector của Chrome.
+      const preferRobust = isIOSDevice() || isStandalonePwa();
+      let robustError = null;
+      let html5Error = null;
+
+      if (preferRobust && window.QrScanner) {
+        try {
+          await startRobustQrScanner();
+          return;
+        } catch (error) {
+          robustError = error;
+          await stopScanner();
+        }
+      }
+
+      try {
+        await startLegacyScanner();
+        return;
+      } catch (error) {
+        html5Error = error;
+        await stopScanner();
+      }
+
+      if (!preferRobust && window.QrScanner) {
+        try {
+          await startRobustQrScanner();
+          return;
+        } catch (error) {
+          robustError = error;
+          await stopScanner();
+        }
+      }
+
+      try {
+        await startNativeScanner();
+        return;
+      } catch (nativeError) {
+        await stopScanner();
+        const error = robustError || nativeError || html5Error;
+        error.kblHtml5Error = html5Error;
+        error.kblRobustError = robustError;
+        throw error;
+      }
+    }
+
+    async function buildQrImageVariants(file) {
+      const variants = [file];
+      if (typeof createImageBitmap !== 'function') return variants;
+      let bitmap = null;
+      try {
+        bitmap = await createImageBitmap(file);
+        const makeVariant = async (maxSide, contrast) => {
+          const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+          const width = Math.max(1, Math.round(bitmap.width * scale));
+          const height = Math.max(1, Math.round(bitmap.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d', { willReadFrequently: Boolean(contrast) });
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(bitmap, 0, 0, width, height);
+          if (contrast) {
+            const image = ctx.getImageData(0, 0, width, height);
+            const data = image.data;
+            for (let i = 0; i < data.length; i += 4) {
+              const y = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+              const value = Math.max(0, Math.min(255, (y - 128) * 1.55 + 128));
+              data[i] = data[i + 1] = data[i + 2] = value;
+            }
+            ctx.putImageData(image, 0, 0);
+          }
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.96));
+          return blob ? new File([blob], `kbl-qr-${maxSide}-${contrast ? 'contrast' : 'clean'}.jpg`, { type: 'image/jpeg' }) : null;
+        };
+        for (const [size, contrast] of [[1600, false], [1200, true], [900, true]]) {
+          const variant = await makeVariant(size, contrast);
+          if (variant) variants.push(variant);
+        }
+      } catch (error) {
+        console.warn('QR image preprocessing skipped', error);
+      } finally {
+        try { bitmap?.close?.(); } catch (_) {}
+      }
+      return variants;
+    }
+
+    async function scanImageFile(file) {
+      if (!file) return;
+      await stopScanner();
+      setScanStatus('Đang đọc ảnh QR...', '');
+      try {
+        let text = '';
+        let lastError = null;
+        const variants = await buildQrImageVariants(file);
+        if (window.Html5Qrcode) {
+          for (const variant of variants) {
+            const imageScanner = new Html5Qrcode('reader');
+            try {
+              text = await imageScanner.scanFile(variant, true);
+              if (text) break;
+            } catch (error) {
+              lastError = error;
+            } finally {
+              try { imageScanner.clear(); } catch (_) {}
+            }
+          }
+        }
+        if (!text && 'BarcodeDetector' in window && typeof createImageBitmap === 'function') {
+          for (const variant of variants) {
+            try {
+              const detector = new BarcodeDetector({ formats: ['qr_code'] });
+              const bitmap = await createImageBitmap(variant);
+              const codes = await detector.detect(bitmap);
+              bitmap.close?.();
+              text = codes?.[0]?.rawValue || '';
+              if (text) break;
+            } catch (error) {
+              lastError = error;
+            }
+          }
+        }
+        if (!text) {
+          console.warn('QR image decode failed', lastError);
+          throw new Error('Không nhận được mã QR trong ảnh. Hãy đưa QR gần hơn, chụp thẳng và đủ sáng; hoặc bấm “Quét QR bằng camera” để quét LIVE trực tiếp.');
+        }
+        $('code').value = text;
+        await onDecoded(text);
+      } catch (error) {
+        setScanStatus('❌ ' + (error.message || 'Không đọc được ảnh QR.'), '#c0392b');
+      }
+    }
+
+    $('scan').addEventListener('click', () => {
+      // QUAN TRỌNG R6: nút này chỉ mở camera LIVE trong trang.
+      // Không được tự kích hoạt input file/capture của iPhone.
+      startScanner().catch((error) => {
+        const embedded = isEmbeddedIOSBrowser();
+        const installed = isStandalonePwa();
+        const message = embedded
+          ? '❌ Messenger/Zalo đang chặn camera LIVE. Hãy mở trang này bằng Safari rồi bấm “Quét QR bằng camera”.'
+          : installed
+            ? '❌ App KBL chưa mở được camera LIVE. Bấm nút ↻ tải lại ở góc trái dưới, cho phép Camera rồi thử lại.'
+            : '❌ Chưa mở được camera LIVE. Hãy cho phép quyền Camera trong trình duyệt rồi thử lại.';
+        setScanStatus(message, '#c0392b');
+        console.warn('KBL QR LIVE R8.2 scanner error', error);
+      });
+    });
+    $('stop-scan').addEventListener('click', () => stopScanner());
+    $('scan-file').addEventListener('change', (event) => {
+      const [file] = event.target.files || [];
+      scanImageFile(file);
+      event.target.value = '';
+    });
+    $('code').addEventListener('keydown', (event) => { if (event.key === 'Enter') find(); });
+    window.addEventListener('pagehide', () => { stopScanner().catch(() => {}); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden && !document.body.classList.contains('qr-scanning')) return; if (document.hidden) stopScanner().catch(() => {}); });
+
+
+    const initialParams = new URLSearchParams(location.search);
+    const initialInput = ['token', 't', 'code', 'c', 'id', 'ma'].some((key) => initialParams.has(key));
+    if (initialInput) {
+      $('code').value = location.href;
+      find(location.href);
+    }
+  </script>
+
+    <script defer src="/pwa-register.js?v=n10-loyalty-growth-ai"></script>
+</body>
+</html>

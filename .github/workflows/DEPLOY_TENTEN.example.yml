@@ -1,0 +1,9 @@
+# TEMPLATE ONLY - rename to .yml only after TENTEN SSH/SFTP and restart details are confirmed.
+name: TEMPLATE - Deploy TENTEN
+on:
+  workflow_dispatch:
+jobs:
+  disabled-template:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Configure TENTEN deployment before enabling this workflow."

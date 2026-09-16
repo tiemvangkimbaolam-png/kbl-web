@@ -1,0 +1,38 @@
+# Runtime dependencies
+node_modules/
+
+# Secrets / environment
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+
+# KBL runtime data - never commit customer/business live data
+data/
+logs/
+tmp/
+backups/
+deploy-backups/
+audit/
+
+# Runtime/generated media
+public/uploads/
+
+# Temporary/editor files
+*.log
+*.tmp
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local archives
+*.7z
+*.rar
+*.tar
+*.tar.gz

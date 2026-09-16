@@ -1,0 +1,9 @@
+# TEMPLATE ONLY - rename to .yml only after the backup Node server is provisioned.
+name: TEMPLATE - Deploy backup Node origin
+on:
+  workflow_dispatch:
+jobs:
+  disabled-template:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Configure backup origin deployment before enabling this workflow."
