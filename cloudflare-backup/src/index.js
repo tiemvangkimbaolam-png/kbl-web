@@ -2,7 +2,7 @@ var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
 // src/index.js
-var VERSION = "1.0.1-house2-origin-override-final";
+var VERSION = "1.0.2-house2-media-stable-final";
 var PUBLIC_SITE_ORIGIN = "https://tiemvangkimbaolam.id.vn";
 var PRIMARY_PROXY_TIMEOUT_MS = 5e3;
 var MEDIA_STATE_KEY = "state/catalog-media-state.json";
@@ -700,10 +700,22 @@ async function mirrorMediaBatch(env) {
     throw new Error("Catalog backup is unavailable.");
   }
   const sources = catalogPrimaryMediaSources(catalog.products);
+  const mediaSourcesChecksum = await sha256Hex(JSON.stringify([...sources].sort()));
   const now = (/* @__PURE__ */ new Date()).toISOString();
   const current = await readMediaState(env);
-  let state = current && current.catalogChecksum === catalog.checksum ? { ...current } : {
+  const canReuseCurrent = Boolean(
+    current && (
+      current.mediaSourcesChecksum === mediaSourcesChecksum ||
+      (!current.mediaSourcesChecksum && Number(current.totalSources || 0) === sources.length)
+    )
+  );
+  let state = canReuseCurrent ? {
+    ...current,
     catalogChecksum: catalog.checksum,
+    mediaSourcesChecksum
+  } : {
+    catalogChecksum: catalog.checksum,
+    mediaSourcesChecksum,
     cursor: 0,
     totalSources: sources.length,
     ready: sources.length === 0,
