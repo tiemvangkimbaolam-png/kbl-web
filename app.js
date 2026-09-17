@@ -2927,6 +2927,26 @@ function normalizeFeaturedProductOrder() {
   return featured;
 }
 
+function normalizeDisplayProductOrder() {
+  const originalIndex = new Map(products.map((product, index) => [String(product && product.id || ''), index]));
+  const displayed = products.filter((product) => (
+    product
+    && publicationStatusFor(product) === 'published'
+    && String(product.status || 'available') === 'available'
+    && Boolean(safeImageSource(product.image))
+  ));
+  displayed.sort((a, b) => {
+    const ao = Math.max(0, Math.floor(number(a && a.displayOrder)));
+    const bo = Math.max(0, Math.floor(number(b && b.displayOrder)));
+    if (ao && bo && ao !== bo) return ao - bo;
+    if (ao && !bo) return -1;
+    if (!ao && bo) return 1;
+    return (originalIndex.get(String(a && a.id || '')) || 0) - (originalIndex.get(String(b && b.id || '')) || 0);
+  });
+  displayed.forEach((product, index) => { product.displayOrder = index + 1; });
+  return displayed;
+}
+
 const kblCatalogMedia = require('./modules/kbl-catalog-media').create({ getProducts: () => products, publicationStatusFor, safeImageSource });
 function productsForView(list, { compactMedia = false } = {}) {
   const visible = list
@@ -2956,6 +2976,7 @@ function productsForView(list, { compactMedia = false } = {}) {
       sizeLabel: cleanLabelText(product.sizeLabel, 80),
       featured: Boolean(product.featured),
       featuredOrder: Math.max(0, Math.floor(number(product.featuredOrder))),
+      displayOrder: Math.max(0, Math.floor(number(product.displayOrder))),
       kind: normalizeProductKind(product.kind),
       status: 'available',
       image: kblCatalogMedia.imageFor(product, 'image', compactMedia),
@@ -12442,6 +12463,7 @@ app.post('/api/admin/products', (req, res) => {
     source,
     status,
     publicationStatus,
+    displayOrder: publicationStatus === 'published' ? Math.max(0, Math.floor(number(existing && existing.displayOrder))) : 0,
     image,
     tryOnImage,
     geminiTryOnImage,
@@ -12453,6 +12475,7 @@ app.post('/api/admin/products', (req, res) => {
   // An explicitly replaced main image must agree with downstream approved media.
   if(imageChanged&&existing&&safeImageSource(existing.displayImage)){product.displayImage=image;product.displayApprovedAt=now;}
   products = [...products.filter((p) => p.id !== product.id), product];
+  normalizeDisplayProductOrder();
   writeJson(PRODUCTS_FILE, products);
   auditEvent(req, existing ? 'product.update' : 'product.create', 'ok', { productId: product.id, sku: product.sku, goldCode: product.goldCode, kind: product.kind, publicationStatus });
   kblDiscoveryQueueProduct(product, existing ? 'product-update' : 'product-create');
@@ -12472,12 +12495,17 @@ app.post('/api/admin/products/:id/visibility', (req, res) => {
   const now = new Date().toISOString();
   product.publicationStatus = requested;
   product.updatedAt = now;
-  if (requested === 'published') product.publishedAt = product.publishedAt || now;
+  if (requested === 'published') {
+    product.publishedAt = product.publishedAt || now;
+    normalizeDisplayProductOrder();
+  }
   if (requested === 'hidden') {
     product.hiddenAt = now;
     product.featured = false;
     product.featuredOrder = 0;
+    product.displayOrder = 0;
     normalizeFeaturedProductOrder();
+    normalizeDisplayProductOrder();
   }
   writeJson(PRODUCTS_FILE, products);
   auditEvent(req, requested === 'published' ? 'product.publish' : 'product.hide', 'ok', { productId: product.id, sku: product.sku || '' });
@@ -12527,7 +12555,40 @@ app.post('/api/admin/products/:id/featured', (req, res) => {
     featured: featured.map((item) => ({ id: String(item.id), featuredOrder: Math.max(0, Math.floor(number(item.featuredOrder))) }))
   });
 });
-app.post('/api/admin/products/:id/sold', (req, res) => { if (!requireAdmin(req, res)) return; const p = products.find((item) => item.id === req.params.id); if (!p) return json(res, 404, { success: false, message: 'Không tìm thấy sản phẩm.' }); p.status = 'sold'; p.soldAt = new Date().toISOString(); p.featured = false; p.featuredOrder = 0; normalizeFeaturedProductOrder(); writeJson(PRODUCTS_FILE, products); auditEvent(req, 'product.sold', 'ok', { productId: p.id }); kblDiscoveryQueueProduct(p,'product-sold'); json(res, 200, { success: true, product: p }); });
+app.post('/api/admin/products/:id/display-order', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const product = products.find((item) => String(item.id) === String(req.params.id));
+  if (!product) return json(res, 404, { success: false, message: 'Không tìm thấy sản phẩm.' });
+  if (publicationStatusFor(product) !== 'published' || String(product.status || 'available') !== 'available' || !safeImageSource(product.image)) {
+    return json(res, 409, { success: false, message: 'Chỉ sắp xếp được sản phẩm đang trưng bày, còn hàng và có ảnh.' });
+  }
+  const move = ['top', 'up', 'down', 'bottom'].includes(String(req.body && req.body.move || '').toLowerCase())
+    ? String(req.body.move).toLowerCase() : '';
+  if (!move) return json(res, 400, { success: false, message: 'Thao tác sắp xếp không hợp lệ.' });
+  let displayed = normalizeDisplayProductOrder();
+  const index = displayed.findIndex((item) => String(item.id) === String(product.id));
+  if (index < 0) return json(res, 409, { success: false, message: 'Sản phẩm chưa nằm trong danh sách trưng bày.' });
+  let target = index;
+  if (move === 'top') target = 0;
+  if (move === 'up') target = Math.max(0, index - 1);
+  if (move === 'down') target = Math.min(displayed.length - 1, index + 1);
+  if (move === 'bottom') target = displayed.length - 1;
+  if (target !== index) {
+    const [picked] = displayed.splice(index, 1);
+    displayed.splice(target, 0, picked);
+    displayed.forEach((item, orderIndex) => { item.displayOrder = orderIndex + 1; });
+  }
+  product.updatedAt = new Date().toISOString();
+  writeJson(PRODUCTS_FILE, products);
+  auditEvent(req, 'product.display-order', 'ok', { productId: product.id, sku: product.sku || '', displayOrder: number(product.displayOrder), move });
+  return json(res, 200, {
+    success: true,
+    product: productForAdmin(product),
+    display: displayed.map((item) => ({ id: String(item.id), displayOrder: Math.max(0, Math.floor(number(item.displayOrder))) }))
+  });
+});
+
+app.post('/api/admin/products/:id/sold', (req, res) => { if (!requireAdmin(req, res)) return; const p = products.find((item) => item.id === req.params.id); if (!p) return json(res, 404, { success: false, message: 'Không tìm thấy sản phẩm.' }); p.status = 'sold'; p.soldAt = new Date().toISOString(); p.featured = false; p.featuredOrder = 0; p.displayOrder = 0; normalizeFeaturedProductOrder(); normalizeDisplayProductOrder(); writeJson(PRODUCTS_FILE, products); auditEvent(req, 'product.sold', 'ok', { productId: p.id }); kblDiscoveryQueueProduct(p,'product-sold'); json(res, 200, { success: true, product: p }); });
 app.delete('/api/admin/products/:id', (req, res) => {
   if (!requireAdmin(req, res)) return;
   const id = String(req.params.id || '');
@@ -12536,6 +12597,7 @@ app.delete('/api/admin/products/:id', (req, res) => {
   products = products.filter((item) => item.id !== id);
   if (products.length === before) return json(res, 404, { success: false, message: 'Không tìm thấy sản phẩm.' });
   normalizeFeaturedProductOrder();
+  normalizeDisplayProductOrder();
   writeJson(PRODUCTS_FILE, products);
   auditEvent(req, 'product.delete', 'ok', { productId: id });
   if (deletedProduct) kblDiscoveryQueueProduct(deletedProduct,'product-delete'); else kblDiscoveryQueueUrls(kblDiscoveryCoreUrls(),'product-delete');

@@ -1435,6 +1435,44 @@ button {
   color: #98a1ae;
 }
 
+/* KBL CATALOG STICKY NAV + OWNER DISPLAY ORDER · 2026-09-17 */
+.products-section{scroll-margin-top:112px}
+.catalog-toolbar.catalog-toolbar-sticky{
+  position:sticky;
+  z-index:18;
+  top:94px;
+  margin:26px -10px 0;
+  padding:10px;
+  background:rgba(255,253,248,.96);
+  border:1px solid rgba(225,214,184,.9);
+  border-radius:14px;
+  box-shadow:0 8px 24px rgba(8,36,67,.08);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+.catalog-toolbar-sticky .filter-tabs{
+  width:100%;
+  flex-wrap:nowrap;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+  padding:1px 0 3px;
+}
+.catalog-toolbar-sticky .filter-tabs::-webkit-scrollbar{display:none}
+.catalog-toolbar-sticky .filter-tab{flex:0 0 auto;white-space:nowrap}
+.catalog-search-box{width:min(100%,520px);margin-top:12px}
+@media(max-width:800px){
+  .catalog-toolbar.catalog-toolbar-sticky{margin:20px -4px 0;padding:8px;border-radius:12px}
+  .catalog-toolbar-sticky .filter-tabs{gap:6px}
+  .catalog-toolbar-sticky .filter-tab{padding:9px 12px;font-size:11px}
+  .catalog-search-box{width:100%;margin-top:10px}
+}
+@media(max-width:640px){
+  .products-section{scroll-margin-top:86px}
+  .catalog-toolbar.catalog-toolbar-sticky{top:70px}
+}
+
 .product-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -3791,7 +3829,8 @@ button {
 .ai-chat-modal{width:min(760px,calc(100% - 28px));max-height:min(86vh,820px);display:flex;flex-direction:column;gap:12px;padding:22px;overflow:hidden}
 .ai-chat-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-right:36px}.ai-chat-head h2{margin:4px 0 0;color:var(--navy);font-size:26px}.ai-chat-online{font-size:11px;font-weight:800;color:#087f74;background:#eaf8f5;border:1px solid #c9ece5;border-radius:999px;padding:7px 10px;white-space:nowrap}
 .ai-chat-log{min-height:220px;max-height:38vh;overflow:auto;padding:14px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}.ai-chat-bubble{max-width:88%;padding:11px 13px;border-radius:14px;font-size:13px;line-height:1.6;white-space:pre-wrap}.ai-chat-bubble.bot{align-self:flex-start;background:#fff;color:#18324f;border:1px solid #e3e9f0;border-bottom-left-radius:5px}.ai-chat-bubble.user{align-self:flex-end;background:#0b3158;color:#fff;border-bottom-right-radius:5px}.ai-chat-status{min-height:18px;margin:0;color:#66758a;font-size:12px}.ai-chat-input{grid-template-columns:1fr auto;margin:0}.ai-chat-input input{min-width:0}.ai-chat-input button{min-width:78px}.ai-chat-quick{margin:0;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}.ai-chat-quick .ai-adviser-chip{color:#0b3158;background:#f7fafc;border-color:#d7e0ea;white-space:nowrap}.ai-chat-quick .ai-adviser-chip:hover{color:#08213f;background:#f6c74d;border-color:#f6c74d}.ai-chat-input input{border-color:#cfd9e4!important}.ai-chat-products{grid-template-columns:repeat(2,minmax(0,1fr));max-height:260px;overflow:auto;padding:2px}.ai-chat-products .ai-adviser-card{min-height:0}.ai-chat-products .ai-adviser-card img{height:120px}.ai-chat-contact{align-self:flex-start;border:0;background:transparent;color:#0b3158;font-size:12px;font-weight:800;text-decoration:underline;cursor:pointer;padding:0}.ai-chat-handoff{padding:12px;border:1px solid #eadcae;border-radius:14px;background:#fffdf7;overflow:auto}.ai-chat-handoff.hidden{display:none!important}.ai-customer-return{display:none;margin:2px 0 10px;padding:10px 12px;border:1px solid #cbe6df;border-radius:12px;background:#f0fbf8;color:#155f58;font-size:12px;line-height:1.5}.ai-customer-return.show{display:block}.ai-location-row{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:end}.ai-location-btn{min-height:42px;padding:0 13px;border:1px solid #d6b64e;border-radius:9px;background:#fff7dc;color:#765500;font-size:12px;font-weight:900}.ai-shipping-status{min-height:18px;margin:7px 0 2px;color:#64748b;font-size:11px;line-height:1.45}.ai-shipping-status.ready{color:#087f74}.ai-account-opt{display:flex!important;align-items:flex-start!important;gap:8px!important;padding:9px 10px;border:1px solid #e4e8ed;border-radius:10px;background:#fff}.ai-account-opt input{width:auto!important;margin-top:2px}.ai-profile-link{display:inline-flex;margin-top:8px;color:#0b3158;font-size:11px;font-weight:800;text-decoration:underline}
-@media(max-width:680px){#message-modal{padding:4px;place-items:center}.ai-chat-modal{width:calc(100% - 4px);height:calc(100dvh - 10px);max-height:calc(100dvh - 10px);padding:15px 12px 12px;gap:9px;border-radius:18px}.ai-chat-head{padding-right:34px}.ai-chat-head h2{font-size:22px;line-height:1.16}.ai-chat-online{display:none}.ai-chat-log{flex:1;min-height:0;max-height:none;padding:13px 11px;border-radius:14px}.ai-chat-bubble{max-width:98%;padding:11px 12px;font-size:14px;line-height:1.62}.ai-chat-products{grid-template-columns:1fr;max-height:32vh}.ai-chat-quick{min-height:44px;padding:2px 0 5px}.ai-chat-quick .ai-adviser-chip{font-size:12px;padding:10px 13px}.ai-chat-status{min-height:16px;font-size:11px}.ai-chat-input{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.ai-chat-input input{height:48px;font-size:14px;padding:0 12px}.ai-chat-input button{width:auto!important;min-width:70px;height:48px;padding:0 14px}.ai-chat-contact{font-size:13px}.ai-chat-handoff{max-height:52vh}.ai-chat-handoff .form-two-col{grid-template-columns:1fr}.ai-chat-open .floating-contact{display:none!important}}
+@media(max-width:680px){#message-modal{padding:4px;place-items:center}.ai-chat-modal{width:calc(100% - 4px);height:calc(100dvh - 10px);max-height:calc(100dvh - 10px);padding:15px 12px calc(12px + env(safe-area-inset-bottom));gap:9px;border-radius:18px;overflow:hidden}.ai-chat-head{padding-right:34px}.ai-chat-head h2{font-size:22px;line-height:1.16}.ai-chat-online{display:none}.ai-chat-log{flex:1 1 auto;min-height:110px;max-height:34dvh;padding:13px 11px;border-radius:14px}.ai-chat-bubble{max-width:98%;padding:11px 12px;font-size:14px;line-height:1.62}.ai-chat-products{display:grid;grid-template-columns:1fr;grid-auto-rows:max-content;align-content:start;gap:10px;flex:0 1 auto;min-height:0;max-height:44dvh;margin-top:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:2px 2px 8px}.ai-chat-products .ai-adviser-card{grid-template-columns:128px minmax(0,1fr);min-height:140px;height:auto!important;align-items:stretch;overflow:hidden}.ai-chat-products .ai-adviser-card img{width:128px!important;height:100%!important;min-height:140px!important;max-height:none!important;align-self:stretch;object-fit:contain;background:#fffaf0;cursor:pointer;touch-action:manipulation}.ai-chat-products .ai-adviser-card-body{min-width:0;padding:11px 12px 12px;overflow:visible}.ai-chat-products .ai-adviser-code{display:block;font-size:10.5px;line-height:1.35}.ai-chat-products .ai-adviser-card h4{margin:5px 0 0;font-size:14px;line-height:1.35;white-space:normal;overflow:visible;text-overflow:clip}.ai-chat-products .ai-adviser-meta{margin-top:6px;font-size:11.5px;line-height:1.45;white-space:normal;overflow:visible}.ai-chat-products .ai-adviser-price{margin-top:7px;font-size:15px;line-height:1.25}.ai-chat-products .ai-adviser-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}.ai-chat-products .ai-adviser-actions button{min-width:0;padding:8px 6px;font-size:10px;line-height:1.2;white-space:normal}.ai-chat-quick{flex:0 0 auto;min-height:44px;max-width:100%;padding:2px 1px 5px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}.ai-chat-quick::-webkit-scrollbar{display:none}.ai-chat-quick .ai-adviser-chip{font-size:12px;padding:10px 13px}.ai-media-tools{flex:0 0 auto;max-width:100%;scrollbar-width:none}.ai-media-tools::-webkit-scrollbar{display:none}.ai-chat-status{flex:0 0 auto;min-height:16px;font-size:11px}.ai-chat-input{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;flex:0 0 auto}.ai-chat-input input{height:48px;font-size:14px;padding:0 12px}.ai-chat-input button{width:auto!important;min-width:70px;height:48px;padding:0 14px}.ai-chat-contact{flex:0 0 auto;font-size:13px}.ai-chat-handoff{max-height:52vh}.ai-chat-handoff .form-two-col{grid-template-columns:1fr}.ai-chat-open .floating-contact{display:none!important}}
+@media(max-width:390px){.ai-chat-products .ai-adviser-card{grid-template-columns:118px minmax(0,1fr)}.ai-chat-products .ai-adviser-card img{width:118px!important}.ai-chat-products .ai-adviser-actions{grid-template-columns:1fr}.ai-chat-products .ai-adviser-actions button{padding:8px 7px}}
 
     .floating-contact{position:fixed;right:18px;bottom:18px;z-index:80;display:flex;flex-direction:column;align-items:flex-end;gap:9px}
     .floating-contact-btn{display:inline-flex;align-items:center;gap:8px;min-width:44px;min-height:44px;padding:0 13px;color:#fff;border-radius:999px;box-shadow:0 10px 24px rgba(11,35,66,.18);font-size:12px;font-weight:800;text-decoration:none;animation:kblContactPulse 2.5s ease-in-out infinite;transition:transform .2s ease,box-shadow .2s ease}
@@ -4858,15 +4897,16 @@ body.kbl-intro-running #kbl-pwa-reload{display:none!important}
           <div class="section-heading">
             <div>
               <p class="eyebrow"><span></span> BỘ SƯU TẬP KIM BẢO LÂM</p>
-              <h2>Sản phẩm nổi bật</h2>
+              <h2 id="products-heading">Sản phẩm nổi bật</h2>
               <p class="section-subtitle">Những mẫu được Kim Bảo Lâm chọn để giới thiệu nổi bật. Chọn từng danh mục để xem toàn bộ sản phẩm.</p>
             </div>
-            <a class="text-link" href="#contact">Xem tất cả sản phẩm <span>→</span></a>
+            <a class="text-link" href="#products" data-show-all-products>Xem tất cả sản phẩm <span>→</span></a>
           </div>
 
-          <div class="catalog-toolbar">
+          <div class="catalog-toolbar catalog-toolbar-sticky">
             <div class="filter-tabs" role="tablist" aria-label="Lọc sản phẩm">
               <button class="filter-tab active" type="button" data-filter="featured">Nổi bật</button>
+              <button class="filter-tab" type="button" data-filter="all">Tất cả</button>
               <button class="filter-tab" type="button" data-filter="ring">Nhẫn</button>
               <button class="filter-tab" type="button" data-filter="necklace">Dây</button>
               <button class="filter-tab" type="button" data-filter="pendant">Mặt dây</button>
@@ -4875,11 +4915,11 @@ body.kbl-intro-running #kbl-pwa-reload{display:none!important}
               <button class="filter-tab" type="button" data-filter="bangle">Vòng</button>
               <button class="filter-tab" type="button" data-filter="gold-group">Sản phẩm 9999 / 980</button>
             </div>
-            <label class="search-box">
-              <span aria-hidden="true">⌕</span>
-              <input id="product-search" type="search" placeholder="Tìm sản phẩm..." autocomplete="off" />
-            </label>
           </div>
+          <label class="search-box catalog-search-box">
+            <span aria-hidden="true">⌕</span>
+            <input id="product-search" type="search" placeholder="Tìm sản phẩm..." autocomplete="off" />
+          </label>
           <div class="catalog-subfilters" id="catalog-subfilters" role="tablist" aria-label="Lọc chi tiết sản phẩm"></div>
 
           <div class="product-lanes">
@@ -6194,6 +6234,11 @@ function productMatchesCatalogFilter(product) {
   return true;
 }
 function renderProducts() {
+  const heading = document.getElementById('products-heading');
+  if (heading) {
+    const labels = { featured:'Sản phẩm nổi bật', all:'Tất cả sản phẩm', ring:'Nhẫn', necklace:'Dây', pendant:'Mặt dây', earring:'Bông tai', bracelet:'Lắc tay', bangle:'Vòng', 'gold-group':'Sản phẩm 9999 / 980' };
+    heading.textContent = labels[state.filter] || 'Tất cả sản phẩm';
+  }
   const search = state.search.trim().toLocaleLowerCase("vi");
   let visibleProducts = products.filter((product) => {
     const haystack = `${product.name || ""} ${product.metal || ""} ${product.categoryLabel || ""} ${product.sku || ""} ${product.sizeLabel || ""} ${product.displayShelf || ""}`.toLocaleLowerCase("vi");
@@ -6206,6 +6251,8 @@ function renderProducts() {
   });
   if (!search && state.filter === "featured") {
     visibleProducts = visibleProducts.slice().sort((a, b) => Number(a.featuredOrder || 999999) - Number(b.featuredOrder || 999999));
+  } else {
+    visibleProducts = visibleProducts.slice().sort((a, b) => Number(a.displayOrder || 999999) - Number(b.displayOrder || 999999));
   }
   const currentList = visibleProducts.filter(isCurrentProduct);
   const referenceList = visibleProducts.filter((product) => !isCurrentProduct(product));
@@ -6643,7 +6690,7 @@ function renderAdviserProducts(payload) {
     else{elements.adviserResults.innerHTML='';elements.adviserResults.classList.add('hidden');}
     return;
   }
-  elements.adviserResults.innerHTML=items.map(item=>`<article class="ai-adviser-card"><img src="${escapeHtml(item.image||'')}" alt="${escapeHtml(item.name||'Sản phẩm Kim Bảo Lâm')}" loading="lazy" decoding="async"><div class="ai-adviser-card-body"><span class="ai-adviser-code">Mã SP: ${escapeHtml(item.sku||'')}</span><h4>${escapeHtml(item.name||'Sản phẩm')}</h4><p class="ai-adviser-meta">Vàng ${escapeHtml(item.goldCode||'')} · ${escapeHtml(formatNumber(Number(item.weightChi||0)))} chỉ${item.sizeLabel?` · ${escapeHtml(item.sizeLabel)}`:''}</p><strong class="ai-adviser-price">${escapeHtml(formatVnd(Number(item.referencePrice||0)))}</strong><div class="ai-adviser-actions"><button type="button" data-ai-product-select="${escapeHtml(item.id||'')}">Chọn món này</button><button type="button" data-ai-product-open="${escapeHtml(item.id||'')}">Xem chi tiết</button></div></div></article>`).join('');
+  elements.adviserResults.innerHTML=items.map(item=>`<article class="ai-adviser-card"><img src="${escapeHtml(item.image||'')}" alt="${escapeHtml(item.name||'Sản phẩm Kim Bảo Lâm')}" loading="lazy" decoding="async" data-ai-product-open="${escapeHtml(item.id||'')}" title="Chạm để xem chi tiết"><div class="ai-adviser-card-body"><span class="ai-adviser-code">Mã SP: ${escapeHtml(item.sku||'')}</span><h4>${escapeHtml(item.name||'Sản phẩm')}</h4><p class="ai-adviser-meta">Vàng ${escapeHtml(item.goldCode||'')} · ${escapeHtml(formatNumber(Number(item.weightChi||0)))} chỉ${item.sizeLabel?` · ${escapeHtml(item.sizeLabel)}`:''}</p><strong class="ai-adviser-price">${escapeHtml(formatVnd(Number(item.referencePrice||0)))}</strong><div class="ai-adviser-actions"><button type="button" data-ai-product-select="${escapeHtml(item.id||'')}">Chọn món này</button><button type="button" data-ai-product-open="${escapeHtml(item.id||'')}">Xem chi tiết</button></div></div></article>`).join('');
   elements.adviserResults.classList.remove('hidden');
 }
 
@@ -7639,6 +7686,21 @@ function init() {
   document.querySelectorAll("[data-open-world-gold]").forEach((link) => {
     link.addEventListener("click", () => {
       window.setTimeout(() => document.querySelector('.market-tab[data-market="reference"]')?.click(), 80);
+    });
+  });
+
+  document.querySelectorAll('[data-show-all-products]').forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      state.filter = 'all';
+      state.subFilter = '';
+      state.gold980Type = '';
+      state.search = '';
+      if (elements.productSearch) elements.productSearch.value = '';
+      document.querySelectorAll('.filter-tab').forEach((item) => item.classList.toggle('active', item.dataset.filter === 'all'));
+      renderProductSubfilters();
+      renderProducts();
+      document.getElementById('products')?.scrollIntoView({ behavior:'smooth', block:'start' });
     });
   });
 
