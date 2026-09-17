@@ -15,7 +15,13 @@
       "database_id": "d0af07a4-a3b6-4c8a-8294-eb1480df93d1"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "kbl-backup-media"
+    }
+  ],
   "triggers": {
-    "crons": ["*/5 * * * *"]
+    "crons": ["*/5 * * * *", "* * * * *"]
   }
 }

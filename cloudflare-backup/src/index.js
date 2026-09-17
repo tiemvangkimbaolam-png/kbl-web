@@ -1,5 +1,10 @@
-const VERSION = '0.5.0-stage4-auto-catalog';
-const PRIMARY_CATALOG_URL = 'https://tiemvangkimbaolam.id.vn/api/products';
+const VERSION = '1.0.0-house2-final';
+const PUBLIC_SITE_ORIGIN = 'https://tiemvangkimbaolam.id.vn';
+const PRIMARY_ORIGIN = PUBLIC_SITE_ORIGIN;
+const PRIMARY_PROXY_TIMEOUT_MS = 5000;
+const MEDIA_STATE_KEY = 'state/catalog-media-state.json';
+const MEDIA_BATCH_SIZE = 30;
+const MEDIA_MAX_BYTES = 8 * 1024 * 1024;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -20,6 +25,33 @@ function validIso(value) {
   const text = safeText(value, 80);
   const time = Date.parse(text);
   return Number.isFinite(time) ? new Date(time).toISOString() : '';
+}
+
+
+function primaryOriginFor(env) {
+  const configured = safeText(env?.KBL_PRIMARY_ORIGIN_URL || '', 300);
+  if (configured) {
+    try {
+      const parsed = new URL(configured);
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        return parsed.origin;
+      }
+    } catch (_) {}
+  }
+  return PUBLIC_SITE_ORIGIN;
+}
+
+function primaryOriginIsDistinct(env) {
+  try {
+    return new URL(primaryOriginFor(env)).hostname !== new URL(PUBLIC_SITE_ORIGIN).hostname;
+  } catch (_) {
+    return false;
+  }
+}
+
+function isDirectBackupHost(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return host.endsWith('.workers.dev') || host === 'kbl-backup.tiemvangkimbaolam.workers.dev';
 }
 
 async function safeEqual(a, b) {
@@ -453,9 +485,9 @@ async function pullCatalogFromPrimary(env) {
   const timeout = setTimeout(() => controller.abort(), 20000);
 
   try {
-    const response = await fetch(PRIMARY_CATALOG_URL, {
+    const response = await fetch(`${primaryOriginFor(env)}/api/products`, {
       method: 'GET',
-      headers: { 'accept': 'application/json' },
+      headers: { 'accept': 'application/json', 'x-kbl-origin-pull': '1' },
       cache: 'no-store',
       signal: controller.signal
     });
@@ -534,6 +566,369 @@ async function pullCatalogFromPrimary(env) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+
+function canonicalPrimaryMediaPath(value) {
+  const raw = safeCatalogMedia(value);
+  if (!raw) return '';
+
+  try {
+    let path = '';
+
+    if (raw.startsWith('/')) {
+      const parsed = new URL(raw, PUBLIC_SITE_ORIGIN);
+      path = `${parsed.pathname}${parsed.search}`;
+    } else {
+      const parsed = new URL(raw);
+      if (parsed.origin !== PUBLIC_SITE_ORIGIN) return '';
+      path = `${parsed.pathname}${parsed.search}`;
+    }
+
+    if (
+      !path.startsWith('/api/catalog-media/') &&
+      !path.startsWith('/uploads/studio/')
+    ) {
+      return '';
+    }
+
+    return path.slice(0, 2048);
+  } catch (_) {
+    return '';
+  }
+}
+
+function base64UrlEncodeUtf8(value) {
+  const bytes = new TextEncoder().encode(String(value || ''));
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function base64UrlDecodeUtf8(value) {
+  const text = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
+  const padded = text + '='.repeat((4 - (text.length % 4 || 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+function backupMediaPath(value) {
+  const primaryPath = canonicalPrimaryMediaPath(value);
+  if (!primaryPath) return safeCatalogMedia(value);
+  return `/api/backup-media/${base64UrlEncodeUtf8(primaryPath)}`;
+}
+
+function rewriteCatalogMedia(products) {
+  return (Array.isArray(products) ? products : []).map((product) => ({
+    ...product,
+    image: backupMediaPath(product?.image),
+    tryOnImage: backupMediaPath(product?.tryOnImage),
+    geminiTryOnImage: backupMediaPath(product?.geminiTryOnImage)
+  }));
+}
+
+function catalogPrimaryMediaSources(products) {
+  const seen = new Set();
+  const rows = [];
+
+  for (const product of Array.isArray(products) ? products : []) {
+    for (const field of ['image', 'tryOnImage', 'geminiTryOnImage']) {
+      const source = canonicalPrimaryMediaPath(product?.[field]);
+      if (!source || seen.has(source)) continue;
+      seen.add(source);
+      rows.push(source);
+    }
+  }
+
+  return rows;
+}
+
+async function mediaKeyForSource(source) {
+  return `media/${await sha256Hex(source)}`;
+}
+
+async function readMediaState(env) {
+  if (!env.MEDIA) return null;
+
+  try {
+    const object = await env.MEDIA.get(MEDIA_STATE_KEY);
+    if (!object) return null;
+    const parsed = JSON.parse(await object.text());
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function writeMediaState(env, state) {
+  if (!env.MEDIA) return;
+
+  await env.MEDIA.put(MEDIA_STATE_KEY, JSON.stringify(state), {
+    httpMetadata: {
+      contentType: 'application/json; charset=utf-8',
+      cacheControl: 'no-store'
+    }
+  });
+}
+
+async function fetchPrimaryMedia(source, env) {
+  const primaryPath = canonicalPrimaryMediaPath(source);
+  if (!primaryPath) throw new Error('Unsupported primary media path.');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    const response = await fetch(`${primaryOriginFor(env)}${primaryPath}`, {
+      method: 'GET',
+      headers: { 'accept': 'image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.5', 'x-kbl-origin-pull': '1' },
+      cache: 'no-store',
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`Primary media HTTP ${response.status}`);
+    }
+
+    const contentType = safeText(response.headers.get('content-type') || '', 120).toLowerCase();
+    if (!contentType.startsWith('image/')) {
+      throw new Error('Primary media did not return an image.');
+    }
+
+    const declaredSize = Number(response.headers.get('content-length') || 0);
+    if (declaredSize > MEDIA_MAX_BYTES) {
+      throw new Error('Primary media is too large.');
+    }
+
+    const bytes = await response.arrayBuffer();
+    if (!bytes.byteLength || bytes.byteLength > MEDIA_MAX_BYTES) {
+      throw new Error('Primary media size is outside the safe range.');
+    }
+
+    return {
+      bytes,
+      contentType,
+      etag: safeText(response.headers.get('etag') || '', 160)
+    };
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('Primary media fetch timed out.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function ensureMediaStored(env, source) {
+  if (!env.MEDIA) throw new Error('R2 MEDIA binding is unavailable.');
+
+  const primaryPath = canonicalPrimaryMediaPath(source);
+  if (!primaryPath) return { success: true, skipped: true, source: '' };
+
+  const key = await mediaKeyForSource(primaryPath);
+  const existing = await env.MEDIA.head(key);
+
+  if (existing) {
+    return { success: true, cached: true, source: primaryPath, key };
+  }
+
+  const media = await fetchPrimaryMedia(primaryPath, env);
+
+  await env.MEDIA.put(key, media.bytes, {
+    httpMetadata: {
+      contentType: media.contentType,
+      cacheControl: 'public, max-age=31536000, immutable'
+    },
+    customMetadata: {
+      sourcePath: primaryPath,
+      sourceEtag: media.etag,
+      mirroredAt: new Date().toISOString()
+    }
+  });
+
+  return { success: true, cached: false, source: primaryPath, key };
+}
+
+async function mapWithConcurrency(items, limit, task) {
+  const rows = new Array(items.length);
+  let cursor = 0;
+
+  const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length || 1)) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      try {
+        rows[index] = await task(items[index], index);
+      } catch (error) {
+        rows[index] = {
+          success: false,
+          error: safeText(error?.message || String(error), 240)
+        };
+      }
+    }
+  });
+
+  await Promise.all(workers);
+  return rows;
+}
+
+async function mirrorMediaBatch(env) {
+  if (!env.MEDIA) {
+    throw new Error('R2 MEDIA binding is unavailable.');
+  }
+
+  const catalog = publicCatalogSnapshot(await getCatalogSnapshot(env));
+  if (!catalog || !catalog.productCount) {
+    throw new Error('Catalog backup is unavailable.');
+  }
+
+  const sources = catalogPrimaryMediaSources(catalog.products);
+  const now = new Date().toISOString();
+  const current = await readMediaState(env);
+
+  let state = current && current.catalogChecksum === catalog.checksum
+    ? { ...current }
+    : {
+        catalogChecksum: catalog.checksum,
+        cursor: 0,
+        totalSources: sources.length,
+        ready: sources.length === 0,
+        cycleFailures: 0,
+        cycleStartedAt: now,
+        cycleCompletedAt: '',
+        lastRunAt: '',
+        lastSuccessAt: '',
+        lastError: ''
+      };
+
+  if (!sources.length) {
+    state.ready = true;
+    state.cursor = 0;
+    state.totalSources = 0;
+    state.lastRunAt = now;
+    state.lastSuccessAt = now;
+    state.lastError = '';
+    await writeMediaState(env, state);
+    return state;
+  }
+
+  let start = Math.max(0, Math.min(Number(state.cursor || 0), sources.length));
+  if (start >= sources.length) start = 0;
+
+  const batch = sources.slice(start, start + MEDIA_BATCH_SIZE);
+  const results = await mapWithConcurrency(batch, 4, (source) => ensureMediaStored(env, source));
+  const failures = results.filter((row) => !row?.success);
+  const completed = start + batch.length >= sources.length;
+
+  state.totalSources = sources.length;
+  state.cursor = completed ? 0 : start + batch.length;
+  state.lastRunAt = now;
+  state.cycleFailures = Math.max(0, Number(state.cycleFailures || 0)) + failures.length;
+  state.lastError = failures.length
+    ? safeText(failures[0].error || 'Media mirror failed.', 240)
+    : '';
+
+  if (!failures.length) state.lastSuccessAt = now;
+
+  if (completed) {
+    state.cycleCompletedAt = now;
+    state.ready = state.cycleFailures === 0;
+    state.cycleFailures = 0;
+    state.cycleStartedAt = now;
+  }
+
+  await writeMediaState(env, state);
+  return state;
+}
+
+function publicMediaState(state) {
+  if (!state) {
+    return {
+      configured: false,
+      ready: false,
+      totalSources: 0,
+      cursor: 0,
+      progressPercent: 0,
+      lastRunAt: '',
+      lastSuccessAt: '',
+      lastError: ''
+    };
+  }
+
+  const total = Math.max(0, Number(state.totalSources || 0));
+  const cursor = Math.max(0, Number(state.cursor || 0));
+
+  return {
+    configured: true,
+    ready: Boolean(state.ready),
+    totalSources: total,
+    cursor,
+    progressPercent: state.ready
+      ? 100
+      : total > 0
+        ? Math.min(99, Math.round((cursor / total) * 100))
+        : 0,
+    cycleCompletedAt: state.cycleCompletedAt || '',
+    lastRunAt: state.lastRunAt || '',
+    lastSuccessAt: state.lastSuccessAt || '',
+    lastError: state.lastError || ''
+  };
+}
+
+async function authorizeMediaSync(request, env) {
+  const expectedSecret = String(env.KBL_BACKUP_SYNC_SECRET || '');
+  const suppliedSecret = request.headers.get('x-kbl-sync-secret') || '';
+  return Boolean(expectedSecret) && await safeEqual(expectedSecret, suppliedSecret);
+}
+
+async function serveBackupMedia(request, env, token) {
+  if (!env.MEDIA) {
+    return json({ success: false, message: 'R2 MEDIA binding is unavailable.' }, 503);
+  }
+
+  let source = '';
+  try {
+    source = canonicalPrimaryMediaPath(base64UrlDecodeUtf8(token));
+  } catch (_) {}
+
+  if (!source) {
+    return json({ success: false, message: 'Invalid backup media token.' }, 400);
+  }
+
+  const key = await mediaKeyForSource(source);
+  let object = await env.MEDIA.get(key);
+
+  if (!object) {
+    try {
+      await ensureMediaStored(env, source);
+      object = await env.MEDIA.get(key);
+    } catch (_) {}
+  }
+
+  if (!object) {
+    try {
+      return env.ASSETS.fetch(new Request(new URL('/logo-kim-bao-lam.png', request.url)));
+    } catch (_) {
+      return new Response(null, { status: 404 });
+    }
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set('etag', object.httpEtag);
+  headers.set('cache-control', 'public, max-age=31536000, immutable');
+  headers.set('x-kbl-media-source', 'cloudflare-r2');
+
+  return new Response(object.body, { status: 200, headers });
 }
 
 async function syncGoldPrice(request, env) {
@@ -772,15 +1167,197 @@ async function syncGoldPrice(request, env) {
   });
 }
 
+
+function htmlEscape(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function vnd(value) {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? `${Math.round(n).toLocaleString('vi-VN')} đ` : '—';
+}
+
+async function backupProductsResponse(env) {
+  try {
+    const catalog = publicCatalogSnapshot(await getCatalogSnapshot(env));
+    if (!catalog || !catalog.productCount) {
+      return json({ success: false, message: 'No backed-up public catalog yet.' }, 404);
+    }
+    return json({
+      success: true,
+      source: 'Cloudflare D1 backup',
+      products: rewriteCatalogMedia(catalog.products),
+      backup: {
+        productCount: catalog.productCount,
+        checksum: catalog.checksum,
+        sourceUpdatedAt: catalog.sourceUpdatedAt,
+        syncedAt: catalog.syncedAt,
+        ageSeconds: catalog.ageSeconds,
+        fresh: catalog.fresh
+      }
+    });
+  } catch (error) {
+    return json({
+      success: false,
+      message: 'Cannot read backup public catalog.',
+      error: error instanceof Error ? error.message : String(error)
+    }, 500);
+  }
+}
+
+async function backupGoldResponse(env) {
+  try {
+    const row = await getGoldPrice(env);
+    if (!row) return json({ success: false, message: 'No backed-up gold price yet.' }, 404);
+    return json({ success: true, source: 'Cloudflare D1 backup', goldPrice: publicGoldPrice(row) });
+  } catch (error) {
+    return json({
+      success: false,
+      message: 'Cannot read backup gold price.',
+      error: error instanceof Error ? error.message : String(error)
+    }, 500);
+  }
+}
+
+async function renderBackupHome(env, locale = 'vi', reason = '') {
+  const en = locale === 'en';
+  let gold = null;
+  let catalog = null;
+  let mediaState = null;
+  try { gold = publicGoldPrice(await getGoldPrice(env)); } catch (_) {}
+  try { catalog = publicCatalogSnapshot(await getCatalogSnapshot(env)); } catch (_) {}
+  try { if (env.MEDIA) mediaState = await readMediaState(env); } catch (_) {}
+
+  const products = rewriteCatalogMedia(catalog?.products || []).slice(0, 24);
+  const sell = gold?.finalSell9999 ? vnd(gold.finalSell9999) : '—';
+  const updated = gold?.syncedAt || catalog?.syncedAt || '';
+  const title = en ? 'Kim Bao Lam backup service' : 'Kim Bảo Lâm · Hệ thống dự phòng';
+  const subtitle = en
+    ? 'The primary server is temporarily unavailable. This read-only Cloudflare backup keeps current public prices, catalog and product images available.'
+    : 'Máy chủ chính đang tạm thời không phản hồi. Nhà 2 Cloudflare đang giữ bản đọc công khai gồm giá, danh mục và ảnh sản phẩm.';
+  const status = mediaState?.ready
+    ? (en ? 'D1 + R2 backup ready' : 'D1 + R2 đã sẵn sàng')
+    : (en ? 'Backup data available; media is still synchronizing' : 'Dữ liệu đã có; ảnh đang tiếp tục đồng bộ');
+
+  const cards = products.map((p) => `
+    <article class="card">
+      ${p.image ? `<img src="${htmlEscape(p.image)}" alt="${htmlEscape(p.name || p.sku)}" loading="lazy">` : ''}
+      <div class="pad">
+        <div class="sku">${htmlEscape(p.sku)}</div>
+        <h3>${htmlEscape(p.name || p.posName || p.sku)}</h3>
+        <div>${htmlEscape(p.goldContentLabel || p.goldCode || '')}</div>
+        <div>${htmlEscape(p.sizeLabel ? `Size ${p.sizeLabel}` : '')}</div>
+        <strong>${vnd(p.referencePrice)}</strong>
+      </div>
+    </article>`).join('');
+
+  return new Response(`<!doctype html>
+<html lang="${en ? 'en' : 'vi'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${htmlEscape(title)}</title><style>
+*{box-sizing:border-box}body{margin:0;background:#071426;color:#eef4ff;font-family:Arial,sans-serif}.wrap{max-width:1180px;margin:auto;padding:24px}.top{padding:28px;border:1px solid #274262;border-radius:22px;background:#0d2038;margin-bottom:20px}.brand{font-size:28px;font-weight:800}.muted{color:#b7c7db;line-height:1.55}.stats{display:flex;gap:12px;flex-wrap:wrap;margin:18px 0}.pill{background:#132b49;border:1px solid #31557b;border-radius:999px;padding:9px 13px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}.card{overflow:hidden;border:1px solid #274262;border-radius:16px;background:#0e1f35}.card img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;background:#fff}.pad{padding:12px}.pad h3{font-size:16px;margin:5px 0 8px}.sku{font-size:12px;color:#9fb3ca}.pad strong{display:block;margin-top:8px;font-size:17px}.warn{color:#ffd98a}.foot{padding:24px 0;color:#8fa6bf;font-size:13px}@media(max-width:600px){.wrap{padding:12px}.top{padding:20px}.brand{font-size:23px}}
+</style></head><body><main class="wrap"><section class="top"><div class="brand">${htmlEscape(title)}</div><p class="muted">${htmlEscape(subtitle)}</p><div class="stats"><span class="pill">${en ? '9999 reference' : '9999 tham khảo'}: ${sell}</span><span class="pill">${en ? 'Products' : 'Sản phẩm'}: ${Number(catalog?.productCount || 0)}</span><span class="pill">${htmlEscape(status)}</span></div>${reason ? `<div class="warn">${htmlEscape(reason)}</div>` : ''}${updated ? `<p class="muted">${en ? 'Last backup update' : 'Cập nhật bản dự phòng'}: ${htmlEscape(updated)}</p>` : ''}</section><section class="grid">${cards}</section><div class="foot">Cloudflare House 2 · read-only failover mode</div></main></body></html>`, {
+    status: 200,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-kbl-failover': 'cloudflare-house2'
+    }
+  });
+}
+
+async function fetchPrimaryThroughHiddenOrigin(request, env) {
+  const incoming = new URL(request.url);
+  const primary = new URL(primaryOriginFor(env));
+  if (primary.hostname === incoming.hostname) {
+    throw new Error('Primary origin is not separated from the public hostname. Configure KBL_PRIMARY_ORIGIN_URL before enabling the production Worker route.');
+  }
+
+  const target = new URL(incoming.pathname + incoming.search, primary.origin);
+  const headers = new Headers(request.headers);
+  headers.set('x-kbl-cloudflare-proxy', 'house2');
+  headers.set('x-forwarded-host', incoming.host);
+  headers.set('x-forwarded-proto', 'https');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PRIMARY_PROXY_TIMEOUT_MS);
+  try {
+    const init = {
+      method: request.method,
+      headers,
+      redirect: 'manual',
+      signal: controller.signal
+    };
+    if (!['GET', 'HEAD'].includes(request.method)) init.body = request.body;
+    const response = await fetch(target.toString(), init);
+    return response;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function proxyPrimaryOrFallback(request, env) {
+  const url = new URL(request.url);
+  const method = request.method.toUpperCase();
+
+  try {
+    const response = await fetchPrimaryThroughHiddenOrigin(request, env);
+    if (response.status < 500) {
+      const headers = new Headers(response.headers);
+      headers.set('x-kbl-served-by', 'tenten-via-cloudflare');
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    }
+    throw new Error(`Primary returned HTTP ${response.status}`);
+  } catch (error) {
+    const reason = error?.name === 'AbortError'
+      ? 'Primary request timed out.'
+      : safeText(error?.message || String(error), 220);
+
+    if (method === 'GET' || method === 'HEAD') {
+      if (url.pathname === '/api/products') return backupProductsResponse(env);
+      if (url.pathname === '/api/gold-price') return backupGoldResponse(env);
+      if (url.pathname.startsWith('/api/catalog-media/') || url.pathname.startsWith('/uploads/studio/')) {
+        return serveBackupMedia(request, env, base64UrlEncodeUtf8(`${url.pathname}${url.search}`));
+      }
+      if (!url.pathname.startsWith('/api/')) {
+        return renderBackupHome(env, url.pathname.startsWith('/en') ? 'en' : 'vi', reason);
+      }
+    }
+
+    return json({
+      success: false,
+      message: 'Primary server is unavailable. House 2 is operating in read-only failover mode.',
+      detail: reason
+    }, 503);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+
+    // workers.dev is the direct backup runtime. When the main domain is later
+    // routed to this Worker, normal production requests are proxied to a hidden
+    // TENTEN origin and fall back to D1/R2 only on primary failure.
+    if (!isDirectBackupHost(url.hostname) && request.headers.get('x-kbl-origin-pull') === '1' && !primaryOriginIsDistinct(env)) {
+      return json({ success: false, message: 'KBL_PRIMARY_ORIGIN_URL must point to a hidden origin before the main domain Worker route is enabled.' }, 503);
+    }
+
+    if (!isDirectBackupHost(url.hostname) && !url.pathname.startsWith('/api/backup-media/')) {
+      return proxyPrimaryOrFallback(request, env);
+    }
 
     if (url.pathname === '/api/health') {
       const d1 = await checkD1(env);
 
       let goldPrice = null;
       let catalog = null;
+      let mediaState = null;
 
       if (d1.connected) {
         try {
@@ -790,6 +1367,12 @@ export default {
         try {
           catalog = publicCatalogSnapshot(await getCatalogSnapshot(env));
         } catch (_) {}
+
+        if (env.MEDIA) {
+          try {
+            mediaState = await readMediaState(env);
+          } catch (_) {}
+        }
       }
 
       return json({
@@ -814,12 +1397,17 @@ export default {
         catalogAutoPullEnabled: true,
         catalogAutoPullMinutes: 5,
 
-        independentBackupData: false,
-        mediaBackupReady: false,
-        readyForFailover: false,
+        r2MediaConfigured: Boolean(env.MEDIA),
+        mediaBackup: publicMediaState(mediaState),
+        mediaBackupReady: Boolean(mediaState?.ready),
+        independentBackupData: Boolean(goldPrice && catalog?.productCount && mediaState?.ready),
+        failoverProxyCodeReady: true,
+        primaryOriginUrl: primaryOriginFor(env),
+        primaryOriginSeparated: primaryOriginIsDistinct(env),
+        readyForFailover: Boolean(goldPrice && catalog?.productCount && mediaState?.ready && primaryOriginIsDistinct(env)),
 
         message: d1.connected
-          ? 'D1 is connected. Gold-price sync is live and catalog auto-pull runs every 5 minutes.'
+          ? 'D1 is connected. Gold-price sync, catalog auto-pull and R2 media backup are active.'
           : 'Worker is online, but D1 is not healthy.'
       });
     }
@@ -847,6 +1435,43 @@ export default {
       request.method === 'POST'
     ) {
       return syncCatalog(request, env);
+    }
+
+    if (
+      url.pathname === '/api/sync/media-batch' &&
+      request.method === 'POST'
+    ) {
+      if (!(await authorizeMediaSync(request, env))) {
+        return json({ success: false, message: 'Unauthorized.' }, 401);
+      }
+
+      try {
+        const state = await mirrorMediaBatch(env);
+        return json({
+          success: true,
+          message: 'One R2 media backup batch completed.',
+          mediaBackup: publicMediaState(state)
+        });
+      } catch (error) {
+        return json({
+          success: false,
+          message: safeText(error?.message || String(error), 300)
+        }, 500);
+      }
+    }
+
+    if (url.pathname.startsWith('/api/backup-media/')) {
+      const token = url.pathname.slice('/api/backup-media/'.length);
+      return serveBackupMedia(request, env, token);
+    }
+
+    if (url.pathname === '/api/media-status') {
+      const state = env.MEDIA ? await readMediaState(env) : null;
+      return json({
+        success: true,
+        r2MediaConfigured: Boolean(env.MEDIA),
+        mediaBackup: publicMediaState(state)
+      });
     }
 
     if (url.pathname === '/api/gold-price') {
@@ -891,7 +1516,7 @@ export default {
         return json({
           success: true,
           source: 'Cloudflare D1 backup',
-          products: catalog.products,
+          products: rewriteCatalogMedia(catalog.products),
           backup: {
             productCount: catalog.productCount,
             checksum: catalog.checksum,
@@ -918,6 +1543,7 @@ export default {
 
       let goldPrice = null;
       let catalog = null;
+      let mediaState = null;
 
       if (d1.connected) {
         try {
@@ -927,6 +1553,12 @@ export default {
         try {
           catalog = publicCatalogSnapshot(await getCatalogSnapshot(env));
         } catch (_) {}
+
+        if (env.MEDIA) {
+          try {
+            mediaState = await readMediaState(env);
+          } catch (_) {}
+        }
       }
 
       return json({
@@ -946,10 +1578,15 @@ export default {
         catalogFresh: Boolean(catalog?.fresh),
         catalogProductCount: Number(catalog?.productCount || 0),
 
-        mediaLayer: 'not-connected',
-        productionDataSynced: false,
-        automaticFailover: false,
-        readyForProductionTraffic: false
+        mediaLayer: mediaState?.ready ? 'r2-ready' : (env.MEDIA ? 'r2-syncing' : 'not-connected'),
+        mediaBackupReady: Boolean(mediaState?.ready),
+        mediaBackup: publicMediaState(mediaState),
+        productionDataSynced: Boolean(goldPrice && catalog?.productCount && mediaState?.ready),
+        automaticFailover: primaryOriginIsDistinct(env),
+        failoverProxyCodeReady: true,
+        primaryOriginUrl: primaryOriginFor(env),
+        primaryOriginSeparated: primaryOriginIsDistinct(env),
+        readyForProductionTraffic: Boolean(goldPrice && catalog?.productCount && mediaState?.ready && primaryOriginIsDistinct(env))
       });
     }
 
@@ -960,14 +1597,24 @@ export default {
       }, 404);
     }
 
-    return env.ASSETS.fetch(request);
+    return renderBackupHome(env, url.pathname.startsWith('/en') ? 'en' : 'vi');
   },
 
-  async scheduled(_event, env, ctx) {
-    ctx.waitUntil(
-      pullCatalogFromPrimary(env).catch((error) => {
-        console.warn('KBL BACKUP CATALOG AUTO-PULL:', error?.message || String(error));
-      })
-    );
+  async scheduled(event, env, ctx) {
+    if (event.cron === '*/5 * * * *') {
+      ctx.waitUntil(
+        pullCatalogFromPrimary(env).catch((error) => {
+          console.warn('KBL BACKUP CATALOG AUTO-PULL:', error?.message || String(error));
+        })
+      );
+    }
+
+    if (event.cron === '* * * * *') {
+      ctx.waitUntil(
+        mirrorMediaBatch(env).catch((error) => {
+          console.warn('KBL BACKUP R2 MEDIA:', error?.message || String(error));
+        })
+      );
+    }
   }
 };
