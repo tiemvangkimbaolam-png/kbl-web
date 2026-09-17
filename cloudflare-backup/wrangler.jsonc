@@ -4,6 +4,10 @@
   "main": "./src/index.js",
   "compatibility_date": "2026-09-17",
 
+  "vars": {
+    "KBL_PRIMARY_ORIGIN_URL": "https://origin.tiemvangkimbaolam.id.vn"
+  },
+
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
