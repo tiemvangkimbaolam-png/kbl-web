@@ -7283,6 +7283,69 @@ async function fetchCloudRelay(config) {
 function cloudPriceValuesEqual(left, right) {
   return PRICE_HISTORY_KEYS.every((key) => Math.round(number(left && left[key])) === Math.round(number(right && right[key])));
 }
+
+// ============================================================================
+// KBL CLOUDFLARE BACKUP PRICE SYNC
+// Additive sidecar only: failure here must never block TENTEN price handling.
+// ============================================================================
+let kblBackupPriceSyncBusy = false;
+let kblBackupPriceSyncLastAttemptAt = 0;
+const KBL_BACKUP_SYNC_MIN_MS = Math.min(5 * 60 * 1000, Math.max(15000, Number(process.env.KBL_BACKUP_SYNC_MIN_MS || 30000) || 30000));
+
+function kblBackupPriceSyncConfig() {
+  const url = String(process.env.KBL_BACKUP_SYNC_URL || '').trim();
+  const secret = String(process.env.KBL_BACKUP_SYNC_SECRET || '').trim();
+  return {
+    url: /^https:\/\/[^\s]+$/i.test(url) ? url : '',
+    secret
+  };
+}
+
+async function kblSyncGoldPriceToBackup(payload) {
+  const config = kblBackupPriceSyncConfig();
+  if (!config.url || config.secret.length < 32 || typeof fetch !== 'function') return false;
+  if (kblBackupPriceSyncBusy) return false;
+
+  const now = Date.now();
+  if (now - kblBackupPriceSyncLastAttemptAt < KBL_BACKUP_SYNC_MIN_MS) return false;
+  kblBackupPriceSyncLastAttemptAt = now;
+  kblBackupPriceSyncBusy = true;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(config.url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-kbl-sync-secret': config.secret
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Cloudflare backup HTTP ${response.status}${body ? `: ${body.slice(0, 180)}` : ''}`);
+    }
+    return true;
+  } catch (error) {
+    console.warn('KBL BACKUP PRICE SYNC:', error?.name === 'AbortError' ? 'timeout' : (error?.message || String(error)));
+    return false;
+  } finally {
+    clearTimeout(timer);
+    kblBackupPriceSyncBusy = false;
+  }
+}
+
+function triggerKblBackupPriceSync(payload) {
+  try {
+    setImmediate(() => {
+      Promise.resolve(kblSyncGoldPriceToBackup(payload)).catch(() => {});
+    });
+  } catch (_) {}
+}
+
 async function pollCloudPrice(reason = 'timer') {
   const config = effectiveCloudPriceConfig();
   cloudPriceRuntime.enabled = config.enabled;
@@ -7329,6 +7392,18 @@ async function pollCloudPrice(reason = 'timer') {
     } else {
       cloudPriceRuntime.message = `Cloud đang hoạt động; BK/ASK không đổi (${finalSell9999.toLocaleString('vi-VN')}đ/chỉ).`;
     }
+
+    triggerKblBackupPriceSync({
+      symbol: config.symbol || 'BK',
+      bidRaw,
+      askRaw,
+      sourceBaseVnd,
+      markupVnd: config.markupVnd,
+      finalSell9999,
+      sourceCheckedAt: cloudPriceRuntime.lastCheckAt,
+      sourceSuccessAt: cloudPriceRuntime.lastSuccessAt
+    });
+
     return publicCloudPriceStatus();
   } catch (error) {
     cloudPriceRuntime.error = error?.name === 'AbortError' ? 'Hết thời gian chờ Google Relay.' : (error?.message || String(error));
