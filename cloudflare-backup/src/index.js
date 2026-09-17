@@ -1,4 +1,4 @@
-const VERSION = '0.3.0-stage2-sync';
+const VERSION = '0.4.0-stage3-catalog';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -119,6 +119,330 @@ function publicGoldPrice(row) {
     ageSeconds,
     fresh: ageSeconds !== null && ageSeconds <= 180
   };
+}
+
+
+function safeCatalogMedia(value) {
+  const text = String(value ?? '').trim();
+  if (!text || text.length > 2048) return '';
+  if (/^https:\/\//i.test(text) || /^\//.test(text)) return text;
+  return '';
+}
+
+function safeCatalogNumber(value, min = 0, max = 1000000000000) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.min(max, Math.max(min, number));
+}
+
+function sanitizeCatalogAvailability(value) {
+  const raw = value && typeof value === 'object' && !Array.isArray(value)
+    ? value
+    : {};
+
+  return {
+    status: safeText(raw.status || 'available', 40) || 'available',
+    reserved: Boolean(raw.reserved),
+    label: safeText(raw.label || 'Còn hàng tại tiệm', 120) || 'Còn hàng tại tiệm'
+  };
+}
+
+function sanitizeCatalogProduct(product) {
+  if (!product || typeof product !== 'object' || Array.isArray(product)) {
+    return null;
+  }
+
+  const sku = safeText(product.sku, 80);
+  const id = safeText(product.id || sku, 120);
+
+  if (!sku || !id) return null;
+
+  return {
+    id,
+    sku,
+    name: safeText(product.name, 160),
+    posName: safeText(product.posName, 160),
+    displayName: safeText(product.displayName, 160),
+    category: safeText(product.category, 100),
+    displayShelf: safeText(product.displayShelf, 100),
+    displayGoldShelf: safeText(product.displayGoldShelf, 100),
+    goldCode: safeText(product.goldCode, 20),
+    weightChi: safeCatalogNumber(product.weightChi, 0, 10000),
+    workmanship: Math.round(safeCatalogNumber(product.workmanship, 0, 10000000000)),
+    sizeLabel: safeText(product.sizeLabel, 80),
+    featured: Boolean(product.featured),
+    featuredOrder: Math.round(safeCatalogNumber(product.featuredOrder, 0, 1000000)),
+    kind: safeText(product.kind, 40),
+    status: 'available',
+    image: safeCatalogMedia(product.image),
+    tryOnImage: safeCatalogMedia(product.tryOnImage),
+    geminiTryOnImage: safeCatalogMedia(product.geminiTryOnImage),
+    description: safeText(product.description, 1200),
+    detail: safeText(product.detail, 1200),
+    productSymbol: safeText(product.productSymbol, 120),
+    goldContentLabel: safeText(product.goldContentLabel, 120),
+    attachedWeightChi: safeCatalogNumber(product.attachedWeightChi, 0, 10000),
+    totalWeightChi: safeCatalogNumber(product.totalWeightChi, 0, 10000),
+    producerName: safeText(product.producerName, 200),
+    producerCode: safeText(product.producerCode, 100),
+    producerAddress: safeText(product.producerAddress, 400),
+    supplierName: safeText(product.supplierName, 200),
+    supplierAddress: safeText(product.supplierAddress, 400),
+    origin: safeText(product.origin || 'Việt Nam', 160),
+    applicableStandard: safeText(product.applicableStandard, 240),
+    specialMark: safeText(product.specialMark, 160),
+    warnings: safeText(product.warnings, 600),
+    referencePrice: Math.round(safeCatalogNumber(product.referencePrice, 0, 1000000000000)),
+    availability: sanitizeCatalogAvailability(product.availability)
+  };
+}
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(String(value ?? ''));
+  const hash = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(hash)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+async function getCatalogSnapshot(env) {
+  if (!env.DB) return null;
+
+  return env.DB
+    .prepare(`
+      SELECT
+        id,
+        product_count,
+        checksum,
+        source_updated_at,
+        synced_at,
+        payload_json
+      FROM kbl_public_catalog_snapshot
+      WHERE id = 1
+      LIMIT 1
+    `)
+    .first();
+}
+
+function publicCatalogSnapshot(row) {
+  if (!row) return null;
+
+  let products = [];
+
+  try {
+    const parsed = JSON.parse(String(row.payload_json || '[]'));
+    if (Array.isArray(parsed)) products = parsed;
+  } catch (_) {}
+
+  const syncedTime = Date.parse(row.synced_at || '');
+  const ageSeconds = Number.isFinite(syncedTime)
+    ? Math.max(0, Math.round((Date.now() - syncedTime) / 1000))
+    : null;
+
+  return {
+    productCount: Number(row.product_count || products.length || 0),
+    checksum: safeText(row.checksum, 128),
+    sourceUpdatedAt: row.source_updated_at || '',
+    syncedAt: row.synced_at || '',
+    ageSeconds,
+    fresh: ageSeconds !== null && ageSeconds <= 900,
+    products
+  };
+}
+
+async function syncCatalog(request, env) {
+  if (!env.DB) {
+    return json({
+      success: false,
+      message: 'D1 binding is unavailable.'
+    }, 503);
+  }
+
+  const expectedSecret = String(env.KBL_BACKUP_SYNC_SECRET || '');
+
+  if (!expectedSecret) {
+    return json({
+      success: false,
+      message: 'Backup sync secret is not configured.'
+    }, 503);
+  }
+
+  const suppliedSecret =
+    request.headers.get('x-kbl-sync-secret') || '';
+
+  if (!(await safeEqual(expectedSecret, suppliedSecret))) {
+    return json({
+      success: false,
+      message: 'Unauthorized.'
+    }, 401);
+  }
+
+  const maxPayloadBytes = 2 * 1024 * 1024;
+  const contentLength = Number(request.headers.get('content-length') || 0);
+
+  if (contentLength > maxPayloadBytes) {
+    return json({
+      success: false,
+      message: 'Catalog payload too large.'
+    }, 413);
+  }
+
+  let raw = '';
+  let body;
+
+  try {
+    raw = await request.text();
+
+    if (new TextEncoder().encode(raw).length > maxPayloadBytes) {
+      return json({
+        success: false,
+        message: 'Catalog payload too large.'
+      }, 413);
+    }
+
+    body = JSON.parse(raw);
+  } catch (_) {
+    return json({
+      success: false,
+      message: 'Invalid JSON.'
+    }, 400);
+  }
+
+  const sourceUpdatedAt = validIso(body?.sourceUpdatedAt);
+  const incomingProducts = Array.isArray(body?.products) ? body.products : null;
+
+  if (!sourceUpdatedAt) {
+    return json({
+      success: false,
+      message: 'sourceUpdatedAt is invalid.'
+    }, 400);
+  }
+
+  if (!incomingProducts) {
+    return json({
+      success: false,
+      message: 'Catalog products array is missing.'
+    }, 400);
+  }
+
+  if (incomingProducts.length < 1 || incomingProducts.length > 2000) {
+    return json({
+      success: false,
+      message: 'Catalog product count is outside the safe range.'
+    }, 400);
+  }
+
+  const products = [];
+  const seenSku = new Set();
+
+  for (const rawProduct of incomingProducts) {
+    const product = sanitizeCatalogProduct(rawProduct);
+    if (!product) continue;
+
+    const key = product.sku.toUpperCase();
+    if (seenSku.has(key)) continue;
+
+    seenSku.add(key);
+    products.push(product);
+  }
+
+  if (!products.length) {
+    return json({
+      success: false,
+      message: 'Catalog contains no valid public products.'
+    }, 400);
+  }
+
+  const existing = await getCatalogSnapshot(env);
+
+  if (existing?.source_updated_at) {
+    const oldTime = Date.parse(existing.source_updated_at);
+    const incomingTime = Date.parse(sourceUpdatedAt);
+
+    if (
+      Number.isFinite(oldTime) &&
+      Number.isFinite(incomingTime) &&
+      incomingTime < oldTime
+    ) {
+      return json({
+        success: false,
+        message: 'Stale catalog payload rejected.'
+      }, 409);
+    }
+  }
+
+  const payloadJson = JSON.stringify(products);
+  const checksum = await sha256Hex(payloadJson);
+  const syncedAt = new Date().toISOString();
+
+  await env.DB.batch([
+    env.DB.prepare(`
+      INSERT INTO kbl_public_catalog_snapshot (
+        id,
+        product_count,
+        checksum,
+        source_updated_at,
+        synced_at,
+        payload_json
+      )
+      VALUES (1, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        product_count = excluded.product_count,
+        checksum = excluded.checksum,
+        source_updated_at = excluded.source_updated_at,
+        synced_at = excluded.synced_at,
+        payload_json = excluded.payload_json
+    `).bind(
+      products.length,
+      checksum,
+      sourceUpdatedAt,
+      syncedAt,
+      payloadJson
+    ),
+
+    env.DB.prepare(`
+      INSERT INTO kbl_sync_state (
+        sync_key,
+        source,
+        status,
+        last_attempt_at,
+        last_success_at,
+        last_error,
+        updated_at
+      )
+      VALUES (
+        'catalog',
+        'TENTEN',
+        'online',
+        ?,
+        ?,
+        '',
+        ?
+      )
+      ON CONFLICT(sync_key) DO UPDATE SET
+        source = excluded.source,
+        status = excluded.status,
+        last_attempt_at = excluded.last_attempt_at,
+        last_success_at = excluded.last_success_at,
+        last_error = '',
+        updated_at = excluded.updated_at
+    `).bind(
+      syncedAt,
+      syncedAt,
+      syncedAt
+    )
+  ]);
+
+  return json({
+    success: true,
+    message: 'Public catalog synchronized to Cloudflare D1.',
+    catalog: {
+      productCount: products.length,
+      checksum,
+      sourceUpdatedAt,
+      syncedAt
+    }
+  });
 }
 
 async function syncGoldPrice(request, env) {
@@ -365,10 +689,15 @@ export default {
       const d1 = await checkD1(env);
 
       let goldPrice = null;
+      let catalog = null;
 
       if (d1.connected) {
         try {
           goldPrice = publicGoldPrice(await getGoldPrice(env));
+        } catch (_) {}
+
+        try {
+          catalog = publicCatalogSnapshot(await getCatalogSnapshot(env));
         } catch (_) {}
       }
 
@@ -388,13 +717,16 @@ export default {
 
         goldPriceBackupReady: Boolean(goldPrice),
         goldPriceFresh: Boolean(goldPrice?.fresh),
+        catalogBackupReady: Boolean(catalog?.productCount),
+        catalogFresh: Boolean(catalog?.fresh),
+        catalogProductCount: Number(catalog?.productCount || 0),
 
         independentBackupData: false,
         mediaBackupReady: false,
         readyForFailover: false,
 
         message: d1.connected
-          ? 'D1 is connected. Gold-price sync endpoint is ready.'
+          ? 'D1 is connected. Gold-price and public-catalog sync endpoints are ready.'
           : 'Worker is online, but D1 is not healthy.'
       });
     }
@@ -415,6 +747,13 @@ export default {
       request.method === 'POST'
     ) {
       return syncGoldPrice(request, env);
+    }
+
+    if (
+      url.pathname === '/api/sync/catalog' &&
+      request.method === 'POST'
+    ) {
+      return syncCatalog(request, env);
     }
 
     if (url.pathname === '/api/gold-price') {
@@ -445,14 +784,55 @@ export default {
       }
     }
 
+    if (url.pathname === '/api/products') {
+      try {
+        const catalog = publicCatalogSnapshot(await getCatalogSnapshot(env));
+
+        if (!catalog || !catalog.productCount) {
+          return json({
+            success: false,
+            message: 'No backed-up public catalog yet.'
+          }, 404);
+        }
+
+        return json({
+          success: true,
+          source: 'Cloudflare D1 backup',
+          products: catalog.products,
+          backup: {
+            productCount: catalog.productCount,
+            checksum: catalog.checksum,
+            sourceUpdatedAt: catalog.sourceUpdatedAt,
+            syncedAt: catalog.syncedAt,
+            ageSeconds: catalog.ageSeconds,
+            fresh: catalog.fresh
+          }
+        });
+      } catch (error) {
+        return json({
+          success: false,
+          message: 'Cannot read backup public catalog.',
+          error:
+            error instanceof Error
+              ? error.message
+              : String(error)
+        }, 500);
+      }
+    }
+
     if (url.pathname === '/api/failover-status') {
       const d1 = await checkD1(env);
 
       let goldPrice = null;
+      let catalog = null;
 
       if (d1.connected) {
         try {
           goldPrice = publicGoldPrice(await getGoldPrice(env));
+        } catch (_) {}
+
+        try {
+          catalog = publicCatalogSnapshot(await getCatalogSnapshot(env));
         } catch (_) {}
       }
 
@@ -469,6 +849,9 @@ export default {
 
         goldPriceBackupReady: Boolean(goldPrice),
         goldPriceFresh: Boolean(goldPrice?.fresh),
+        catalogBackupReady: Boolean(catalog?.productCount),
+        catalogFresh: Boolean(catalog?.fresh),
+        catalogProductCount: Number(catalog?.productCount || 0),
 
         mediaLayer: 'not-connected',
         productionDataSynced: false,
