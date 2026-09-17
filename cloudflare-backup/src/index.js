@@ -2,9 +2,10 @@ var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
 // src/index.js
-var VERSION = "1.0.3-house2-ai-origin-safe-final";
+var VERSION = "1.0.4-house2-stable-origin-final";
 var PUBLIC_SITE_ORIGIN = "https://tiemvangkimbaolam.id.vn";
 var PRIMARY_PROXY_TIMEOUT_MS = 5e3;
+var PRIMARY_PAGE_PROXY_TIMEOUT_MS = 15e3;
 var PRIMARY_AI_PROXY_TIMEOUT_MS = 180e3;
 function primaryProxyTimeoutFor(pathname) {
   const path = String(pathname || "");
@@ -12,6 +13,17 @@ function primaryProxyTimeoutFor(pathname) {
   return PRIMARY_PROXY_TIMEOUT_MS;
 }
 __name(primaryProxyTimeoutFor, "primaryProxyTimeoutFor");
+function primaryProxyTimeoutForRequest(request) {
+  const url = new URL(request.url);
+  const pathnameTimeout = primaryProxyTimeoutFor(url.pathname);
+  if (pathnameTimeout === PRIMARY_AI_PROXY_TIMEOUT_MS) return pathnameTimeout;
+  const method = String(request.method || "GET").toUpperCase();
+  const accept = String(request.headers.get("accept") || "").toLowerCase();
+  const fetchMode = String(request.headers.get("sec-fetch-mode") || "").toLowerCase();
+  const isPublicNavigation = (method === "GET" || method === "HEAD") && !url.pathname.startsWith("/api/") && (fetchMode === "navigate" || accept.includes("text/html"));
+  return isPublicNavigation ? PRIMARY_PAGE_PROXY_TIMEOUT_MS : PRIMARY_PROXY_TIMEOUT_MS;
+}
+__name(primaryProxyTimeoutForRequest, "primaryProxyTimeoutForRequest");
 var MEDIA_STATE_KEY = "state/catalog-media-state.json";
 var MEDIA_BATCH_SIZE = 30;
 var MEDIA_MAX_BYTES = 8 * 1024 * 1024;
@@ -1132,7 +1144,7 @@ async function fetchPrimaryThroughHiddenOrigin(request, env) {
   headers.set("x-forwarded-host", incoming.host);
   headers.set("x-forwarded-proto", "https");
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), primaryProxyTimeoutFor(incoming.pathname));
+  const timeout = setTimeout(() => controller.abort(), primaryProxyTimeoutForRequest(request));
   try {
     const init = {
       method: request.method,
