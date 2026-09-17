@@ -3,11 +3,13 @@
   "name": "kbl-backup",
   "main": "./src/index.js",
   "compatibility_date": "2026-09-17",
+
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": true
   },
+
   "d1_databases": [
     {
       "binding": "DB",
@@ -15,13 +17,18 @@
       "database_id": "d0af07a4-a3b6-4c8a-8294-eb1480df93d1"
     }
   ],
+
   "r2_buckets": [
     {
       "binding": "MEDIA",
       "bucket_name": "kbl-backup-media"
     }
   ],
+
   "triggers": {
-    "crons": ["*/5 * * * *", "* * * * *"]
+    "crons": [
+      "*/5 * * * *",
+      "* * * * *"
+    ]
   }
 }
