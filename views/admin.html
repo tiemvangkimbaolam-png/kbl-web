@@ -310,6 +310,7 @@
         </details>
         <label class="wide">Hình ảnh sản phẩm<input id="image-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
         <div class="image-preview wide" id="image-preview"><span>Chưa chọn ảnh</span></div>
+        <div class="ai-name-box wide" id="editor-ai-name-box" hidden></div>
         <div class="tryon-upload-note"><strong>Ảnh dùng để thử trang sức:</strong> phải là PNG đã tách nền, chỉ còn đúng món trang sức; tuyệt đối không có bàn tay, hộp, bàn hoặc phông nền. Không có ảnh chuẩn thì website sẽ không tạo ảnh thử.</div>
         <label class="wide">Ảnh thử PNG nền trong suốt (không bắt buộc)<input id="tryon-image-file" type="file" accept="image/png"></label>
         <div class="image-preview wide" id="tryon-image-preview"><span>Chưa có ảnh thử chuẩn</span></div>
@@ -881,6 +882,23 @@ const kblAdminSpeed = (() => {
         ? '<img src="' + safe(source) + '" alt="Ảnh thử sản phẩm"><span>' + safe(label || 'Ảnh thử đã sẵn sàng') + '</span>'
         : '<span>' + safe(label || 'Chưa có ảnh thử chuẩn') + '</span>';
     }
+    function renderEditorAiNameSuggestions(product,statusText='',statusKind='') {
+      const box=$('editor-ai-name-box');if(!box)return;
+      const active=productState.source==='pos'&&product&&String(product.id)===String(productState.editingId||'');
+      if(!active){box.hidden=true;box.innerHTML='';return;}
+      const names=Array.isArray(product.aiNameSuggestions)?product.aiNameSuggestions.slice(0,5):[],displayName=String(product.displayName||'').trim(),summary=String(product.aiNameVisualSummary||'').trim();
+      box.hidden=false;
+      box.innerHTML='<b>🧠 AI NHÌN ẢNH → GỢI Ý TÊN TRƯNG BÀY</b>'+
+        '<div class="ai-name-summary">'+safe(summary||'Tải ảnh thật của đúng SKU. AI chỉ mô tả kiểu dáng nhìn thấy; tên POS, SKU, tuổi vàng, trọng lượng và giá không bị thay đổi.')+'</div>'+
+        (names.length?'<div class="ai-name-options">'+names.map(n=>'<button class="ai-name-choice '+(displayName===n?'selected':'')+'" type="button" data-editor-ai-name-choice="'+encodeURIComponent(n)+'">'+(displayName===n?'✓ ':'')+safe(n)+'</button>').join('')+'</div>':'<div class="ai-name-note">Chưa có 5 tên. Khi tải ảnh cho hàng POS, AI sẽ tự quét và trả tên ngay tại đây.</div>')+
+        '<div class="ai-name-note" data-editor-ai-name-status style="'+(statusKind==='bad'?'color:#b42332':statusKind==='good'?'color:#08734d':'')+'">'+safe(statusText||'')+'</div>';
+      box.querySelectorAll('[data-editor-ai-name-choice]').forEach(button=>button.addEventListener('click',()=>applyProductDisplayName(product.id,decodeURIComponent(button.dataset.editorAiNameChoice||''),{openStudio:false})));
+    }
+    function setEditorAiNameStatus(text,kind=''){
+      const box=$('editor-ai-name-box');if(!box||box.hidden)return;let status=box.querySelector('[data-editor-ai-name-status]');
+      if(!status){status=document.createElement('div');status.className='ai-name-note';status.dataset.editorAiNameStatus='1';box.appendChild(status)}
+      status.textContent=text||'';status.style.color=kind==='bad'?'#b42332':kind==='good'?'#08734d':'';
+    }
     function resetForm() {
       kblResetEditorMedia(null);
       $('form').reset();
@@ -904,6 +922,7 @@ const kblAdminSpeed = (() => {
       $('cancel-edit').hidden = true;
       setPreview('', 'Chưa chọn ảnh');
       setTryOnPreview('', 'Chưa có ảnh thử chuẩn');
+      renderEditorAiNameSuggestions(null);
     }
     function editProduct(product) {
       if(!product)return;
@@ -938,6 +957,7 @@ const kblAdminSpeed = (() => {
       document.querySelector('.legal-details').open = true;
       setPreview(productState.image, productState.image ? 'Ảnh hiện tại · chọn ảnh mới nếu muốn thay' : 'Chưa có ảnh · hãy tải ảnh rồi duyệt đăng');
       setTryOnPreview(productState.tryOnImage, productState.tryOnImage ? 'Ảnh PNG thử hiện tại · chọn ảnh mới nếu muốn thay' : 'Chưa có ảnh thử chuẩn · nút thử sẽ được khóa an toàn');
+      renderEditorAiNameSuggestions(product);
       window.scrollTo({ top: $('form').getBoundingClientRect().top + window.scrollY - 24, behavior: 'smooth' });
     }
     function compressImage(file) {
@@ -1040,15 +1060,38 @@ const kblAdminSpeed = (() => {
     }
     function setPendingUploadStatus(productId,text,kind=''){const el=$('pending-upload-'+productId);if(!el)return;el.textContent=text;el.className='pending-upload-status '+kind}
     async function requestProductNameSuggestions(productId,imageDataUrl=''){
-      const product=productState.products.find(p=>String(p.id)===String(productId));if(!product)return;
+      const product=productState.products.find(p=>String(p.id)===String(productId));if(!product)return null;
+      const editingThis=productState.source==='pos'&&String(productState.editingId||'')===String(productId);
       let payloadImage=imageDataUrl;
-      if(!payloadImage){setPendingUploadStatus(productId,'🧠 Đang đọc lại ảnh gốc để gợi ý 5 tên…');const source=product.originalStudioImage||product.image||'';if(!source)return setPendingUploadStatus(productId,'❌ SKU chưa có ảnh gốc để AI quét.','bad');try{const r=await fetch(source,{cache:'no-store'}),blob=await r.blob(),file=new File([blob],'kbl-source-image',{type:blob.type||'image/jpeg'});payloadImage=await compressImage(file)}catch(e){return setPendingUploadStatus(productId,'❌ Không đọc lại được ảnh gốc: '+e.message,'bad')}}
-      setPendingUploadStatus(productId,'🧠 Gemini đang nhìn ảnh + đọc dữ liệu POS để tạo đúng 5 tên…');
-      try{const response=await fetch('/api/admin/content/name-suggestions',{method:'POST',headers:headers(true),body:JSON.stringify({productId,imageDataUrl:payloadImage})}),data=await response.json();if(!response.ok||!data.success)throw new Error(data.message||'Không tạo được 5 tên');if(data.product)Object.assign(product,data.product);setPendingUploadStatus(productId,'✓ AI đã gợi ý 5 tên. Chọn 1 tên; tên POS vẫn giữ nguyên.','good');renderAdminProducts()}catch(error){setPendingUploadStatus(productId,'❌ '+error.message,'bad')}
+      if(!payloadImage){
+        setPendingUploadStatus(productId,'🧠 Đang đọc lại ảnh gốc để gợi ý 5 tên…');if(editingThis)setEditorAiNameStatus('🧠 Đang đọc lại ảnh gốc…');
+        const source=product.originalStudioImage||product.image||'';if(!source){setPendingUploadStatus(productId,'❌ SKU chưa có ảnh gốc để AI quét.','bad');if(editingThis)setEditorAiNameStatus('❌ SKU chưa có ảnh gốc để AI quét.','bad');return null}
+        try{const r=await fetch(source,{cache:'no-store'}),blob=await r.blob(),file=new File([blob],'kbl-source-image',{type:blob.type||'image/jpeg'});payloadImage=await compressImage(file)}catch(e){setPendingUploadStatus(productId,'❌ Không đọc lại được ảnh gốc: '+e.message,'bad');if(editingThis)setEditorAiNameStatus('❌ Không đọc lại được ảnh gốc: '+e.message,'bad');return null}
+      }
+      setPendingUploadStatus(productId,'🧠 Gemini đang nhìn ảnh + đọc dữ liệu POS để tạo đúng 5 tên…');if(editingThis)setEditorAiNameStatus('🧠 Gemini đang nhìn ảnh + đọc dữ liệu POS để tạo đúng 5 tên…');
+      try{
+        const response=await fetch('/api/admin/content/name-suggestions',{method:'POST',headers:headers(true),body:JSON.stringify({productId,imageDataUrl:payloadImage})}),data=await response.json();
+        if(!response.ok||!data.success)throw new Error(data.message||'Không tạo được 5 tên');
+        if(data.product)Object.assign(product,data.product);
+        if(Array.isArray(data.names))product.aiNameSuggestions=data.names.slice(0,5);
+        if(data.visualSummary!==undefined)product.aiNameVisualSummary=data.visualSummary||'';
+        if(data.categorySuggestion!==undefined)product.aiNameCategorySuggestion=data.categorySuggestion||'';
+        if(data.model!==undefined)product.aiNameSuggestionModel=data.model||'';
+        setPendingUploadStatus(productId,'✓ AI đã gợi ý 5 tên. Chọn 1 tên; tên POS vẫn giữ nguyên.','good');
+        renderAdminProducts();if(editingThis){renderEditorAiNameSuggestions(product,'✓ AI đã trả đủ 5 tên. Chọn tên ngay bên trên.','good')}
+        return data;
+      }catch(error){
+        const text='❌ '+(error&&error.message||'AI chưa trả được tên');setPendingUploadStatus(productId,text,'bad');if(editingThis){renderEditorAiNameSuggestions(product,text,'bad')}return null;
+      }
     }
-    async function applyProductDisplayName(productId,name){
-      const product=productState.products.find(p=>String(p.id)===String(productId));if(!product)return;setPendingUploadStatus(productId,'Đang lưu tên trưng bày; không sửa tên POS…');
-      try{const response=await fetch('/api/admin/content/display-name',{method:'POST',headers:headers(true),body:JSON.stringify({productId,name})}),data=await response.json();if(!response.ok||!data.success)throw new Error(data.message||'Không lưu được tên trưng bày');if(data.product)Object.assign(product,data.product);setPendingUploadStatus(productId,'✓ Đã chọn “'+name+'”. Đang mở đúng SKU và tạo bộ nội dung trưng bày…','good');renderAdminProducts();openContentStudio(productId);await generateContent()}catch(error){setPendingUploadStatus(productId,'❌ '+error.message,'bad')}
+    async function applyProductDisplayName(productId,name,options={}){
+      const product=productState.products.find(p=>String(p.id)===String(productId));if(!product)return;const openStudioAfter=options.openStudio!==false;setPendingUploadStatus(productId,'Đang lưu tên trưng bày; không sửa tên POS…');
+      try{
+        const response=await fetch('/api/admin/content/display-name',{method:'POST',headers:headers(true),body:JSON.stringify({productId,name})}),data=await response.json();if(!response.ok||!data.success)throw new Error(data.message||'Không lưu được tên trưng bày');if(data.product)Object.assign(product,data.product);
+        setPendingUploadStatus(productId,'✓ Đã chọn “'+name+'”.'+(openStudioAfter?' Đang mở đúng SKU và tạo bộ nội dung trưng bày…':''),'good');renderAdminProducts();
+        if(productState.source==='pos'&&String(productState.editingId||'')===String(productId))renderEditorAiNameSuggestions(product,'✓ Đã chọn tên trưng bày “'+name+'”. Tên POS giữ nguyên.','good');
+        if(openStudioAfter){openContentStudio(productId);await generateContent()}else{msg('✓ Đã lưu tên trưng bày. Tên POS không đổi.')}
+      }catch(error){setPendingUploadStatus(productId,'❌ '+error.message,'bad');if(productState.source==='pos'&&String(productState.editingId||'')===String(productId))setEditorAiNameStatus('❌ '+error.message,'bad')}
     }
     async function uploadProductSourceImage(productId,file){
       if(!file)return;setPendingUploadStatus(productId,'Đang xử lý và lưu ảnh gốc…');
@@ -1956,7 +1999,21 @@ const kblAdminSpeed = (() => {
       
       const state=kblBeginImageRead('image','editor'),file=event.target.files?.[0];
       if(!file){state.status='done';return;}
-      try{const value=await compressImage(file);if(!kblImageReadCurrent('image',state))return;state.status='done';productState.image=value;kblMediaUi.imageDirty=true;setPreview(value,file.name+' · đã thu gọn');}
+      try{
+        const value=await compressImage(file);if(!kblImageReadCurrent('image',state))return;state.status='done';productState.image=value;kblMediaUi.imageDirty=true;setPreview(value,file.name+' · đã thu gọn');
+        if(productState.source==='pos'&&productState.editingId){
+          const productId=String(productState.editingId),product=productState.products.find(p=>String(p.id)===productId);
+          if(product){
+            renderEditorAiNameSuggestions(product,'⏳ Đang lưu ảnh gốc vào Product Manifest…');
+            try{
+              const response=await fetch('/api/admin/content/source-image',{method:'POST',headers:headers(true),body:JSON.stringify({productId,imageDataUrl:value})}),data=await response.json();
+              if(!response.ok||!data.success)throw new Error(data.message||'Không lưu được ảnh gốc');
+              if(data.product)Object.assign(product,data.product);renderAdminProducts();renderEditorAiNameSuggestions(product,'✓ Đã nhận ảnh. AI đang gợi ý 5 tên…','good');
+              await requestProductNameSuggestions(productId,value);
+            }catch(aiError){renderEditorAiNameSuggestions(product,'❌ '+(aiError&&aiError.message||'Không lưu/đọc được ảnh cho AI.'),'bad')}
+          }
+        }
+      }
       catch(error){if(!kblImageReadCurrent('image',state))return;state.status='error';event.target.value='';msg('❌ Ảnh sản phẩm: '+kblMediaError(error));}
     });
     $('tryon-image-file').addEventListener('change',async(event)=>{

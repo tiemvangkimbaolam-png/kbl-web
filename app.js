@@ -6942,8 +6942,9 @@ async function geminiAdviserImageMatch(imageDataUrl, message = '') {
 }
 
 async function geminiPendingProductNameSuggestions(product, imageDataUrl) {
-  if (!AI_CONTENT_ENABLED || !GEMINI_API_KEY || typeof fetch !== 'function') return null;
-  const image=parseDataImage(imageDataUrl,4500000); if(!image) return null;
+  if (!AI_CONTENT_ENABLED) throw new Error('AI Content Studio đang tắt.');
+  if (!GEMINI_API_KEY || typeof fetch !== 'function') throw new Error('Chưa cấu hình Gemini API để AI nhìn ảnh và gợi ý tên.');
+  const image=parseDataImage(imageDataUrl,4500000); if(!image) throw new Error('Ảnh không hợp lệ hoặc vượt giới hạn AI 4,5MB sau khi nén.');
   const posFacts={
     sku:cleanInventoryCode(product&&product.sku),
     posName:cleanLabelText(product&&product.name,160),
@@ -6967,19 +6968,22 @@ async function geminiPendingProductNameSuggestions(product, imageDataUrl) {
     'Trả đúng JSON schema, names đúng 5 phần tử.'
   ].join('\n');
   const prompt='POS_FACTS='+JSON.stringify(posFacts)+'\nHãy tạo 5 tên trưng bày cho đúng ảnh này.';
-  const models=geminiModelCandidates(GEMINI_TEXT_MODEL,['gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']);
+  const models=geminiModelCandidates(GEMINI_TEXT_MODEL,['gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']).slice(0,4);
+  let lastIssue='AI không trả dữ liệu';
   for(const model of models){
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),AI_CONTENT_TIMEOUT_MS);
     try{
       const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({system_instruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:prompt},{inline_data:{mime_type:image.mimeType,data:image.data}}]}],generationConfig:geminiTextGenerationConfig(model,{thinkingLevel:'low',temperature:.55,topP:.9,maxOutputTokens:1200,responseMimeType:'application/json',responseSchema:schema})})});
-      if(!response.ok)continue;
-      const payload=await response.json(),raw=geminiResponseText(payload);if(!raw)continue;const parsed=JSON.parse(raw);
+      if(!response.ok){lastIssue=`${model}: HTTP ${response.status}`;continue;}
+      const payload=await response.json(),raw=geminiResponseText(payload);
+      if(!raw){lastIssue=`${model}: phản hồi rỗng`;continue;}
+      let parsed;try{parsed=JSON.parse(raw)}catch(_){lastIssue=`${model}: JSON không hợp lệ`;continue;}
       const names=[...new Set((Array.isArray(parsed.names)?parsed.names:[]).map(x=>cleanLabelText(x,120)).filter(Boolean))].slice(0,5);
-      if(names.length!==5)continue;
+      if(names.length!==5){lastIssue=`${model}: chưa đủ 5 tên hợp lệ`;continue;}
       return {names,visualSummary:cleanLabelText(parsed.visualSummary,500),categorySuggestion:cleanLabelText(parsed.categorySuggestion,80),model};
-    }catch(_){}finally{clearTimeout(timeout)}
+    }catch(error){lastIssue=error&&error.name==='AbortError'?`${model}: quá thời gian chờ`:`${model}: ${cleanLabelText(error&&error.message||'lỗi AI',120)}`;}finally{clearTimeout(timeout)}
   }
-  return null;
+  throw new Error(`Gemini chưa tạo đủ 5 tên. ${lastIssue}.`);
 }
 
 function fileUpdatedAt(file) {
@@ -7505,6 +7509,9 @@ function normalizeProductKind(value) {
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 app.use((req, res, next) => {
+  // KBL ORIGIN HEALTH MARKER: proves the hidden TENTEN Node app itself answered the request.
+  // House 2 uses this to distinguish an application/API error from a real origin outage.
+  res.setHeader('X-KBL-Origin-App', 'kbl-node');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
@@ -7648,6 +7655,7 @@ app.use('/api/sync/inventory', express.json({ limit: '10mb', strict: true }));
 app.use('/api/tryon/ai', express.json({ limit: '8mb', strict: true }));
 app.use('/api/adviser/image', express.json({ limit: '6mb', strict: true }));
 app.use('/api/admin/content/source-image', express.json({ limit: '5mb', strict: true }));
+app.use('/api/admin/content/name-suggestions', express.json({ limit: '5mb', strict: true }));
 app.use('/api/admin/content/source-video/', express.raw({ type: ['video/mp4','video/webm','video/quicktime','application/octet-stream'], limit: '80mb' }));
 app.use('/api/admin/content/display-prompt', express.json({ limit: '4mb', strict: true }));
 app.use('/api/admin/content/studio-run', express.json({ limit: '4mb', strict: true }));
@@ -9162,7 +9170,43 @@ function normalizedLeadStage(input, product, escalationReason) {
   return 'Đang xem';
 }
 
-app.get('/api/products', (_req, res) => json(res, 200, { success: true, products: productsForView(products, { compactMedia: true }) }));
+// KBL 2026-09-17 · FAST CONSISTENT EN CATALOG
+// Default VI remains unchanged. English requests use existing cached translations only;
+// cache misses are warmed in the background, so customer navigation never waits on Gemini.
+function kblPublicProductsForLocale(locale='vi') {
+  const rows = productsForView(products, { compactMedia: true });
+  if (String(locale || '').toLowerCase() !== 'en') return { locale:'vi', pending:0, products:rows };
+  const sourceById = new Map(products.map((product) => [String(product && product.id || ''), product]));
+  let pending = 0;
+  const localized = rows.map((row) => {
+    const source = sourceById.get(String(row.id || '')) || null;
+    const en = source ? kblIntlProductEnglishCached(source) : null;
+    if (!en) pending += 1;
+    const weightGrams = en && Number.isFinite(Number(en.weightGrams))
+      ? Number(en.weightGrams)
+      : Math.round(Math.max(0, number(row.weightChi)) * 3.75 * 1000) / 1000;
+    return {
+      ...row,
+      locale:'en',
+      name:en && en.name ? en.name : row.name,
+      description:en && en.description ? en.description : row.description,
+      detail:en && en.detail ? en.detail : row.detail,
+      warnings:en && en.warnings ? en.warnings : row.warnings,
+      sizeLabel:en && en.sizeLabel ? en.sizeLabel : row.sizeLabel,
+      categoryEnglish:en && en.category ? en.category : '',
+      goldPurityLabel:en && en.goldPurityLabel ? en.goldPurityLabel : kblIntlGoldPurityLabel(row.goldCode),
+      weightGrams,
+      availability:row.availability ? { ...row.availability, label:row.availability.reserved ? 'Temporarily reserved' : 'In stock at store' } : row.availability
+    };
+  });
+  if (pending) kblIntlQueueCatalogRefresh();
+  return { locale:'en', pending, products:localized };
+}
+app.get('/api/products', (req, res) => {
+  const locale = String(req.query.locale || req.query.lang || '').toLowerCase() === 'en' ? 'en' : 'vi';
+  const payload = kblPublicProductsForLocale(locale);
+  return json(res, 200, { success:true, locale:payload.locale, translationPending:payload.pending, products:payload.products });
+});
 app.post('/api/feedback', rateLimit('website-feedback', 10, 30 * 60 * 1000), async (req, res) => {
   const body = req.body || {};
   const allowedCategories = new Set(['Sản phẩm chưa phù hợp','Giao diện website','Tư vấn AI','Dịch vụ','Ý kiến khác']);
@@ -11793,8 +11837,12 @@ app.post('/api/admin/content/name-suggestions', rateLimit('content-name-suggesti
   if(normalizeProductKind(product.kind)!=='current'||String(product.status||'')!=='available'||!cleanInventoryCode(product.sku))return json(res,409,{success:false,message:'Chỉ gợi ý tên cho hàng POS đang còn và có Mã SP.'});
   const image=safeImageSource(input.imageDataUrl);
   if(!image||!image.startsWith('data:image/'))return json(res,400,{success:false,message:'Hãy tải ảnh thật của đúng SKU để AI gợi ý tên.'});
-  const result=await geminiPendingProductNameSuggestions(product,image);
-  if(!result)return json(res,502,{success:false,message:'AI chưa đọc rõ ảnh để tạo đủ 5 tên. Hãy thử ảnh rõ sản phẩm hơn.'});
+  let result;
+  try{result=await geminiPendingProductNameSuggestions(product,image)}catch(error){
+    const reason=cleanLabelText(error&&error.message||'AI chưa tạo được 5 tên.',260);
+    auditEvent(req,'content.name-suggestions','error',{productId:product.id,sku:cleanInventoryCode(product.sku),reason});
+    return json(res,502,{success:false,message:reason});
+  }
   const now=new Date().toISOString();
   product.aiNameSuggestions=result.names;product.aiNameVisualSummary=result.visualSummary;product.aiNameCategorySuggestion=result.categorySuggestion;product.aiNameSuggestionsAt=now;product.aiNameSuggestionModel=result.model;product.updatedAt=now;writeJson(PRODUCTS_FILE,products);
   auditEvent(req,'content.name-suggestions','ok',{productId:product.id,sku:cleanInventoryCode(product.sku),model:result.model});
@@ -13442,7 +13490,7 @@ async function kblIntlServerTranslateHtml(html,scope='ssr-page'){const parts=Str
 const kblIntlSsrHtmlCache=new Map(),kblIntlSsrHtmlInflight=new Map();
 async function kblIntlServerTranslateHtmlCached(cacheKey,filePath,html,scope='ssr-page'){let stat=null;try{stat=fs.statSync(filePath)}catch(_){}const sig=stat?`${stat.size}:${Math.round(stat.mtimeMs)}`:crypto.createHash('sha1').update(String(html||'')).digest('hex'),hit=kblIntlSsrHtmlCache.get(cacheKey);if(hit&&hit.sig===sig)return{...hit.value,cacheHit:true};if(kblIntlSsrHtmlInflight.has(cacheKey)){const x=await kblIntlSsrHtmlInflight.get(cacheKey);return{...x,cacheHit:true}}const job=kblIntlServerTranslateHtml(html,scope).then(value=>{kblIntlSsrHtmlCache.set(cacheKey,{sig,value,at:Date.now()});return value}).finally(()=>kblIntlSsrHtmlInflight.delete(cacheKey));kblIntlSsrHtmlInflight.set(cacheKey,job);const value=await job;return{...value,cacheHit:false}}
 const KBL_INTL_PUBLIC_VIEWS=['thong-tin-doanh-nghiep.html','chinh-sach-bao-hanh-doi-tra.html','dieu-kien-han-che-cung-cap-hang-hoa-dich-vu.html','chinh-sach-gia.html','bo-chinh-sach.html','huong-dan-mua-hang.html','chinh-sach-tri-an-khach-hang-than-thiet.html','chinh-sach-thanh-toan.html','quy-trinh-tiep-nhan-giai-quyet-khieu-nai.html','chinh-sach-giao-hang-doi-tra-hoan-tien.html','hinh-thuc-ho-tro-truc-tuyen.html','chinh-sach-bao-mat.html','chinh-sach-van-chuyen-giao-nhan.html'];
-function kblIntlInjectPage(html,locale,canonicalPath,ssrEnglish=false){let out=String(html||''),canonical=KBL_INTL_PUBLIC_BASE+canonicalPath,viPath=canonicalPath.replace(/^\/(?:en|vi)(?=\/)/,'/vi'),enPath=canonicalPath.replace(/^\/(?:en|vi)(?=\/)/,'/en');out=out.replace(/<html\b[^>]*>/i,`<html lang="${locale||'vi'}"${ssrEnglish?' data-kbl-ssr-lang="en"':''}>`);out=out.replace(/<link\s+rel=["']canonical["'][^>]*>/i,'');out=out.replace(/<link\s+rel=["']alternate["'][^>]*>/gi,'');const alreadyHasIntl=out.includes('/kbl-international-v4.js'),assets=alreadyHasIntl?`<script>window.__KBL_INITIAL_LOCALE__=${JSON.stringify(locale||'')};</script>`:`<link rel="stylesheet" href="/kbl-international-v4.css?v=20260905-41"><script>window.__KBL_INITIAL_LOCALE__=${JSON.stringify(locale||'')};</script><script src="/kbl-international-v4.js?v=20260905-41" defer></script>`,head=`<link rel="canonical" href="${canonical}"><link rel="alternate" hreflang="vi" href="${KBL_INTL_PUBLIC_BASE+viPath}"><link rel="alternate" hreflang="en" href="${KBL_INTL_PUBLIC_BASE+enPath}"><link rel="alternate" hreflang="x-default" href="${KBL_INTL_PUBLIC_BASE+'/'}">${assets}`;out=/<\/head>/i.test(out)?out.replace(/<\/head>/i,head+'</head>'):head+out;if(locale==='en'){out=out.replace(/<title>[^<]*<\/title>/i,'<title>Kim Bao Lam Jewelry | International Customer Information</title>');out=out.replace(/<meta\s+name=["']description["'][^>]*>/i,'<meta name="description" content="Kim Bao Lam Jewelry international customer information, product policies, shipping guidance and customer support from Ho Chi Minh City, Vietnam.">')}return out}
+function kblIntlInjectPage(html,locale,canonicalPath,ssrEnglish=false){let out=String(html||''),canonical=KBL_INTL_PUBLIC_BASE+canonicalPath,viPath=canonicalPath.replace(/^\/(?:en|vi)(?=\/)/,'/vi'),enPath=canonicalPath.replace(/^\/(?:en|vi)(?=\/)/,'/en');out=out.replace(/<html\b[^>]*>/i,`<html lang="${locale||'vi'}"${ssrEnglish?' data-kbl-ssr-lang="en"':''}>`);out=out.replace(/<link\s+rel=["']canonical["'][^>]*>/i,'');out=out.replace(/<link\s+rel=["']alternate["'][^>]*>/gi,'');const alreadyHasIntl=out.includes('/kbl-international-v4.js'),assets=alreadyHasIntl?`<script>window.__KBL_INITIAL_LOCALE__=${JSON.stringify(locale||'')};</script>`:`<link rel="stylesheet" href="/kbl-international-v4.css?v=20260905-41"><script>window.__KBL_INITIAL_LOCALE__=${JSON.stringify(locale||'')};</script><script src="/kbl-international-v4.js?v=20260917-446" defer></script>`,head=`<link rel="canonical" href="${canonical}"><link rel="alternate" hreflang="vi" href="${KBL_INTL_PUBLIC_BASE+viPath}"><link rel="alternate" hreflang="en" href="${KBL_INTL_PUBLIC_BASE+enPath}"><link rel="alternate" hreflang="x-default" href="${KBL_INTL_PUBLIC_BASE+'/'}">${assets}`;out=/<\/head>/i.test(out)?out.replace(/<\/head>/i,head+'</head>'):head+out;if(locale==='en'){out=out.replace(/<title>[^<]*<\/title>/i,'<title>Kim Bao Lam Jewelry | International Customer Information</title>');out=out.replace(/<meta\s+name=["']description["'][^>]*>/i,'<meta name="description" content="Kim Bao Lam Jewelry international customer information, product policies, shipping guidance and customer support from Ho Chi Minh City, Vietnam.">')}return out}
 async function kblIntlSendHome(req,res,next){try{const started=Date.now(),locale=req.path==='/en'?'en':req.path==='/vi'?'vi':'',file=path.join(VIEWS_DIR,'home.html'),html=await fs.promises.readFile(file,'utf8'),pathName=locale?`/${locale}`:'/',translated=locale==='en'?await kblIntlServerTranslateHtmlCached('home-en',file,html,'ssr-home'):{html,changed:0,cacheHit:true},out=kblIntlInjectPage(translated.html,locale,pathName,locale==='en'&&translated.changed>0).replace(/<title>[^<]*<\/title>/i,locale==='en'?'<title>Kim Bao Lam Jewelry | Gold Jewelry from Vietnam</title>':'<title>Kim Bảo Lâm | Vàng chuẩn giá thật</title>').replace(/<meta\s+name=["']description["'][^>]*>/i,locale==='en'?'<meta name="description" content="Kim Bao Lam Jewelry in Ho Chi Minh City, Vietnam. Browse jewelry, virtual try-on, international shipping estimates and English customer support.">':'<meta name="description" content="Kim Bảo Lâm - cửa hàng vàng minh bạch, bảng giá cập nhật và trải nghiệm thử trang sức trực tuyến.">');const seoOut=kblSeoInjectSchemas(out,kblSeoHomeSchemas(locale||'vi'));res.set('Cache-Control','no-cache, no-store, must-revalidate');res.set('Server-Timing',`kbl_ssr;dur=${Date.now()-started};desc="${translated.cacheHit?'cache':'build'}"`);return res.type('html').send(seoOut)}catch(e){return next()}}
 app.get(['/', '/vi', '/en'],kblIntlSendHome);
 setTimeout(()=>{try{const file=path.join(VIEWS_DIR,'home.html'),html=fs.readFileSync(file,'utf8');kblIntlServerTranslateHtmlCached('home-en',file,html,'ssr-home').catch(()=>{})}catch(_){}},350);

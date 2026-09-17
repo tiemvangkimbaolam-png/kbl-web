@@ -2,9 +2,16 @@ var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
 // src/index.js
-var VERSION = "1.0.2-house2-media-stable-final";
+var VERSION = "1.0.3-house2-ai-origin-safe-final";
 var PUBLIC_SITE_ORIGIN = "https://tiemvangkimbaolam.id.vn";
 var PRIMARY_PROXY_TIMEOUT_MS = 5e3;
+var PRIMARY_AI_PROXY_TIMEOUT_MS = 180e3;
+function primaryProxyTimeoutFor(pathname) {
+  const path = String(pathname || "");
+  if (path.startsWith("/api/prompt-ai/") || path === "/api/admin/content/name-suggestions" || path.startsWith("/api/adviser/") || path.startsWith("/api/tryon/ai") || path.startsWith("/api/admin/content/studio-run") || path.startsWith("/api/admin/content/generate") || path.startsWith("/api/admin/content/video-caption")) return PRIMARY_AI_PROXY_TIMEOUT_MS;
+  return PRIMARY_PROXY_TIMEOUT_MS;
+}
+__name(primaryProxyTimeoutFor, "primaryProxyTimeoutFor");
 var MEDIA_STATE_KEY = "state/catalog-media-state.json";
 var MEDIA_BATCH_SIZE = 30;
 var MEDIA_MAX_BYTES = 8 * 1024 * 1024;
@@ -1125,7 +1132,7 @@ async function fetchPrimaryThroughHiddenOrigin(request, env) {
   headers.set("x-forwarded-host", incoming.host);
   headers.set("x-forwarded-proto", "https");
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PRIMARY_PROXY_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), primaryProxyTimeoutFor(incoming.pathname));
   try {
     const init = {
       method: request.method,
@@ -1149,9 +1156,15 @@ async function proxyPrimaryOrFallback(request, env) {
   const method = request.method.toUpperCase();
   try {
     const response = await fetchPrimaryThroughHiddenOrigin(request, env);
-    if (response.status < 500) {
+    const answeredByKblNode = String(response.headers.get("x-kbl-origin-app") || "").toLowerCase() === "kbl-node";
+    const aiEndpoint = primaryProxyTimeoutFor(url.pathname) === PRIMARY_AI_PROXY_TIMEOUT_MS;
+    // On known AI endpoints, an application-level 5xx (Gemini/DeepSeek/etc.) is not an origin outage.
+    // For normal pages/APIs, a 5xx still activates House 2 exactly as before.
+    const passThroughAppError = answeredByKblNode && aiEndpoint && response.status >= 500;
+    if (response.status < 500 || passThroughAppError) {
       const headers = new Headers(response.headers);
       headers.set("x-kbl-served-by", "tenten-via-cloudflare");
+      if (passThroughAppError) headers.set("x-kbl-origin-app-error", "pass-through");
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
     }
     throw new Error(`Primary returned HTTP ${response.status}`);

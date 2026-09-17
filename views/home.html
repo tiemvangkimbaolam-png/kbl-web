@@ -4678,6 +4678,37 @@ body.kbl-intro-running #kbl-pwa-reload{display:none!important}
   }
 </style>
 
+<style id="kbl-mobile-intl-header-layout-20260917">
+/* KBL MOBILE LANGUAGE BAR FIX: keep VI / EN / currency inside the sticky header footprint. */
+@media(max-width:560px){
+  .site-header .header-inner{
+    position:relative!important;
+    min-height:122px!important;
+    align-items:flex-start!important;
+    padding-top:10px!important;
+    padding-bottom:52px!important;
+  }
+  .site-header .header-utilities{
+    align-self:flex-start!important;
+  }
+  .kbl-intl-controls:not(.kbl-intl-floating){
+    position:absolute!important;
+    top:auto!important;
+    right:0!important;
+    bottom:7px!important;
+    z-index:24!important;
+    margin:0!important;
+    padding:5px!important;
+    border:1px solid #e5ded1!important;
+    border-radius:12px!important;
+    background:rgba(255,253,249,.985)!important;
+    box-shadow:0 6px 18px rgba(11,35,66,.08)!important;
+  }
+  .products-section{scroll-margin-top:140px!important}
+  .catalog-toolbar.catalog-toolbar-sticky{top:122px!important}
+}
+</style>
+
 </head>
 
   <body>
@@ -5647,6 +5678,44 @@ const elements = {
   toast: document.getElementById("toast"),
 };
 
+// KBL 2026-09-17 · FAST CONSISTENT EN SYNC
+// Dynamic blocks render directly in the requested locale. This prevents the old VI -> EN
+// repaint delay after products, filters or AI cards are regenerated.
+function kblUiLocale() {
+  const injected = String(window.__KBL_INITIAL_LOCALE__ || '').toLowerCase();
+  if (injected === 'en' || injected === 'vi') return injected;
+  return /^\/en(?:\/|$)/i.test(location.pathname) ? 'en' : 'vi';
+}
+function kblUiEnglish() { return kblUiLocale() === 'en'; }
+function kblUiText(vi, en) { return kblUiEnglish() ? en : vi; }
+function kblUiCategoryKey(value) {
+  const raw = String(value || '').trim();
+  const map = {
+    'Nhẫn':'ring','Dây chuyền':'necklace','Dây':'necklace','Mặt dây':'pendant','Bông tai':'earring','Lắc tay':'bracelet',
+    'Ring':'ring','Rings':'ring','Chain':'necklace','Chains':'necklace','Necklace':'necklace','Necklaces':'necklace',
+    'Pendant':'pendant','Pendants':'pendant','Earring':'earring','Earrings':'earring','Bracelet':'bracelet','Bracelets':'bracelet'
+  };
+  return map[raw] || raw.toLowerCase();
+}
+function kblUiCategoryEnglish(value) {
+  const key = kblUiCategoryKey(value);
+  return ({ ring:'Ring', necklace:'Chain', pendant:'Pendant', earring:'Earrings', bracelet:'Bracelet', bangle:'Bangle' })[key] || 'Jewelry';
+}
+const KBL_EN_SUBFILTER_LABELS = Object.freeze({
+  'Tất cả nhẫn':'All rings','Nhẫn nam':"Men's rings",'Nhẫn nữ':"Women's rings",'Nhẫn cưới':'Wedding rings',
+  'Tất cả dây':'All chains','Dây không mặt':'Chain only','Dây có mặt':'Chain with pendant','Kiềng cổ':'Neck ring',
+  'Tất cả mặt dây':'All pendants','Tất cả bông tai':'All earrings','Bông đuôi dài':'Long earrings','Bông sát tai':'Stud earrings','Bông đuôi ngắn':'Short earrings',
+  'Tất cả vòng':'All bangles','Vòng tay':'Bangles','Vòng Ximen':'Ximen bangles','Vòng em bé':"Children's bangles",'Vòng người lớn':"Adult bangles",
+  'Tất cả 980':'All 980','Lắc tay':'Bracelets','Nhẫn':'Rings','Bông':'Earrings','Dây chuyền':'Chains'
+});
+function kblUiSubfilterLabel(label) { return kblUiEnglish() ? (KBL_EN_SUBFILTER_LABELS[label] || label) : label; }
+function kblUiWeight(weightChi) {
+  const value = Number(weightChi || 0);
+  return kblUiEnglish()
+    ? `${(value * 3.75).toLocaleString('en-US', { maximumFractionDigits:3 })} g`
+    : `${value.toLocaleString('vi-VN')} chỉ`;
+}
+
 function formatVnd(value) {
   return `${Number(value).toLocaleString("vi-VN")} đ`;
 }
@@ -6088,43 +6157,44 @@ function openPendantComboTryOn() {
 
 function productTryButton(product) {
   const id = escapeHtml(product.id);
-  if (isPendantProduct(product)) return `<button class="product-try-button" type="button" data-pendant-compose="${id}">🔗 Chọn dây để phối</button>`;
+  if (isPendantProduct(product)) return `<button class="product-try-button" type="button" data-pendant-compose="${id}">${kblUiText('🔗 Chọn dây để phối','🔗 Choose a chain')}</button>`;
   if (String(product.tryOnImage || product.image || "").trim()) {
-    return `<button class="product-try-button" type="button" data-product-try="${id}">${product.tryOnImage ? '✨ Thử sản phẩm' : '✨ Thử bằng AI'}</button>`;
+    return `<button class="product-try-button" type="button" data-product-try="${id}">${product.tryOnImage ? kblUiText('✨ Thử sản phẩm','✨ Try on') : kblUiText('✨ Thử bằng AI','✨ Try with AI')}</button>`;
   }
-  return `<button class="product-try-button unavailable" type="button" data-product-try-unavailable="${id}" aria-label="Sản phẩm chưa có ảnh để thử">Chưa có ảnh thử</button>`;
+  return `<button class="product-try-button unavailable" type="button" data-product-try-unavailable="${id}" aria-label="${kblUiText('Sản phẩm chưa có ảnh để thử','Try-on image unavailable')}">${kblUiText('Chưa có ảnh thử','Try-on image unavailable')}</button>`;
 }
 
 function renderProductGrid(target, empty, list, referenceMode = false) {
   if (!target || !empty) return;
-  target.innerHTML = list
-    .map(
-      (product) => `
-        <article class="product-card${referenceMode ? " reference-card" : ""}" data-product-id="${escapeHtml(product.id)}">
-          <div class="product-image">
-            <img class="product-image-media" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async">
-            <span class="stock-chip${!referenceMode && product.availability?.reserved ? " v5-reserved-chip" : ""}">${referenceMode ? "Tham khảo / đặt hàng" : (product.availability?.label || "Còn hàng tại tiệm")}</span>
-            <span class="gold-chip">${escapeHtml(product.metal)}</span>
+  const en = kblUiEnglish();
+  target.innerHTML = list.map((product) => {
+    const stockLabel = referenceMode
+      ? kblUiText('Tham khảo / đặt hàng','Reference / order')
+      : (en ? (product.availability?.reserved ? 'Temporarily reserved' : 'In stock') : (product.availability?.label || 'Còn hàng tại tiệm'));
+    return `
+      <article class="product-card${referenceMode ? " reference-card" : ""}" data-product-id="${escapeHtml(product.id)}">
+        <div class="product-image">
+          <img class="product-image-media" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async">
+          <span class="stock-chip${!referenceMode && product.availability?.reserved ? " v5-reserved-chip" : ""}">${escapeHtml(stockLabel)}</span>
+          <span class="gold-chip">${escapeHtml(product.metal)}</span>
+        </div>
+        <div class="product-body">
+          <div class="product-title-row"><h3>${escapeHtml(product.name)}</h3></div>
+          <div class="product-meta"><span>${escapeHtml(product.categoryLabel)}</span><span>·</span><span>${escapeHtml(product.weight)}</span></div>
+          <div class="product-price"><strong>${kblUiText('Từ','From')} ${formatVnd(product.price)}</strong><small>${kblUiText('Giá tham khảo','Estimated price')}</small></div>
+          <div class="product-card-actions">
+            <button class="product-button" type="button" data-product-open="${escapeHtml(product.id)}">${kblUiText('Xem chi tiết →','View details →')}</button>
+            ${productTryButton(product)}
           </div>
-          <div class="product-body">
-            <div class="product-title-row"><h3>${escapeHtml(product.name)}</h3></div>
-            <div class="product-meta"><span>${escapeHtml(product.categoryLabel)}</span><span>·</span><span>${escapeHtml(product.weight)}</span></div>
-            <div class="product-price"><strong>Từ ${formatVnd(product.price)}</strong><small>Giá tham khảo</small></div>
-            <div class="product-card-actions">
-              <button class="product-button" type="button" data-product-open="${escapeHtml(product.id)}">Xem chi tiết →</button>
-              ${productTryButton(product)}
-            </div>
-            <div class="product-card-utility">
-              <button class="product-utility-btn product-fav${favoriteActive(product.id) ? " active" : ""}" type="button" data-product-favorite="${escapeHtml(product.id)}">${favoriteActive(product.id) ? "♥ Đã thích" : "♡ Yêu thích"}</button>
-              <button class="product-utility-btn product-compare${state.compareProductIds.includes(String(product.id)) ? " active" : ""}" type="button" data-product-compare="${escapeHtml(product.id)}">⇄ ${state.compareProductIds.includes(String(product.id)) ? "Đã chọn" : "So sánh"}</button>
-              <button class="product-utility-btn product-share" type="button" data-product-share="${escapeHtml(product.id)}">↗ Chia sẻ</button>
-              <button class="product-utility-btn product-cart${cartHas(product.id) ? " active" : ""}" type="button" data-product-cart="${escapeHtml(product.id)}">🛒 ${cartHas(product.id) ? "Đã thêm" : "Thêm giỏ"}</button>
-            </div>
+          <div class="product-card-utility">
+            <button class="product-utility-btn product-fav${favoriteActive(product.id) ? " active" : ""}" type="button" data-product-favorite="${escapeHtml(product.id)}">${favoriteActive(product.id) ? kblUiText('♥ Đã thích','♥ Favorited') : kblUiText('♡ Yêu thích','♡ Favorite')}</button>
+            <button class="product-utility-btn product-compare${state.compareProductIds.includes(String(product.id)) ? " active" : ""}" type="button" data-product-compare="${escapeHtml(product.id)}">${state.compareProductIds.includes(String(product.id)) ? kblUiText('⇄ Đã chọn','⇄ Selected') : kblUiText('⇄ So sánh','⇄ Compare')}</button>
+            <button class="product-utility-btn product-share" type="button" data-product-share="${escapeHtml(product.id)}">${kblUiText('↗ Chia sẻ','↗ Share')}</button>
+            <button class="product-utility-btn product-cart${cartHas(product.id) ? " active" : ""}" type="button" data-product-cart="${escapeHtml(product.id)}">${cartHas(product.id) ? kblUiText('🛒 Đã thêm','🛒 Added') : kblUiText('🛒 Thêm giỏ','🛒 Add to cart')}</button>
           </div>
-        </article>
-      `,
-    )
-    .join("");
+        </div>
+      </article>`;
+  }).join("");
   empty.classList.toggle("hidden", list.length > 0);
 }
 
@@ -6183,14 +6253,14 @@ function renderProductSubfilters() {
   }
   if (!options.some((option) => option.value === state.subFilter)) state.subFilter = options[0].value;
   if (state.filter === 'gold-group') {
-    const top = options.map((option) => `<button class="subfilter-tab${option.value === state.subFilter ? ' active' : ''}" type="button" data-subfilter="${escapeHtml(option.value)}">${escapeHtml(option.label)}</button>`).join('');
+    const top = options.map((option) => `<button class="subfilter-tab${option.value === state.subFilter ? ' active' : ''}" type="button" data-subfilter="${escapeHtml(option.value)}">${escapeHtml(kblUiSubfilterLabel(option.label))}</button>`).join('');
     const child = state.subFilter === '980'
-      ? `<div class="gold-filter-row gold-filter-row--980"><span class="gold-filter-label">NHÓM 980</span>${PRODUCT_980_SUBFILTERS.map((option) => `<button class="subfilter-tab${option.value === state.gold980Type ? ' active' : ''}" type="button" data-gold980-type="${escapeHtml(option.value)}">${escapeHtml(option.label)}</button>`).join('')}</div>`
+      ? `<div class="gold-filter-row gold-filter-row--980"><span class="gold-filter-label">${kblUiText('NHÓM 980','980 GROUP')}</span>${PRODUCT_980_SUBFILTERS.map((option) => `<button class="subfilter-tab${option.value === state.gold980Type ? ' active' : ''}" type="button" data-gold980-type="${escapeHtml(option.value)}">${escapeHtml(kblUiSubfilterLabel(option.label))}</button>`).join('')}</div>`
       : '';
-    elements.productSubfilters.innerHTML = `<div class="gold-filter-stack"><div class="gold-filter-row"><span class="gold-filter-label">KỆ VÀNG</span>${top}</div>${child}</div>`;
+    elements.productSubfilters.innerHTML = `<div class="gold-filter-stack"><div class="gold-filter-row"><span class="gold-filter-label">${kblUiText('KỆ VÀNG','GOLD SHELF')}</span>${top}</div>${child}</div>`;
   } else {
     state.gold980Type = '';
-    elements.productSubfilters.innerHTML = options.map((option) => `<button class="subfilter-tab${option.value === state.subFilter ? ' active' : ''}" type="button" data-subfilter="${escapeHtml(option.value)}">${escapeHtml(option.label)}</button>`).join('');
+    elements.productSubfilters.innerHTML = options.map((option) => `<button class="subfilter-tab${option.value === state.subFilter ? ' active' : ''}" type="button" data-subfilter="${escapeHtml(option.value)}">${escapeHtml(kblUiSubfilterLabel(option.label))}</button>`).join('');
   }
   elements.productSubfilters.classList.add('show');
   elements.productSubfilters.querySelectorAll('[data-subfilter]').forEach((button) => button.addEventListener('click', () => {
@@ -6205,6 +6275,7 @@ function renderProductSubfilters() {
     renderProducts();
   }));
 }
+
 function product980DisplayType(product) {
   const shelf = String(product.displayShelf || '');
   if (shelf === 'neck-ring') return 'neck-ring';
@@ -6236,8 +6307,10 @@ function productMatchesCatalogFilter(product) {
 function renderProducts() {
   const heading = document.getElementById('products-heading');
   if (heading) {
-    const labels = { featured:'Sản phẩm nổi bật', all:'Tất cả sản phẩm', ring:'Nhẫn', necklace:'Dây', pendant:'Mặt dây', earring:'Bông tai', bracelet:'Lắc tay', bangle:'Vòng', 'gold-group':'Sản phẩm 9999 / 980' };
-    heading.textContent = labels[state.filter] || 'Tất cả sản phẩm';
+    const labels = kblUiEnglish()
+      ? { featured:'Featured jewelry', all:'All jewelry', ring:'Rings', necklace:'Chains', pendant:'Pendants', earring:'Earrings', bracelet:'Bracelets', bangle:'Bangles', 'gold-group':'9999 / 980 jewelry' }
+      : { featured:'Sản phẩm nổi bật', all:'Tất cả sản phẩm', ring:'Nhẫn', necklace:'Dây', pendant:'Mặt dây', earring:'Bông tai', bracelet:'Lắc tay', bangle:'Vòng', 'gold-group':'Sản phẩm 9999 / 980' };
+    heading.textContent = labels[state.filter] || kblUiText('Tất cả sản phẩm','All jewelry');
   }
   const search = state.search.trim().toLocaleLowerCase("vi");
   let visibleProducts = products.filter((product) => {
@@ -6488,7 +6561,8 @@ function syncTryOnProductOverlay(){
 
 async function loadProductsFromApi() {
   try {
-    const response = await fetch("/api/products", { cache: "no-store" });
+    const locale = kblUiLocale();
+    const response = await fetch(`/api/products?locale=${encodeURIComponent(locale)}`, { cache: "no-store" });
     const payload = await response.json();
     if (!response.ok || !payload.success || !Array.isArray(payload.products)) return;
     if (!payload.products.length) {
@@ -6496,26 +6570,27 @@ async function loadProductsFromApi() {
       renderProducts();
       return;
     }
-    const categoryMap = { "Nhẫn": "ring", "Dây chuyền": "necklace", "Mặt dây": "pendant", "Bông tai": "earring", "Lắc tay": "bracelet" };
+    const en = locale === 'en';
     products = payload.products.map((item) => ({
       ...item,
-      category: categoryMap[item.category] || String(item.category || "other").toLowerCase(),
-      categoryLabel: item.category || "Trang sức",
+      category: kblUiCategoryKey(item.category),
+      categoryLabel: en ? (item.categoryEnglish || kblUiCategoryEnglish(item.category)) : (item.category || 'Trang sức'),
       displayShelf: String(item.displayShelf || ''),
       displayGoldShelf: String(item.displayGoldShelf || ''),
-      metal: `Vàng ${item.goldCode || "9999"}`,
-      weight: `${Number(item.weightChi || 0).toLocaleString("vi-VN")} chỉ`,
+      metal: en ? (item.goldPurityLabel || `Gold ${item.goldCode || "9999"}`) : `Vàng ${item.goldCode || "9999"}`,
+      weight: en
+        ? `${Number(item.weightGrams ?? (Number(item.weightChi || 0) * 3.75)).toLocaleString('en-US', { maximumFractionDigits:3 })} g`
+        : `${Number(item.weightChi || 0).toLocaleString("vi-VN")} chỉ`,
       price: Number(item.referencePrice || 0),
       image: item.image || "",
       tryOnImage: item.tryOnImage || "",
-      description: item.description || "Sản phẩm đang có trong hệ thống Kim Bảo Lâm.",
-      detail: item.detail || "Giá tham khảo tự cập nhật theo bảng giá vàng và tiền công."
+      description: item.description || kblUiText('Sản phẩm đang có trong hệ thống Kim Bảo Lâm.','Product currently listed in the Kim Bao Lam system.'),
+      detail: item.detail || kblUiText('Giá tham khảo tự cập nhật theo bảng giá vàng và tiền công.','Estimated price updates from current gold prices and workmanship.')
     }));
     renderProducts();
     renderCart();
   } catch (_) {}
 }
-
 
 const KBL_AI_PROACTIVE_SESSION_KEY = "kbl_ai_proactive_seen_v1";
 const KBL_AI_PROACTIVE_DISMISS_KEY = "kbl_ai_proactive_dismissed_v1";
@@ -6686,11 +6761,11 @@ function renderAdviserProducts(payload) {
   elements.adviserStatus.textContent='';
   elements.adviserStatus.classList.remove('busy');
   if(!items.length){
-    if(payload.handoff){elements.adviserResults.innerHTML=`<article class="ai-adviser-card" style="grid-column:1/-1;display:block;padding:12px"><div class="ai-adviser-card-body" style="padding:0"><div class="ai-adviser-actions"><button type="button" data-ai-owner>Chuyển thông tin cho chủ tiệm</button></div></div></article>`;elements.adviserResults.classList.remove('hidden');}
+    if(payload.handoff){elements.adviserResults.innerHTML=`<article class="ai-adviser-card" style="grid-column:1/-1;display:block;padding:12px"><div class="ai-adviser-card-body" style="padding:0"><div class="ai-adviser-actions"><button type="button" data-ai-owner>${kblUiText('Chuyển thông tin cho chủ tiệm','Send details to the store')}</button></div></div></article>`;elements.adviserResults.classList.remove('hidden');}
     else{elements.adviserResults.innerHTML='';elements.adviserResults.classList.add('hidden');}
     return;
   }
-  elements.adviserResults.innerHTML=items.map(item=>`<article class="ai-adviser-card"><img src="${escapeHtml(item.image||'')}" alt="${escapeHtml(item.name||'Sản phẩm Kim Bảo Lâm')}" loading="lazy" decoding="async" data-ai-product-open="${escapeHtml(item.id||'')}" title="Chạm để xem chi tiết"><div class="ai-adviser-card-body"><span class="ai-adviser-code">Mã SP: ${escapeHtml(item.sku||'')}</span><h4>${escapeHtml(item.name||'Sản phẩm')}</h4><p class="ai-adviser-meta">Vàng ${escapeHtml(item.goldCode||'')} · ${escapeHtml(formatNumber(Number(item.weightChi||0)))} chỉ${item.sizeLabel?` · ${escapeHtml(item.sizeLabel)}`:''}</p><strong class="ai-adviser-price">${escapeHtml(formatVnd(Number(item.referencePrice||0)))}</strong><div class="ai-adviser-actions"><button type="button" data-ai-product-select="${escapeHtml(item.id||'')}">Chọn món này</button><button type="button" data-ai-product-open="${escapeHtml(item.id||'')}">Xem chi tiết</button></div></div></article>`).join('');
+  elements.adviserResults.innerHTML=items.map(item=>`<article class="ai-adviser-card"><img src="${escapeHtml(item.image||'')}" alt="${escapeHtml(item.name||kblUiText('Sản phẩm Kim Bảo Lâm','Kim Bao Lam jewelry'))}" loading="lazy" decoding="async" data-ai-product-open="${escapeHtml(item.id||'')}" title="${kblUiText('Chạm để xem chi tiết','Tap to view details')}"><div class="ai-adviser-card-body"><span class="ai-adviser-code">${kblUiText('Mã SP','SKU')}: ${escapeHtml(item.sku||'')}</span><h4>${escapeHtml(item.name||kblUiText('Sản phẩm','Jewelry'))}</h4><p class="ai-adviser-meta">${kblUiEnglish()?`Gold ${escapeHtml(item.goldCode||'')} · ${escapeHtml(kblUiWeight(Number(item.weightChi||0)))}`:`Vàng ${escapeHtml(item.goldCode||'')} · ${escapeHtml(formatNumber(Number(item.weightChi||0)))} chỉ`}${item.sizeLabel?` · ${escapeHtml(item.sizeLabel)}`:''}</p><strong class="ai-adviser-price">${escapeHtml(formatVnd(Number(item.referencePrice||0)))}</strong><div class="ai-adviser-actions"><button type="button" data-ai-product-select="${escapeHtml(item.id||'')}">${kblUiText('Chọn món này','Select this item')}</button><button type="button" data-ai-product-open="${escapeHtml(item.id||'')}">${kblUiText('Xem chi tiết','View details')}</button></div></div></article>`).join('');
   elements.adviserResults.classList.remove('hidden');
 }
 
@@ -8233,7 +8308,7 @@ init();
 </script>
   <script src="/kbl-market-world-v1.js?v=20260905-445" defer></script>
   <script src="/kbl-home-polish-v1.js?v=20260905-445" defer></script>
-  <script src="/kbl-international-v4.js?v=20260905-445" defer></script>
+  <script src="/kbl-international-v4.js?v=20260917-446" defer></script>
 
 <script id="kbl-home-world-gold-loader-20260912">
 (() => {
