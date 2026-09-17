@@ -1,0 +1,13 @@
+{
+  "name": "kbl-backup",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "check": "node --check src/index.js",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
