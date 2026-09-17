@@ -1,4 +1,5 @@
-const VERSION = '0.4.0-stage3-catalog';
+const VERSION = '0.5.0-stage4-auto-catalog';
+const PRIMARY_CATALOG_URL = 'https://tiemvangkimbaolam.id.vn/api/products';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -445,6 +446,96 @@ async function syncCatalog(request, env) {
   });
 }
 
+
+async function pullCatalogFromPrimary(env) {
+  const startedAt = new Date().toISOString();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const response = await fetch(PRIMARY_CATALOG_URL, {
+      method: 'GET',
+      headers: { 'accept': 'application/json' },
+      cache: 'no-store',
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`Primary catalog HTTP ${response.status}`);
+    }
+
+    const body = await response.json();
+    const products = Array.isArray(body?.products) ? body.products : null;
+
+    if (!products || products.length < 1) {
+      throw new Error('Primary catalog returned no products.');
+    }
+
+    const secret = String(env.KBL_BACKUP_SYNC_SECRET || '');
+    if (!secret) {
+      throw new Error('Backup sync secret is not configured.');
+    }
+
+    const internalRequest = new Request('https://kbl-internal/sync/catalog', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'x-kbl-sync-secret': secret
+      },
+      body: JSON.stringify({
+        sourceUpdatedAt: new Date().toISOString(),
+        products
+      })
+    });
+
+    const saved = await syncCatalog(internalRequest, env);
+
+    if (!saved.ok) {
+      const errorBody = await saved.text().catch(() => '');
+      throw new Error(`Catalog save failed HTTP ${saved.status}${errorBody ? `: ${errorBody.slice(0, 220)}` : ''}`);
+    }
+
+    return {
+      success: true,
+      productCount: products.length,
+      startedAt,
+      finishedAt: new Date().toISOString()
+    };
+  } catch (error) {
+    const failedAt = new Date().toISOString();
+    const message = error?.name === 'AbortError'
+      ? 'Primary catalog pull timed out.'
+      : safeText(error?.message || String(error), 300);
+
+    if (env.DB) {
+      try {
+        await env.DB.prepare(`
+          INSERT INTO kbl_sync_state (
+            sync_key,
+            source,
+            status,
+            last_attempt_at,
+            last_success_at,
+            last_error,
+            updated_at
+          )
+          VALUES ('catalog', 'TENTEN', 'error', ?, NULL, ?, ?)
+          ON CONFLICT(sync_key) DO UPDATE SET
+            source = excluded.source,
+            status = excluded.status,
+            last_attempt_at = excluded.last_attempt_at,
+            last_error = excluded.last_error,
+            updated_at = excluded.updated_at
+        `).bind(failedAt, message, failedAt).run();
+      } catch (_) {}
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function syncGoldPrice(request, env) {
   if (!env.DB) {
     return json({
@@ -720,13 +811,15 @@ export default {
         catalogBackupReady: Boolean(catalog?.productCount),
         catalogFresh: Boolean(catalog?.fresh),
         catalogProductCount: Number(catalog?.productCount || 0),
+        catalogAutoPullEnabled: true,
+        catalogAutoPullMinutes: 5,
 
         independentBackupData: false,
         mediaBackupReady: false,
         readyForFailover: false,
 
         message: d1.connected
-          ? 'D1 is connected. Gold-price and public-catalog sync endpoints are ready.'
+          ? 'D1 is connected. Gold-price sync is live and catalog auto-pull runs every 5 minutes.'
           : 'Worker is online, but D1 is not healthy.'
       });
     }
@@ -868,5 +961,13 @@ export default {
     }
 
     return env.ASSETS.fetch(request);
+  },
+
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(
+      pullCatalogFromPrimary(env).catch((error) => {
+        console.warn('KBL BACKUP CATALOG AUTO-PULL:', error?.message || String(error));
+      })
+    );
   }
 };
