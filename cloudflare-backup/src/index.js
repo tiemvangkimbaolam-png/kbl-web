@@ -2,11 +2,11 @@ var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
 // src/index.js
-var VERSION = "1.0.4-house2-stable-origin-final";
+var VERSION = "1.0.5-house2-ai-agent-v8-final";
 var PUBLIC_SITE_ORIGIN = "https://tiemvangkimbaolam.id.vn";
 var PRIMARY_PROXY_TIMEOUT_MS = 5e3;
 var PRIMARY_PAGE_PROXY_TIMEOUT_MS = 15e3;
-var PRIMARY_AI_PROXY_TIMEOUT_MS = 180e3;
+var PRIMARY_AI_PROXY_TIMEOUT_MS = 240e3;
 function primaryProxyTimeoutFor(pathname) {
   const path = String(pathname || "");
   if (path.startsWith("/api/prompt-ai/") || path === "/api/admin/content/name-suggestions" || path.startsWith("/api/adviser/") || path.startsWith("/api/tryon/ai") || path.startsWith("/api/admin/content/studio-run") || path.startsWith("/api/admin/content/generate") || path.startsWith("/api/admin/content/video-caption")) return PRIMARY_AI_PROXY_TIMEOUT_MS;

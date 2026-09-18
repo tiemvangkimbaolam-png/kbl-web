@@ -56,7 +56,7 @@ const PROMPT_AI_FILE = path.join(DATA_DIR, 'prompt-ai-v1.json');
 
 // KBL V6.7 · AI MASTER ORCHESTRATOR — VIETNAM FIRST.
 // Chỉ thêm sidecar + đọc dữ liệu hiện có. Không tự sửa POS, giá, kho, đơn, chính sách hay media đã duyệt.
-const KBL_AI_MASTER_VERSION = '6.7.0e4-master-compact-director';
+const KBL_AI_MASTER_VERSION = '8.0.0e1-master-evidence-orchestrator';
 const KBL_AI_MASTER_ENABLED = String(process.env.KBL_AI_MASTER_ENABLED || '1').trim() !== '0';
 // E7.1 GOLD INTELLIGENCE: FAST 15m + DEEP 30m by default. Env vars can slow them down, never below these safety floors.
 const KBL_AI_MASTER_QUICK_MS = Math.min(3 * 60 * 60 * 1000, Math.max(15 * 60 * 1000, Number(process.env.KBL_AI_MASTER_QUICK_MS || 15 * 60 * 1000) || 15 * 60 * 1000));
@@ -307,8 +307,13 @@ const normalizedGeminiProModel = ['gemini-3-pro', 'gemini-3-pro-preview'].includ
 const GEMINI_PRO_MODEL = /^[a-z0-9._:-]{1,100}$/i.test(normalizedGeminiProModel) ? normalizedGeminiProModel : 'gemini-3.1-pro-preview';
 const KBL_AI_V4_VERIFIER_ENABLED = String(process.env.KBL_AI_V4_VERIFIER_ENABLED || '1').trim() !== '0';
 const KBL_AI_V4_TRACE_ENABLED = String(process.env.KBL_AI_V4_TRACE_ENABLED || '1').trim() !== '0';
-const KBL_AI_AGENT_VERSION = '7.0.0-sales-decision-brain';
+const KBL_AI_AGENT_VERSION = '8.0.0-agent-first-evidence-orchestrator';
 const KBL_AI_V7_SALES_BRAIN_ENABLED = String(process.env.KBL_AI_V7_SALES_BRAIN_ENABLED || '1').trim() !== '0';
+// V8 is additive and rollback-safe: only AI orchestration changes; POS/UI/prices/policies stay untouched.
+const KBL_AI_V8_AGENT_FIRST_ENABLED = String(process.env.KBL_AI_V8_AGENT_FIRST_ENABLED || '1').trim() !== '0';
+const KBL_AI_V8_PROVIDER_FALLBACK_ENABLED = String(process.env.KBL_AI_V8_PROVIDER_FALLBACK_ENABLED || '1').trim() !== '0';
+const KBL_AI_V8_STRICT_EVIDENCE_ENABLED = String(process.env.KBL_AI_V8_STRICT_EVIDENCE_ENABLED || '1').trim() !== '0';
+const KBL_AI_V8_PROMPT_FALLBACK_ENABLED = String(process.env.KBL_AI_V8_PROMPT_FALLBACK_ENABLED || '1').trim() !== '0';
 const GEOAPIFY_API_KEY = String(process.env.GEOAPIFY_API_KEY || '').trim();
 const KBL_AI_PUBLIC_REFERENCE_ENABLED = String(process.env.KBL_AI_PUBLIC_REFERENCE_ENABLED || 'true').toLowerCase() !== 'false';
 const KBL_AI_FX_REFERENCE_ENABLED = String(process.env.KBL_AI_FX_REFERENCE_ENABLED || 'true').toLowerCase() !== 'false';
@@ -858,12 +863,17 @@ function kblAiV3MemorySafeText(value, max = 1200) {
 
 // ---------------- KBL AI V5 SCHOOL / KNOWLEDGE INDEX ----------------
 const KBL_AI_MASTER_CONTRACT = [
-  'KBL AI MASTER CONTRACT V6.7 — SOURCE OF TRUTH FIRST.',
+  'KBL AI MASTER CONTRACT V8 — AGENT FIRST · SOURCE OF TRUTH FIRST · NO GUESSING.',
+  'HIỂU TRƯỚC KHI LÀM: đọc câu hiện tại + ngữ cảnh gần nhất, xác định đúng mục tiêu thật của người dùng; không để regex/template cũ tự cướp quyền trả lời khi Agent đang sẵn sàng.',
   'Mọi dữ kiện riêng của Kim Bảo Lâm (SKU, tên/loại vàng, trọng lượng, giá, tồn kho, công, chính sách, đơn, loyalty, bảo hành, analytics) chỉ được lấy từ dữ liệu KBL được cung cấp trong lượt hiện tại hoặc tool KBL. Không nhớ rồi đoán.',
+  'RÀNG BUỘC CỨNG phải giữ nguyên nghĩa: trên/từ/tối thiểu = min; dưới/không quá/tối đa = max; khoảng/tầm = khoảng; từ A đến B = range. Không tự đảo nghĩa chỉ để có nhiều kết quả hơn.',
+  'Nếu câu hiện tại thiếu đúng một dữ kiện bắt buộc và lịch sử không giải quyết được, hỏi đúng một câu ngắn. Nếu đã đủ dữ kiện thì làm ngay, không hỏi checklist.',
+  'KBL AI School/Brain 2000 là kho kiến thức truy xuất theo ngữ nghĩa: chỉ lấy các đoạn liên quan nhất cho câu hiện tại; không nhồi toàn bộ kho vào prompt và không để giáo án ghi đè dữ liệu live.',
   'Web/Google chỉ là bằng chứng thị trường công khai. Không biến web thành giá bán, tồn kho, chính sách hay thành tích của KBL.',
-  'Nếu bằng chứng không đủ hoặc hai nguồn mâu thuẫn: nói chưa chắc / đưa vào watchlist; không lấp chỗ trống bằng suy đoán.',
+  'Nếu bằng chứng không đủ hoặc hai nguồn mâu thuẫn: nói chưa chắc / đưa vào watchlist; không lấp chỗ trống bằng suy đoán. Tách rõ FACT từ dữ liệu/nguồn và INFERENCE có điều kiện.',
+  'Với tín hiệu thị trường tác động lớn, ưu tiên ít nhất hai nhóm nguồn độc lập hoặc một nguồn sơ cấp có thẩm quyền; nếu chưa đạt thì Fact Lock/watchlist, không biến thành kết luận chắc chắn.',
   'Sáng tạo được phép ở hook, tình huống hư cấu, nhân vật hư cấu, nhịp dựng và cách kể. Không được sáng tạo dữ kiện kinh doanh.',
-  'Ưu tiên thị trường Việt Nam. Tín hiệu quốc tế chỉ dùng khi có khả năng Việt hóa rõ ràng; quốc tế là radar phụ.',
+  'Ưu tiên thị trường Việt Nam. Tín hiệu quốc tế chỉ dùng khi có đường truyền hợp lý tới vàng/FX/sức mua/hành vi Việt Nam; không áp hành vi nước ngoài sang Việt Nam theo quán tính.',
   'Không tự thay đổi dữ liệu nghiệp vụ, không tự publish, không tự duyệt nội dung. Chủ tiệm là approval gate cuối.'
 ].join('\n');
 
@@ -3575,10 +3585,14 @@ const KBL_AGENT_FUNCTIONS = [
         query: { type: 'string' },
         category: { type: 'string', enum: ['', 'necklace','ring','earring','bracelet','pendant','other'] },
         goldCode: { type: 'string', enum: ['', '9999','980','750','610','585','416'] },
-        budgetMax: { type: 'number' },
+        budgetMax: { type: 'number', description: 'Giá tối đa VND; chỉ dùng khi khách nói dưới/tối đa/không quá hoặc ngân sách trần.' },
+        budgetMin: { type: 'number', description: 'Giá tối thiểu VND; dùng khi khách nói trên/từ/tối thiểu/ít nhất.' },
+        budgetMode: { type: 'string', enum: ['', 'min','max','around','range'] },
         weightChi: { type: 'number' },
         sizeLabel: { type: 'string' },
         style: { type: 'string' },
+        recipient: { type: 'string' },
+        purpose: { type: 'string' },
         limit: { type: 'integer' }
       }
     }
@@ -3781,21 +3795,32 @@ async function executeKblAgentFunction(call, state) {
   }
 
   if (name === 'search_inventory') {
+    const semanticQuery = cleanLabelText(args.query || requestContext.message, 600);
+    const parsedBudget = adviserBudgetConstraintFromText(semanticQuery);
+    const argMode = ['min','max','around','range'].includes(String(args.budgetMode||'')) ? String(args.budgetMode) : '';
+    const argMin = Math.max(0, number(args.budgetMin));
+    const argMax = Math.max(0, number(args.budgetMax));
+    const budgetMode = argMode || (argMin && argMax ? 'range' : argMin ? 'min' : argMax ? 'max' : parsedBudget.budgetMode || '');
+    const budgetMin = argMin || Math.max(0, number(parsedBudget.budgetMin));
+    const budgetMax = argMax || Math.max(0, number(parsedBudget.budgetMax));
+    const budget = budgetMode === 'min' ? budgetMin : budgetMax || Math.max(0, number(parsedBudget.budget));
     const intent = {
       category: ADVISER_CATEGORIES.has(String(args.category || ''))
         ? String(args.category || '')
-        : adviserCategoryFromText(args.query || requestContext.message),
-      budget: Math.max(0, number(args.budgetMax)),
+        : adviserCategoryFromText(semanticQuery),
+      budget,
+      budgetMode,
+      budgetMin,
+      budgetMax,
       goldCode: GOLD_RULES.some((r) => r.code === String(args.goldCode || ''))
         ? String(args.goldCode || '')
-        : adviserGoldCodeFromText(args.query || ''),
+        : adviserGoldCodeFromText(semanticQuery),
       weightChi: Math.max(0, number(args.weightChi)),
       sizeLabel: cleanLabelText(args.sizeLabel, 40),
-      recipient: '',
+      recipient: cleanLabelText(args.recipient, 80),
       style: cleanLabelText(args.style, 80),
-      purpose: ''
+      purpose: cleanLabelText(args.purpose, 80)
     };
-    const semanticQuery = cleanLabelText(args.query || requestContext.message, 600);
     const result = adviserRecommendations(semanticQuery, intent);
     const limit = Math.min(6, Math.max(1, Math.floor(number(args.limit, 4))));
     const semanticItems = await kblAiV3SemanticRerank(semanticQuery, result.items, limit);
@@ -3922,6 +3947,9 @@ async function geminiKblToolAgentReply(message, context, dialogue, requestContex
     requestContext.brainPlan ? `KBL BRAIN PLAN lượt này: ${JSON.stringify(requestContext.brainPlan).slice(0,2200)}` : '',
     requestContext.salesBrain ? `KBL V7 SALES DECISION BRAIN lượt này: ${JSON.stringify(requestContext.salesBrain).slice(0,3200)}` : '',
     'V7 TOOL SALES RULE: tool chỉ để xác minh dữ liệu cần thiết. Sau khi có dữ liệu, trả lời như nhân viên bán hàng giỏi: giải quyết đúng điều khách đang cân nhắc trước; tối đa một bước tiếp theo; không kể tên tool, stage hay kế hoạch nội bộ.',
+    'V8 AGENT-FIRST: bản thân Agent là người điều phối hội thoại. Regex/router cũ chỉ là tín hiệu hỗ trợ; nếu câu khách có nghĩa tự nhiên rõ hơn thì phải giữ đúng nghĩa đó và dùng tool để xác minh, không trả câu mẫu máy móc.',
+    'V8 PRICE CONSTRAINT: “trên/từ/tối thiểu/ít nhất X” => search_inventory budgetMode=min + budgetMin=X; “dưới/tối đa/không quá X” => max; “khoảng/tầm X” => around; “từ A đến B” => range. Không bao giờ biến “trên 4 triệu” thành <=4 triệu.',
+    'V8 SHORTLIST: khi tool trả nhiều món, chọn 2–4 món phù hợp nhất để giải thích; giao diện có thể vẫn nhận tối đa 6 card. Không lặp một câu boilerplate nếu khách hỏi tiêu chí cụ thể.',
     'V7 OBJECTION RULE: nếu salesBrain.friction khác none, xử lý phản đối bằng dữ kiện thật trước. Không tự giảm giá, không ép giữ mẫu, không đổi chủ đề.',
     'CÂU NỐI TIẾP: “9999”, “còn 980?”, “mẫu 2”, “cái đó”, “bao nhiêu?”, “ship về đây?” phải được nối với lịch sử gần nhất. Đừng bắt khách nói lại nếu lịch sử đã đủ dữ kiện.',
     'Nếu câu khách viết sai chính tả/không dấu/tiếng miền Nam nhưng ý vẫn đoán được rõ từ ngữ cảnh, hãy hiểu và xử lý bình thường.',
@@ -4071,12 +4099,12 @@ function adviserCategoryForProduct(product) {
 
 function adviserBudgetFromText(value) {
   const text = plainVietnamese(value).replace(/\s+/g, ' ');
-  let match = text.match(/(?:^|\s)(\d+(?:[.,]\d+)?)\s*(?:trieu|tr|cu)(?:\b|\s|$)/);
+  let match = text.match(/(?:^|\s)(\d+(?:[.,]\d+)?)\s*(?:trieu|tr|cu|million|mil)(?:\b|\s|$)/);
   if (match) {
     const amount = Number(match[1].replace(',', '.')) * 1000000;
     if (Number.isFinite(amount) && amount >= 50000 && amount <= 10000000000) return Math.round(amount);
   }
-  match = text.match(/(?:^|\s)(\d+(?:[.,]\d+)?)\s*(?:nghin|ngan|k)(?:\b|\s|$)/);
+  match = text.match(/(?:^|\s)(\d+(?:[.,]\d+)?)\s*(?:nghin|ngan|k|thousand)(?:\b|\s|$)/);
   if (match) {
     const amount = Number(match[1].replace(',', '.')) * 1000;
     if (Number.isFinite(amount) && amount >= 50000 && amount <= 10000000000) return Math.round(amount);
@@ -4086,6 +4114,31 @@ function adviserBudgetFromText(value) {
   const candidates = [...grouped.map((item) => Number(item.replace(/[.,]/g, ''))), ...plain.map(Number)]
     .filter((amount) => Number.isFinite(amount) && amount >= 50000 && amount <= 10000000000);
   return candidates.length ? Math.max(...candidates) : 0;
+}
+
+// KBL AI price-intent guard: giữ NGHĨA của ngân sách, không biến mọi con số thành "tối đa".
+// Ví dụ "trên 4 triệu" = giá tối thiểu 4 triệu; "dưới 4 triệu" = tối đa 4 triệu.
+function adviserBudgetConstraintFromText(value) {
+  const text = plainVietnamese(value).replace(/\s+/g, ' ').trim();
+  const unitScale = (unit) => /(?:trieu|tr|cu|million|mil)/.test(String(unit||'')) ? 1000000 : 1000;
+  const range = text.match(/(?:\btu\s*)?(\d+(?:[.,]\d+)?)\s*(trieu|tr|cu|million|mil)?\s*(?:den|toi|->|-)\s*(\d+(?:[.,]\d+)?)\s*(trieu|tr|cu|million|mil)\b/);
+  if (range) {
+    const scale = unitScale(range[4] || range[2]);
+    const a = Math.round(Number(range[1].replace(',', '.')) * scale);
+    const b = Math.round(Number(range[3].replace(',', '.')) * scale);
+    if (Number.isFinite(a) && Number.isFinite(b) && a >= 50000 && b >= 50000) {
+      return { budget: Math.max(a,b), budgetMode:'range', budgetMin:Math.min(a,b), budgetMax:Math.max(a,b) };
+    }
+  }
+  const amount = adviserBudgetFromText(value);
+  if (!amount) return { budget:0, budgetMode:'', budgetMin:0, budgetMax:0 };
+  let budgetMode = 'max';
+  if (/\b(tren|hon|tu|it nhat|toi thieu|khong duoi|above|over|more than|from|at least|minimum)\b/.test(text)) budgetMode = 'min';
+  else if (/\b(duoi|khong qua|toi da|nhieu nhat|under|below|at most|up to|maximum|max)\b/.test(text)) budgetMode = 'max';
+  else if (/\b(khoang|tam|xap xi|gan|around|about|roughly|approximately)\b/.test(text)) budgetMode = 'around';
+  if (budgetMode === 'min') return { budget:amount, budgetMode, budgetMin:amount, budgetMax:0 };
+  if (budgetMode === 'around') return { budget:amount, budgetMode, budgetMin:Math.round(amount*.8), budgetMax:Math.round(amount*1.2) };
+  return { budget:amount, budgetMode:'max', budgetMin:0, budgetMax:amount };
 }
 
 
@@ -4166,9 +4219,13 @@ function adviserPhrase(value, options) {
 
 function localAdviserIntent(value) {
   const message = cleanLabelText(value, 500);
+  const budgetConstraint = adviserBudgetConstraintFromText(message);
   return {
     category: adviserCategoryFromText(message),
-    budget: adviserBudgetFromText(message),
+    budget: budgetConstraint.budget,
+    budgetMode: budgetConstraint.budgetMode,
+    budgetMin: budgetConstraint.budgetMin,
+    budgetMax: budgetConstraint.budgetMax,
     goldCode: adviserGoldCodeFromText(message),
     weightChi: adviserWeightFromText(message),
     sizeLabel: adviserSizeFromText(message),
@@ -4192,7 +4249,7 @@ function localAdviserIntent(value) {
 function adviserHasUsefulLocalIntent(intent) {
   if (!intent) return false;
   return Boolean(
-    (intent.category && intent.category !== 'other') || intent.budget || intent.goldCode || intent.weightChi ||
+    (intent.category && intent.category !== 'other') || intent.budget || intent.budgetMin || intent.budgetMax || intent.goldCode || intent.weightChi ||
     intent.sizeLabel || intent.recipient || intent.style || intent.purpose
   );
 }
@@ -4781,7 +4838,13 @@ function kblPromptGeminiThinkingLevel({phase,imageCount,message}){
 async function kblPromptGeminiConsult({mode,message,history,profile,images,businessContext,phase='creative',previousBrief=null,referenceImageCountHint=0}){
   if(!GEMINI_API_KEY)throw new Error('Gemini API chưa được cấu hình trên server.');
   const models=await kblPromptGeminiCandidates(),refs=kblPromptImages(images),imageCount=Math.max(refs.length,Math.min(10,Math.max(0,Math.round(number(referenceImageCountHint)))));
+  const researchCue=plainVietnamese(message);
+  const researchWanted=phase==='business'&&(kblAiV61NeedsFreshWeb(message)||/\b(thi truong|xu huong|trend|doi thu|canh tranh|nhu cau|hanh vi khach|moi nhat|gan day|hien nay|2026)\b/.test(researchCue));
+  let freshResearch=null;
+  if(researchWanted&&KBL_AI_V3_GOOGLE_SEARCH_ENABLED){try{freshResearch=await kblAiV3GoogleSearchReference({query:message})}catch(_){}}
+  const researchSources=freshResearch&&Array.isArray(freshResearch.sources)?freshResearch.sources.slice(0,4).map(x=>cleanLabelText(x&&x.title,140)).filter(Boolean):[];
   const system=`Bạn là KBL SMART BUSINESS & CREATIVE CONSULTANT — cố vấn ngành nghề, kinh doanh, bán hàng, marketing và sáng tạo cho khách thuộc MỌI ngành nghề.
+${KBL_AI_MASTER_CONTRACT}
 Bạn KHÔNG viết prompt cuối. DeepSeek Final Prompt Director chỉ được gọi sau khi khách xác nhận phương án.
 
 MỤC TIÊU CỐT LÕI:
@@ -4830,6 +4893,9 @@ ${kblPromptProfileText(profile)}
 BỐI CẢNH KINH DOANH ĐÃ NHỚ:
 ${kblPromptBusinessContextText(businessContext)}
 
+NGHIÊN CỨU CÔNG KHAI MỚI (chỉ khi câu hiện tại thật sự cần dữ liệu mới):
+${freshResearch&&freshResearch.available?`${cleanContentText(freshResearch.summary,2600)}${researchSources.length?`\nNguồn tham khảo: ${researchSources.join(' · ')}`:''}`:'(không dùng web ở lượt này)'}
+
 BRIEF TỪ LƯỢT TRƯỚC (nếu có):
 ${previousBrief&&typeof previousBrief==='object'?JSON.stringify(previousBrief):'(chưa có)'}
 
@@ -4859,7 +4925,7 @@ Hãy hiểu mục đích thật, tư vấn phù hợp ngành nghề và cập nh
       const raw=geminiResponseText(data);if(!raw){lastError='Gemini trả kết quả trống.';continue}
       const parsed=JSON.parse(raw);kblPromptGeminiCache.selected=model;
       if(parsed&&parsed.brief){parsed.brief.referenceImageCount=imageCount;parsed.brief.promptCount=kblPromptBriefPromptCount(parsed.brief)}
-      return {result:parsed,model,usage:data.usageMetadata||{},imageCount};
+      return {result:parsed,model,usage:data.usageMetadata||{},imageCount,research:freshResearch&&freshResearch.available?{used:true,cached:Boolean(freshResearch.cached),sourceCount:Array.isArray(freshResearch.sources)?freshResearch.sources.length:0,checkedAt:cleanLabelText(freshResearch.checkedAt,80),sources:researchSources}:{used:false}};
     }catch(error){lastError=kblPromptText(error&&error.name==='AbortError'?'Gemini timeout.':error&&error.message,260)}
     finally{clearTimeout(timer)}
   }
@@ -5031,6 +5097,37 @@ async function kblPromptDeepSeekFinalize({mode,brief,profile}){
   }
   throw new Error(lastError||'DeepSeek chưa tạo được prompt cuối.');
 }
+async function kblPromptGeminiFinalizeFallback({mode,brief,profile}){
+  if(!KBL_AI_V8_PROMPT_FALLBACK_ENABLED||!GEMINI_API_KEY)throw new Error('Gemini Prompt fallback chưa sẵn sàng.');
+  const promptCount=kblPromptBriefPromptCount(brief),models=await kblPromptGeminiCandidates();
+  const schema={type:'object',additionalProperties:false,properties:{prompts:{type:'array',items:{type:'object',additionalProperties:false,properties:{title:{type:'string'},prompt:{type:'string'}},required:['title','prompt']}}},required:['prompts']};
+  let lastError='';
+  for(const model of models){
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
+    try{
+      const system=[kblPromptDeepSeekSystem(mode,profile),KBL_AI_MASTER_CONTRACT,'Bạn là KBL PROMPT FINAL DIRECTOR dự phòng. DeepSeek primary không phản hồi nên bạn phải tạo prompt cuối từ BRIEF ĐÃ CHỐT. Không hỏi lại khách. Không thêm dữ kiện kinh doanh/giá/chứng nhận/công dụng không có trong brief/profile. Giữ đúng promptCount và mọi mustPreserve/constraints.'].join('\n');
+      const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({system_instruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:`HỒ SƠ KHÁCH:\n${kblPromptProfileText(profile)}\n\nBUSINESS/CREATIVE BRIEF ĐÃ CHỐT:\n${JSON.stringify({...brief,promptCount},null,2)}`}]}],generationConfig:geminiTextGenerationConfig(model,{thinkingLevel:'high',temperature:.18,topP:.88,maxOutputTokens:Math.min(16000,5000+promptCount*1400),responseMimeType:'application/json',responseSchema:schema}),store:false})});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok){lastError=kblPromptText(data&&data.error&&data.error.message||`Gemini HTTP ${response.status}`,320);continue}
+      const parsed=JSON.parse(geminiResponseText(data)||'{}');
+      const prompts=(Array.isArray(parsed.prompts)?parsed.prompts:[]).map((x,i)=>({title:kblPromptText(x&&x.title||`Prompt ${i+1}`,120)||`Prompt ${i+1}`,prompt:String(x&&x.prompt||'').trim()})).filter(x=>x.prompt).slice(0,promptCount);
+      if(prompts.length!==promptCount){lastError=`Gemini fallback trả ${prompts.length}/${promptCount} prompt.`;continue}
+      return {prompt:prompts.map((x,i)=>promptCount>1?`PROMPT ${i+1} — ${x.title}\n${x.prompt}`:x.prompt).join('\n\n──────────\n\n'),prompts,promptCount,model:`gemini-fallback:${model}`,usage:data.usageMetadata||{},provider:'gemini-fallback'};
+    }catch(error){lastError=kblPromptText(error&&error.name==='AbortError'?'Gemini Prompt fallback timeout.':error&&error.message,320)}finally{clearTimeout(timer)}
+  }
+  throw new Error(lastError||'Gemini Prompt fallback chưa tạo được prompt cuối.');
+}
+async function kblPromptFinalizeAgentV8(args){
+  let primaryError='';
+  try{return await kblPromptDeepSeekFinalize(args)}catch(error){primaryError=kblPromptText(error&&error.message,320)}
+  if(KBL_AI_V8_PROMPT_FALLBACK_ENABLED&&GEMINI_API_KEY){
+    const fallback=await kblPromptGeminiFinalizeFallback(args);
+    fallback.primaryError=primaryError;
+    return fallback;
+  }
+  throw new Error(primaryError||'Prompt Final Director chưa phản hồi.');
+}
+
 function kblPromptBuyer(input,user){
   const i=input&&typeof input==='object'?input:{};
   const buyerType=String(i.buyerType)==='business'?'business':'personal';
@@ -5744,12 +5841,17 @@ async function understandAdviserIntent(message, context) {
   const gemini = needsAiIntent ? await geminiAdviserIntent(message, allowPrevious ? context : []) : null;
   const openai = needsAiIntent && !gemini ? await openAiAdviserIntent(message, allowPrevious ? context : []) : null;
   const ai = gemini || openai;
-  const choose = (key) => current[key] || (ai && ai[key]) || previousForUse[key] || (['budget', 'weightChi'].includes(key) ? 0 : '');
+  const choose = (key) => current[key] || (ai && ai[key]) || previousForUse[key] || (['budget', 'budgetMin', 'budgetMax', 'weightChi'].includes(key) ? 0 : '');
+  const chosenBudget = Math.round(number(choose('budget')));
+  const chosenBudgetMode = cleanLabelText(choose('budgetMode'), 12) || (chosenBudget ? 'max' : '');
   return {
     engine: gemini ? 'gemini-intent+verified-stock' : openai ? 'openai-intent+verified-stock' : 'local-fast-intent',
     intent: {
       category: choose('category'),
-      budget: Math.round(number(choose('budget'))),
+      budget: chosenBudget,
+      budgetMode: ['min','max','around','range'].includes(chosenBudgetMode) ? chosenBudgetMode : (chosenBudget ? 'max' : ''),
+      budgetMin: Math.round(number(choose('budgetMin'))),
+      budgetMax: Math.round(number(choose('budgetMax'))),
       goldCode: cleanLabelText(choose('goldCode'), 10),
       weightChi: Math.round(number(choose('weightChi')) * 1000) / 1000,
       sizeLabel: cleanLabelText(choose('sizeLabel'), 40),
@@ -5764,10 +5866,15 @@ function adviserLocalIntentWithContext(message, context = []) {
   const current = localAdviserIntent(message);
   const allowPrevious = kblAiV52ContinuationAllowsOldIntent(message);
   const previous = allowPrevious ? localAdviserIntent((Array.isArray(context) ? context.slice(-8) : []).join(' ')) : {};
-  const choose = (key) => current[key] || previous[key] || (['budget','weightChi'].includes(key) ? 0 : '');
+  const choose = (key) => current[key] || previous[key] || (['budget','budgetMin','budgetMax','weightChi'].includes(key) ? 0 : '');
+  const chosenBudget = Math.round(number(choose('budget')));
+  const chosenBudgetMode = cleanLabelText(choose('budgetMode'), 12) || (chosenBudget ? 'max' : '');
   return {
     category: choose('category'),
-    budget: Math.round(number(choose('budget'))),
+    budget: chosenBudget,
+    budgetMode: ['min','max','around','range'].includes(chosenBudgetMode) ? chosenBudgetMode : (chosenBudget ? 'max' : ''),
+    budgetMin: Math.round(number(choose('budgetMin'))),
+    budgetMax: Math.round(number(choose('budgetMax'))),
     goldCode: cleanLabelText(choose('goldCode'), 10),
     weightChi: Math.round(number(choose('weightChi')) * 1000) / 1000,
     sizeLabel: cleanLabelText(choose('sizeLabel'), 40),
@@ -5950,7 +6057,11 @@ function kblAiV6InventoryAttributeSearch(message, intent={}, limit=6) {
   const category=ADVISER_CATEGORIES.has(intent.category)?intent.category:adviserCategoryFromText(message);
   const goldCode=GOLD_RULES.some((r)=>r.code===String(intent.goldCode||''))?String(intent.goldCode):adviserGoldCodeFromText(message);
   const size=cleanLabelText(intent.sizeLabel||adviserSizeFromText(message),40);
-  const budget=Math.max(0,number(intent.budget||adviserBudgetFromText(message)));
+  const parsedBudget=adviserBudgetConstraintFromText(message);
+  const budget=Math.max(0,number(intent.budget||parsedBudget.budget));
+  const budgetMode=['min','max','around','range'].includes(String(intent.budgetMode||''))?String(intent.budgetMode):(parsedBudget.budgetMode||(budget?'max':''));
+  const budgetMin=Math.max(0,number(intent.budgetMin||parsedBudget.budgetMin||(budgetMode==='min'?budget:0)));
+  const budgetMax=Math.max(0,number(intent.budgetMax||parsedBudget.budgetMax||((budgetMode==='max'||budgetMode==='around')?budget:0)));
   const weight=Math.max(0,number(intent.weightChi||adviserWeightFromText(message)));
   const rows=[];
   for (const p of stock) {
@@ -5958,7 +6069,11 @@ function kblAiV6InventoryAttributeSearch(message, intent={}, limit=6) {
     if (goldCode && normalizeGoldCode(p.goldCode)!==goldCode) continue;
     if (size && !adviserProductMatchesSize(p,size)) continue;
     if (weight) { const tol=Math.max(AI_WEIGHT_TOLERANCE_CHI,weight*.03); if(Math.abs(number(p.weightChi)-weight)>tol)continue; }
-    if (budget && number(p.referencePrice)>budget) continue;
+    const price=number(p.referencePrice);
+    if (budgetMode==='min' && budgetMin && price<budgetMin) continue;
+    if (budgetMode==='max' && budgetMax && price>budgetMax) continue;
+    if (budgetMode==='range' && ((budgetMin&&price<budgetMin)||(budgetMax&&price>budgetMax))) continue;
+    if (budgetMode==='around' && budgetMin && budgetMax && (price<budgetMin||price>budgetMax)) continue;
     const hay=kblAiV6ProductHaystack(p); let score=0,matched=[];
     if (phrase && phrase.length>=3 && hay.includes(phrase)) {score+=80;matched.push(phrase);}
     for (const token of tokens) if (hay.includes(token)) {score+=12;matched.push(token);}
@@ -5992,7 +6107,7 @@ function kblAiV6LooksProductRequest(message,intent={}) {
   const raw=plainVietnamese(message);
   if (adviserLooksKnowledgeSeeking(message) || kblAiV6PolicyTopic(message) || kblAiV6FengProfile(message)) return false;
   if (/\b(nhan|day chuyen|day co|bong tai|hoa tai|lac tay|vong tay|mat day|kieng|trang suc|san pham|ma sp|mau)\b/.test(raw)) return true;
-  if (intent && (intent.sizeLabel||intent.budget||intent.weightChi||intent.category&&intent.category!=='other')) return true;
+  if (intent && (intent.sizeLabel||intent.budget||intent.budgetMin||intent.budgetMax||intent.weightChi||intent.category&&intent.category!=='other')) return true;
   return /\b(hot xanh|hot trang|hot do|da xanh|da trang|chu loc|chu phuc|trai tim|con buom|ban to|day manh|nho gon)\b/.test(raw);
 }
 function kblAiV6SchoolScenario(message,context=[],dialogue=[]) {
@@ -6021,7 +6136,7 @@ function kblAiV63LikelyForeignLanguage(value){
   const foreign=(low.match(/\b(hello|price|gold|ring|necklace|earring|bracelet|pendant|jewelry|jewellery|warranty|shipping|delivery|available|buy|want|how much|policy|exchange|bonjour|prix|bague|collier|garantie|hola|precio|anillo|collar|garantia|hallo|preis|kette|preco|anel|colar)\b/g)||[]).length;
   return vi===0&&(foreign>=1||(/[a-z]{3}/i.test(low)&&s.length>=4));
 }
-function kblAiV63MergeIntent(base={},extra={}){const out={...base};for(const key of ['category','goldCode','sizeLabel','recipient','style','purpose'])if(!out[key]&&extra&&extra[key])out[key]=extra[key];for(const key of ['budget','weightChi'])if(!number(out[key])&&extra&&number(extra[key])>0)out[key]=number(extra[key]);return out}
+function kblAiV63MergeIntent(base={},extra={}){const out={...base};for(const key of ['category','goldCode','sizeLabel','recipient','style','purpose','budgetMode'])if(!out[key]&&extra&&extra[key])out[key]=extra[key];for(const key of ['budget','budgetMin','budgetMax','weightChi'])if(!number(out[key])&&extra&&number(extra[key])>0)out[key]=number(extra[key]);return out}
 async function kblAiV63MultilingualRouter(message,context=[]){
   if(!AI_ADVISER_ENABLED||!GEMINI_API_KEY||!kblAiV63LikelyForeignLanguage(message))return null;
   const schema={type:'object',additionalProperties:false,properties:{language:{type:'string'},mode:{type:'string',enum:['general','knowledge','product','store']},action:{type:'string',enum:['none','hold','booking','buy']},policyTopic:{type:'string',enum:['','payment','shipping','returns','warranty','privacy','loyalty','complaint','support','pricing','supply']},needsFreshWeb:{type:'boolean'},category:{type:'string',enum:['','necklace','ring','earring','bracelet','pendant','other']},budget:{type:'number'},goldCode:{type:'string',enum:['','9999','980','750','610','585','416']},weightChi:{type:'number'},sizeLabel:{type:'string'},recipient:{type:'string'},style:{type:'string'},purpose:{type:'string'}},required:['language','mode','action','policyTopic','needsFreshWeb','category','budget','goldCode','weightChi','sizeLabel','recipient','style','purpose']};
@@ -6067,17 +6182,45 @@ function adviserRecommendations(message, intent) {
     if (!withSizeData.length) { missingSizeData = true; filtered = []; }
     else filtered = withSizeData.filter((p) => adviserProductMatchesSize(p, requestedSize));
   }
-  if (!filtered.length) return { items: [], hasAffordable: false, stockCount: stock.length, matchedCount: 0, missingSizeData, criteria: { category, goldCode, weightChi: targetWeightChi, sizeLabel: requestedSize } };
-  const budget = Math.max(0, number(intent.budget));
-  const affordable = budget ? filtered.filter((p) => number(p.referencePrice) <= budget) : filtered;
-  const pool = affordable.length ? affordable : filtered;
+  const parsedBudget = adviserBudgetConstraintFromText(message);
+  const budget = Math.max(0, number(intent.budget || parsedBudget.budget));
+  const budgetMode = ['min','max','around','range'].includes(String(intent.budgetMode||''))
+    ? String(intent.budgetMode)
+    : (parsedBudget.budgetMode || (budget ? 'max' : ''));
+  const budgetMin = Math.max(0, number(intent.budgetMin || parsedBudget.budgetMin || (budgetMode==='min'?budget:0)));
+  const budgetMax = Math.max(0, number(intent.budgetMax || parsedBudget.budgetMax || ((budgetMode==='max'||budgetMode==='around')?budget:0)));
+  const criteria = { category, goldCode, weightChi: targetWeightChi, sizeLabel: requestedSize, budget, budgetMode, budgetMin, budgetMax };
+  if (!filtered.length) return { items: [], hasAffordable: false, hasBudgetMatch:false, stockCount: stock.length, matchedCount: 0, missingSizeData, criteria };
+
+  let budgetMatched = filtered;
+  if (budget) {
+    if (budgetMode === 'min') budgetMatched = filtered.filter((p) => number(p.referencePrice) >= budgetMin);
+    else if (budgetMode === 'range') budgetMatched = filtered.filter((p) => number(p.referencePrice) >= budgetMin && number(p.referencePrice) <= budgetMax);
+    else if (budgetMode === 'around') budgetMatched = filtered.filter((p) => number(p.referencePrice) >= budgetMin && number(p.referencePrice) <= budgetMax);
+    else budgetMatched = filtered.filter((p) => number(p.referencePrice) <= (budgetMax || budget));
+  }
+  // Min/max/range là tiêu chí cứng: không được lén gửi món sai khoảng giá.
+  // Around là tiêu chí mềm: nếu không có món trong dải ±20%, vẫn có thể gửi món gần nhất và nói rõ.
+  const hardBudget = budget && ['min','max','range'].includes(budgetMode);
+  const pool = budget ? (budgetMatched.length ? budgetMatched : (hardBudget ? [] : filtered)) : filtered;
+  if (!pool.length) return { items: [], hasAffordable:false, hasBudgetMatch:false, stockCount:stock.length, matchedCount:0, missingSizeData, criteria };
+
   const keywords = adviserKeywords(`${message} ${intent.style || ''}`);
+  const budgetReference = budgetMode==='range' ? ((budgetMin+budgetMax)/2) : budget;
   const items = pool.map((product) => {
     const price = number(product.referencePrice);
     const haystack = plainVietnamese(`${product.name} ${product.category} ${product.description} ${product.detail} ${product.specialMark} ${product.sizeLabel || ''}`);
     let score = category && adviserCategoryForProduct(product) === category ? 120 : 20;
     for (const keyword of keywords) if (haystack.includes(keyword)) score += 12;
-    if (budget) { const distance = Math.abs(budget-price)/Math.max(budget,1); score += Math.max(0,70-distance*70); score += price<=budget ? 70 : -40; }
+    let budgetOk = true;
+    if (budget) {
+      const distance = Math.abs(budgetReference-price)/Math.max(budgetReference,1);
+      score += Math.max(0,70-distance*70);
+      if (budgetMode==='min') { budgetOk=price>=budgetMin; score += budgetOk ? 80 : -120; }
+      else if (budgetMode==='range') { budgetOk=price>=budgetMin&&price<=budgetMax; score += budgetOk ? 90 : -120; }
+      else if (budgetMode==='around') { budgetOk=price>=budgetMin&&price<=budgetMax; score += budgetOk ? 75 : -20; }
+      else { budgetOk=price<=(budgetMax||budget); score += budgetOk ? 70 : -120; }
+    }
     if (targetWeightChi) score += Math.max(0, 80 - Math.abs(number(product.weightChi)-targetWeightChi)*500);
     if (goldCode && normalizeGoldCode(product.goldCode) === goldCode) score += 80;
     const resolvedSizeLabel = adviserProductSizeLabel(product);
@@ -6087,11 +6230,16 @@ function adviserRecommendations(message, intent) {
     if (goldCode) reasons.push(`Đúng vàng ${goldCode}`);
     if (targetWeightChi) reasons.push(`Trọng lượng ${number(product.weightChi).toLocaleString('vi-VN')} chỉ`);
     if (requestedSize) reasons.push(`Ni/size ${resolvedSizeLabel || requestedSize}`);
-    if (budget) { const d=Math.abs(budget-price); reasons.push(price<=budget ? `Trong ngân sách, còn khoảng ${d.toLocaleString('vi-VN')}đ` : `Mẫu gần nhất nhưng vượt khoảng ${d.toLocaleString('vi-VN')}đ`); }
+    if (budget) {
+      if (budgetMode==='min') reasons.push(`Từ ${budgetMin.toLocaleString('vi-VN')}đ trở lên`);
+      else if (budgetMode==='range') reasons.push(`Trong khoảng ${budgetMin.toLocaleString('vi-VN')}–${budgetMax.toLocaleString('vi-VN')}đ`);
+      else if (budgetMode==='around') reasons.push(budgetOk?`Gần mức ${budget.toLocaleString('vi-VN')}đ`:`Mẫu gần mức ${budget.toLocaleString('vi-VN')}đ nhất`);
+      else reasons.push(`Không quá ${(budgetMax||budget).toLocaleString('vi-VN')}đ`);
+    }
     if (intent.purpose) reasons.push(`Có thể cân nhắc cho ${intent.purpose}`); else if (intent.recipient) reasons.push(`Có thể cân nhắc tặng ${intent.recipient}`);
-    return {score,item:{id:String(product.id),sku:cleanInventoryCode(product.sku),name:cleanLabelText(product.name,160),category:cleanLabelText(product.category,80),goldCode:normalizeGoldCode(product.goldCode),weightChi:Math.max(0,number(product.weightChi)),sizeLabel:resolvedSizeLabel,workmanship:Math.max(0,number(product.workmanship)),image:safeImageSource(product.image),tryOnImage:safeImageSource(product.tryOnImage),referencePrice:price,withinBudget:budget?price<=budget:null,reason:reasons.join(' · ')||'Mẫu đang còn tại tiệm và đã được chủ tiệm duyệt.'}};
+    return {score,item:{id:String(product.id),sku:cleanInventoryCode(product.sku),name:cleanLabelText(product.name,160),category:cleanLabelText(product.category,80),goldCode:normalizeGoldCode(product.goldCode),weightChi:Math.max(0,number(product.weightChi)),sizeLabel:resolvedSizeLabel,workmanship:Math.max(0,number(product.workmanship)),image:safeImageSource(product.image),tryOnImage:safeImageSource(product.tryOnImage),referencePrice:price,withinBudget:budget?budgetOk:null,reason:reasons.join(' · ')||'Mẫu đang còn tại tiệm và đã được chủ tiệm duyệt.'}};
   }).sort((a,b)=>b.score-a.score || number(a.item.referencePrice)-number(b.item.referencePrice));
-  return {items:items.slice(0,AI_RECOMMENDATION_LIMIT).map(e=>e.item),hasAffordable:Boolean(affordable.length),stockCount:stock.length,matchedCount:items.length,missingSizeData,criteria:{category,goldCode,weightChi:targetWeightChi,sizeLabel:requestedSize}};
+  return {items:items.slice(0,AI_RECOMMENDATION_LIMIT).map(e=>e.item),hasAffordable:Boolean(budgetMatched.length),hasBudgetMatch:Boolean(budgetMatched.length),stockCount:stock.length,matchedCount:items.length,missingSizeData,criteria};
 }
 
 function adviserSummary(intent, result) {
@@ -6100,14 +6248,27 @@ function adviserSummary(intent, result) {
   if(intent.goldCode) criteria.push(`vàng ${intent.goldCode}`);
   if(intent.weightChi) criteria.push(`${number(intent.weightChi).toLocaleString('vi-VN')} chỉ`);
   if(intent.sizeLabel) criteria.push(`ni/size ${cleanLabelText(intent.sizeLabel,40)}`);
-  if(intent.budget) criteria.push(`ngân sách khoảng ${number(intent.budget).toLocaleString('vi-VN')}đ`);
+  const budget=Math.max(0,number(intent.budget));
+  const budgetMode=['min','max','around','range'].includes(String(intent.budgetMode||''))?String(intent.budgetMode):(budget?'max':'');
+  const budgetMin=Math.max(0,number(intent.budgetMin||(budgetMode==='min'?budget:0)));
+  const budgetMax=Math.max(0,number(intent.budgetMax||((budgetMode==='max'||budgetMode==='around')?budget:0)));
+  let budgetText='';
+  if(budget){
+    if(budgetMode==='min') budgetText=`từ ${budgetMin.toLocaleString('vi-VN')}đ trở lên`;
+    else if(budgetMode==='range') budgetText=`từ ${budgetMin.toLocaleString('vi-VN')}đ đến ${budgetMax.toLocaleString('vi-VN')}đ`;
+    else if(budgetMode==='around') budgetText=`quanh mức ${budget.toLocaleString('vi-VN')}đ`;
+    else budgetText=`không quá ${(budgetMax||budget).toLocaleString('vi-VN')}đ`;
+    criteria.push(budgetText);
+  }
   const criteriaText=criteria.length?` (${criteria.join(' · ')})`:'';
   if(!result.items.length){
     if(result.missingSizeData) return `Kho đang có ${type} phù hợp các tiêu chí khác nhưng chưa có dữ liệu ni/size để lọc an toàn. Chủ tiệm cần bổ sung ni/size cho đúng Mã SP trước khi AI tư vấn.`;
+    if(budgetText) return `Em đã lọc kho thật nhưng hiện chưa có mẫu ${type} ${budgetText} đáp ứng các tiêu chí anh/chị vừa hỏi. Em không gửi món sai khoảng giá.`;
     return result.stockCount ? `Hiện chưa có mẫu ${type}${criteriaText} đủ điều kiện và còn hàng. Hệ thống không tự thay bằng món sai tiêu chí.` : 'Hiện chưa có sản phẩm nào đủ điều kiện tư vấn tự động (còn hàng, đã duyệt, có ảnh và Mã SP).';
   }
-  if(intent.budget && !result.hasAffordable) return `Không có mẫu ${type}${criteriaText} nằm trong ngân sách. Dưới đây là các mẫu đúng tiêu chí hàng hóa nhưng giá cao hơn để anh/chị tham khảo.`;
+  if(budgetMode==='around' && budget && !result.hasBudgetMatch) return `Kho chưa có mẫu ${type} đúng sát ${budget.toLocaleString('vi-VN')}đ; em gửi ${Math.min(result.items.length,6)} mẫu gần mức đó nhất để anh/chị so nhanh.`;
   const countText=result.matchedCount>result.items.length?`${result.items.length}/${result.matchedCount}`:String(result.items.length);
+  if(budgetText) return `Dạ, em hiểu là anh/chị muốn xem ${type} ${budgetText}. Em đã lọc kho thật và tìm thấy ${countText} mẫu đang còn; em gửi đúng các mẫu theo khoảng giá bên dưới.`;
   return `Em tìm thấy ${countText} mẫu ${type}${criteriaText} đang còn tại tiệm. Quý khách vui lòng chọn sản phẩm ưng ý và gửi lại cho em.`;
 }
 
@@ -6123,7 +6284,7 @@ function adviserConversationMode(message, intent) {
 
   // Chỉ vào chế độ tìm sản phẩm khi CÂU HIỆN TẠI thực sự mang tín hiệu mua/tìm món.
   // Không dùng một con số tiền/size/ý định còn sót từ câu trước để ép mọi chủ đề sang kho hàng.
-  const explicitShopping = /\b(tim mau|tim giup|chon mau|co mau nao|con mau nao|muon mua|can mua|mua tang|ngan sach|tam gia|duoi .*trieu|khoang .*trieu|goi y mau)\b/.test(raw);
+  const explicitShopping = /\b(tim mau|tim giup|chon mau|co mau nao|con mau nao|muon mua|can mua|mua tang|mua duoc gi|ngan sach|tam gia|duoi .*trieu|tren .*trieu|hon .*trieu|tu .*trieu|it nhat .*trieu|toi thieu .*trieu|khoang .*trieu|goi y mau)\b/.test(raw);
   const productNoun = /\b(trang suc|san pham|mau|nhan|lac|vong tay|day chuyen|day co|bong tai|hoa tai|mat day|kieng)\b/.test(raw);
   const productAction = /\b(mua|tim|chon|goi y|tham khao|con hang|co hang|muon|can)\b/.test(raw);
   const hasConcreteProductNeed = Boolean(intent && (
@@ -6778,6 +6939,9 @@ function kblAiV61NeedsFreshWeb(message) {
 
 function kblAiV61NeedsToolAgent(message, mode, intent = {}, requestContext = {}) {
   if (!KBL_AI_V61_CONVERSATION_ENABLED || !KBL_AI_V61_ADAPTIVE_TOOL_ROUTING) return true;
+  // V8: Agent gets first chance on every normal conversational turn. It may answer directly
+  // without calling a tool, but any KBL/current fact must still be sourced through verified context/tools.
+  if (KBL_AI_V8_AGENT_FIRST_ENABLED && GEMINI_API_KEY) return true;
   const raw = plainVietnamese(message).replace(/\s+/g,' ').trim();
   const brain = requestContext && requestContext.brainPlan || {},multi=requestContext&&requestContext.multilingualPlan||null;
   if (kblAiV61NeedsFreshWeb(message) || brain.webAllowed || (multi&&multi.needsFreshWeb)) return true;
@@ -7774,7 +7938,7 @@ app.get('/api/health', (_req, res) => json(res, 200, {
   aiTryOn: !AI_TRYON_ENABLED ? 'disabled' : (GEMINI_API_KEY ? `gemini:${GEMINI_IMAGE_MODEL}` : 'quick-browser-only'),
   aiPhotoStudio: 'local-worker+google-flow-fallback',
   videoStudio: 'v5-veo-raw+ffmpeg-price-overlay-worker',
-  aiBrain: { version:KBL_AI_AGENT_VERSION, powerUnlock:KBL_AI_POWER_UNLOCK_VERSION, architecture:'understand>source>verify>cross-check>answer', conversationEngine:KBL_AI_V61_CONVERSATION_ENABLED, adaptiveToolRouting:KBL_AI_V61_ADAPTIVE_TOOL_ROUTING, naturalSchool:KBL_AI_V61_NATURAL_SCHOOL_ENABLED, dialogueTurns:KBL_AI_V61_DIALOGUE_TURNS, goldMath:'0.1-ly-integer', functionCalling:true, answerVerifier:KBL_AI_V4_VERIFIER_ENABLED, proEscalation:KBL_AI_V4_PRO_ENABLED, proModel:GEMINI_PRO_MODEL, embedding:KBL_AI_V3_EMBEDDING_ENABLED, trace:KBL_AI_V4_TRACE_ENABLED, learning:KBL_AI_V5_LEARNING_ENABLED, trainingQuestions:kblAiV5TrainingRows.length, policySections:kblAiV6PolicyRows.length, approvedKnowledge:kblAiV5LearnedRows.length, pendingKnowledge:kblAiV5PendingRows.length, googleSearch:KBL_AI_V3_GOOGLE_SEARCH_ENABLED, master:{version:KBL_AI_MASTER_VERSION,enabled:KBL_AI_MASTER_ENABLED,quickMinutes:Math.round(KBL_AI_MASTER_QUICK_MS/60000),deepMinutes:Math.round(KBL_AI_MASTER_DEEP_MS/60000),vietnamFirst:true} },
+  aiBrain: { version:KBL_AI_AGENT_VERSION, powerUnlock:KBL_AI_POWER_UNLOCK_VERSION, architecture:'agent-first>understand>source>verify>cross-check>answer', agentFirst:KBL_AI_V8_AGENT_FIRST_ENABLED, strictEvidence:KBL_AI_V8_STRICT_EVIDENCE_ENABLED, providerFallback:KBL_AI_V8_PROVIDER_FALLBACK_ENABLED, providerFallbackReady:Boolean(OPENAI_API_KEY), promptFinalFallback:KBL_AI_V8_PROMPT_FALLBACK_ENABLED, promptFinalFallbackReady:Boolean(GEMINI_API_KEY), deepSeekPromptReady:Boolean(DEEPSEEK_API_KEY), conversationEngine:KBL_AI_V61_CONVERSATION_ENABLED, adaptiveToolRouting:KBL_AI_V61_ADAPTIVE_TOOL_ROUTING, naturalSchool:KBL_AI_V61_NATURAL_SCHOOL_ENABLED, dialogueTurns:KBL_AI_V61_DIALOGUE_TURNS, goldMath:'0.1-ly-integer', functionCalling:true, answerVerifier:KBL_AI_V4_VERIFIER_ENABLED, proEscalation:KBL_AI_V4_PRO_ENABLED, proModel:GEMINI_PRO_MODEL, embedding:KBL_AI_V3_EMBEDDING_ENABLED, trace:KBL_AI_V4_TRACE_ENABLED, learning:KBL_AI_V5_LEARNING_ENABLED, trainingQuestions:kblAiV5TrainingRows.length, policySections:kblAiV6PolicyRows.length, approvedKnowledge:kblAiV5LearnedRows.length, pendingKnowledge:kblAiV5PendingRows.length, googleSearch:KBL_AI_V3_GOOGLE_SEARCH_ENABLED, master:{version:KBL_AI_MASTER_VERSION,enabled:KBL_AI_MASTER_ENABLED,quickMinutes:Math.round(KBL_AI_MASTER_QUICK_MS/60000),deepMinutes:Math.round(KBL_AI_MASTER_DEEP_MS/60000),vietnamFirst:true} },
   commerceV5: kblCommerceV5 ? { version:kblCommerceV5.version, ...kblCommerceV5.overview() } : { version:'loading' },
   customerRegistration: PUBLIC_REGISTRATION_ENABLED ? 'open' : 'disabled',
   premiumTryOnPolicy: { loginRequired:true, initialFree:TRYON_INITIAL_FREE, shareBonus:true, vipUnlimited:true, vipPoints:LOYALTY_VIP_POINTS, pointProfitVnd:LOYALTY_POINT_PROFIT_VND, cooldownSeconds:Math.round(TRYON_COOLDOWN_MS/1000), cacheHours:Math.round(TRYON_CACHE_MS/3600000), adminBonus:true },
@@ -7989,7 +8153,7 @@ app.post('/api/prompt-ai/consult',rateLimit('prompt-ai-consult',30,10*60*1000),a
     account.consultDay=kblPromptDayKey();account.consultCalls=Math.max(0,number(account.consultCalls))+1;account.updatedAt=new Date().toISOString();
     const usage=result.usage||{},row={id:'PC-'+crypto.randomBytes(8).toString('hex').toUpperCase(),kind:'consult',userId:user.id,mode,phase,imageCount:images.length,model:result.model,at:new Date().toISOString(),promptTokens:number(usage.promptTokenCount),completionTokens:number(usage.candidatesTokenCount),totalTokens:number(usage.totalTokenCount)};
     kblPromptState.usage.push(row);kblPromptState.usage=kblPromptState.usage.slice(-10000);kblPromptSave();
-    return json(res,200,{success:true,consultant:result.result,model:result.model,consult:kblPromptConsultAllowance(account),businessContext:kblPromptBusinessContext(account.businessContext),credits:account.credits});
+    return json(res,200,{success:true,consultant:result.result,model:result.model,research:result.research||{used:false},consult:kblPromptConsultAllowance(account),businessContext:kblPromptBusinessContext(account.businessContext),credits:account.credits});
   }catch(error){return json(res,502,{success:false,message:kblPromptText(error&&error.message||'Gemini Consultant chưa phản hồi.',320)})}
 });
 app.post('/api/prompt-ai/finalize',rateLimit('prompt-ai-finalize',20,10*60*1000),async(req,res)=>{
@@ -8004,7 +8168,7 @@ app.post('/api/prompt-ai/finalize',rateLimit('prompt-ai-finalize',20,10*60*1000)
   // Reserve đúng số prompt trước call để chống bấm song song; lỗi upstream hoàn đủ.
   account.credits-=promptCount;account.updatedAt=new Date().toISOString();kblPromptSave();
   try{
-    const final=await kblPromptDeepSeekFinalize({mode,brief:{...brief,promptCount},profile});
+    const final=await kblPromptFinalizeAgentV8({mode,brief:{...brief,promptCount},profile});
     account.totalFinalized=Math.max(0,number(account.totalFinalized))+promptCount;account.updatedAt=new Date().toISOString();
     const u=final.usage||{},cached=number(u.prompt_tokens_details&&u.prompt_tokens_details.cached_tokens);
     kblPromptState.usage.push({id:'PF-'+crypto.randomBytes(8).toString('hex').toUpperCase(),kind:'final',userId:user.id,mode,promptCount,model:final.model,at:new Date().toISOString(),promptTokens:number(u.prompt_tokens),completionTokens:number(u.completion_tokens),cachedTokens:cached,totalTokens:number(u.total_tokens)});
@@ -8012,7 +8176,7 @@ app.post('/api/prompt-ai/finalize',rateLimit('prompt-ai-finalize',20,10*60*1000)
     return json(res,200,{success:true,prompt:final.prompt,prompts:final.prompts,promptCount,model:final.model,charged:promptCount,credits:account.credits,platforms:kblPromptState.settings.platforms[mode].filter(x=>x.enabled!==false)});
   }catch(error){
     account.credits+=promptCount;account.updatedAt=new Date().toISOString();kblPromptSave();
-    return json(res,502,{success:false,message:kblPromptText(error&&error.message||'DeepSeek chưa tạo được prompt cuối.',320),refunded:true,refundedCredits:promptCount,credits:account.credits});
+    return json(res,502,{success:false,message:kblPromptText(error&&error.message||'Prompt Final Director chưa tạo được prompt cuối.',320),refunded:true,refundedCredits:promptCount,credits:account.credits});
   }
 });
 app.post('/api/prompt-ai/order',rateLimit('prompt-ai-order',12,30*60*1000),(req,res)=>{
@@ -9152,6 +9316,43 @@ async function openAiContentDraft(snapshot, campaign, tone) {
   } catch(_){return null;} finally {clearTimeout(timeout);}
 }
 
+async function openAiJewelryConsultantReply(message, context, mode, intent, result, selectedProduct = null, dialogue = [], knowledgeMatches = [], salesBrain = null) {
+  if (!KBL_AI_V8_PROVIDER_FALLBACK_ENABLED || !AI_ADVISER_ENABLED || !OPENAI_API_KEY || typeof fetch !== 'function') return null;
+  const verifiedProducts = mode === 'product' ? (result.items || []).slice(0,6).map((item)=>({
+    id:item.id,sku:item.sku,name:item.name,goldCode:item.goldCode,weightChi:item.weightChi,sizeLabel:item.sizeLabel||'',referencePrice:item.referencePrice,reason:item.reason||''
+  })) : [];
+  const safeContext = {
+    mode,
+    intent,
+    selectedProduct:selectedProduct?{id:selectedProduct.id,sku:cleanInventoryCode(selectedProduct.sku),name:cleanLabelText(selectedProduct.name,160),goldCode:normalizeGoldCode(selectedProduct.goldCode),weightChi:number(selectedProduct.weightChi),referencePrice:priceForProduct(selectedProduct)}:null,
+    verifiedProducts,
+    liveGoldPrices:publicGoldPriceFacts(),
+    shop:kblCanonicalNap(),
+    policies:adviserPolicyFacts(),
+    aiSchool:kblAiV5KnowledgePrompt(knowledgeMatches),
+    salesBrain:salesBrain||null
+  };
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),AI_CHAT_FALLBACK_TIMEOUT_MS);
+  try{
+    const transcript=adviserGeminiContents(message,context,dialogue).map((x)=>`${x.role==='model'?'AI':'KHÁCH'}: ${(x.parts||[]).map(p=>p.text||'').join(' ').slice(0,1800)}`).filter(Boolean).join('\n');
+    const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${OPENAI_API_KEY}`,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({
+      model:AI_MODEL,store:false,max_output_tokens:AI_CHAT_MAX_OUTPUT_TOKENS,
+      input:[{role:'system',content:[{type:'input_text',text:[
+        'Bạn là KBL AI Agent V8 fallback. Trả lời tự nhiên bằng ngôn ngữ của tin nhắn mới nhất.',
+        KBL_AI_MASTER_CONTRACT,
+        'Chỉ dùng KBL_CONTEXT cho dữ liệu riêng/current của KBL. Không bịa SKU, giá, tồn kho, công, chính sách, số liệu hay kết quả phép tính.',
+        'Giữ đúng nghĩa min/max/range của ngân sách. Nếu verifiedProducts có dữ liệu, chỉ tư vấn từ các món đó.',
+        'AI School là hướng dẫn liên quan đã truy xuất; không được ghi đè dữ liệu live.',
+        'Nếu dữ liệu bắt buộc không có, nói rõ thiếu gì bằng một câu ngắn; không đoán.',
+        'Không nhắc provider, fallback, JSON hay quy trình nội bộ.'
+      ].join('\n')}]},{role:'user',content:[{type:'input_text',text:`HỘI THOẠI GẦN NHẤT\n${transcript}\n\nKBL_CONTEXT\n${JSON.stringify(safeContext)}\n\nHãy trả lời đúng tin nhắn khách mới nhất.`}]}]
+    })});
+    if(!response.ok)return null;
+    const payload=await response.json(),text=sanitizeAdviserReply(openAiResponseText(payload));
+    return text?{text,model:AI_MODEL,provider:'openai'}:null;
+  }catch(_){return null}finally{clearTimeout(timeout)}
+}
+
 function adviserEscalationReason(value, budget = 0) {
   const text = plainVietnamese(value);
   if (/(khieu nai|phan nan|khong hai long|bao hanh loi)/.test(text)) return 'Khiếu nại / cần chủ tiệm xử lý';
@@ -9398,6 +9599,9 @@ app.post('/api/adviser/recommend', rateLimit('ai-adviser', 60, 10 * 60 * 1000), 
   const understood = preliminaryMode === 'product'
     ? (multilingualPlan?{engine:'kbl-e7-multilingual-intent',intent:currentLocalIntent}:await understandAdviserIntent(message, context))
     : { engine: multilingualPlan?'kbl-e7-multilingual-router':'kbl-v6-understand-first', intent: currentLocalIntent };
+  // Giá trong CÂU HIỆN TẠI thắng mọi diễn giải cũ/AI: "trên 4 triệu" không bao giờ được hiểu thành "<= 4 triệu".
+  const explicitBudgetConstraint = adviserBudgetConstraintFromText(message);
+  if (explicitBudgetConstraint.budget) Object.assign(understood.intent, explicitBudgetConstraint);
   // V6: chính sách KBL luôn đọc nguồn công bố trước; không cho web/Gemini nhớ đại ghi đè.
   if (brainPlan.policyTopic && kblAiV6PolicyInfoQuestion(message, brainPlan.policyTopic)) {
     const policyResult=kblAiV6PolicyReply(message,brainPlan.policyTopic);
@@ -9421,9 +9625,24 @@ app.post('/api/adviser/recommend', rateLimit('ai-adviser', 60, 10 * 60 * 1000), 
     return json(res,200,{success:true,engine:'kbl-v6-feng-school',mode:'knowledge',intent:understood.intent,exchangeOrigin:'none',reply:fengBase,summary:fengBase,products:[],disclaimer:'Phong thủy chỉ mang tính tham khảo.',brain:brainPlan});
   }
 
+  // KBL AI BUDGET INTENT: câu mua sắm có khoảng giá rõ ràng được lọc deterministic trước.
+  // Đây là dữ liệu kho/giá cứng nên không cần Gemini đoán hướng trên/dưới; tránh câu "trên 4 triệu" bị trả món 970k.
+  if (preliminaryMode === 'product' && explicitBudgetConstraint.budget) {
+    const directBudgetResult = adviserRecommendations(message, understood.intent);
+    const directBudgetReply = adviserSummary(understood.intent, directBudgetResult);
+    auditEvent(req,'adviser.direct-inventory-budget','ok',{
+      messageHash:shortHash(message), budget:explicitBudgetConstraint.budget, budgetMode:explicitBudgetConstraint.budgetMode,
+      budgetMin:explicitBudgetConstraint.budgetMin, budgetMax:explicitBudgetConstraint.budgetMax, resultCount:directBudgetResult.items.length
+    });
+    return json(res,200,{
+      success:true,engine:'kbl-direct-inventory-budget',mode:'product',intent:understood.intent,exchangeOrigin:'none',
+      reply:directBudgetReply,summary:directBudgetReply,products:directBudgetResult.items.slice(0,6),disclaimer:'',brain:brainPlan
+    });
+  }
+
   // V6: chỉ cần khách nhắc chi tiết có thật trong sản phẩm thì quét toàn bộ dữ liệu kho trước Gemini.
   // Có match -> bắt buộc gửi card/ảnh. Không match -> không tự thay món khác.
-  if (preliminaryMode === 'product' && !cleanLabelText(currentLocalIntent.sizeLabel,40)) {
+  if (!KBL_AI_V8_AGENT_FIRST_ENABLED && preliminaryMode === 'product' && !cleanLabelText(currentLocalIntent.sizeLabel,40)) {
     const attributeProducts=kblAiV6InventoryAttributeSearch(message,understood.intent,6);
     if (attributeProducts.length) {
       const reply=`Em đã đối chiếu kho thật và tìm thấy ${attributeProducts.length} mẫu liên quan trực tiếp tới chi tiết anh/chị vừa hỏi. Em gửi đúng các mẫu đang còn bên dưới.`;
@@ -9434,7 +9653,7 @@ app.post('/api/adviser/recommend', rateLimit('ai-adviser', 60, 10 * 60 * 1000), 
 
   // KBL 28/08/2026: câu hỏi có ni/size rõ ràng phải lọc kho thật ngay trên server.
   // Không chờ Gemini quyết định có gọi tool hay không; có hàng thì frontend luôn nhận products để dựng card/ảnh.
-  if (preliminaryMode === 'product' && cleanLabelText(currentLocalIntent.sizeLabel, 40)) {
+  if (!KBL_AI_V8_AGENT_FIRST_ENABLED && preliminaryMode === 'product' && cleanLabelText(currentLocalIntent.sizeLabel, 40)) {
     const directSizeResult = adviserRecommendations(message, understood.intent);
     const directSizeReply = adviserSummary(understood.intent, directSizeResult);
     auditEvent(req, 'adviser.direct-inventory-size', 'ok', {
@@ -9572,7 +9791,7 @@ app.post('/api/adviser/recommend', rateLimit('ai-adviser', 60, 10 * 60 * 1000), 
 
   const adviserUser = sessionUser(req);
   const adviserCustomer = adviserUser ? ensureCustomerForUser(adviserUser) : null;
-  let knowledgeMatches = kblAiV5KnowledgeLookup(message, context, dialogue, 4);
+  let knowledgeMatches = kblAiV5KnowledgeLookup(message, context, dialogue, KBL_AI_V8_AGENT_FIRST_ENABLED ? 6 : 4);
   const salesBrain = kblAiV7SalesBrain(
     message, context, dialogue, understood.intent, selectedProduct, recentProducts,
     req.kblAiV3Memory && req.kblAiV3Memory.row && req.kblAiV3Memory.row.state || {}
@@ -9616,7 +9835,7 @@ app.post('/api/adviser/recommend', rateLimit('ai-adviser', 60, 10 * 60 * 1000), 
           sourceCount:Array.isArray(preRef.sources)?preRef.sources.length:0,
           checkedAt:cleanLabelText(preRef.checkedAt,60)
         };
-        knowledgeMatches = kblAiV5KnowledgeLookup(message, context, dialogue, 4);
+        knowledgeMatches = kblAiV5KnowledgeLookup(message, context, dialogue, KBL_AI_V8_AGENT_FIRST_ENABLED ? 6 : 4);
         adviserRequestContext.knowledgeMatches = knowledgeMatches;
       }
     }
@@ -9654,7 +9873,9 @@ app.post('/api/adviser/recommend', rateLimit('ai-adviser', 60, 10 * 60 * 1000), 
   // V6.1 adaptive routing: hội thoại/kiến thức/sản phẩm đã có dữ liệu server -> Flash consultant một vòng.
   // Chỉ bật function-calling khi thật sự cần live tool, phép tính nghiệp vụ, trạng thái kho chi tiết hoặc web mới.
   const agentReply = useToolAgent ? await geminiKblToolAgentReply(message, context, dialogue, adviserRequestContext) : null;
-  const aiReply = agentReply || await geminiJewelryConsultantReply(message, context, mode, understood.intent, result, selectedProduct, dialogue, knowledgeMatches, adviserRequestContext.salesBrain);
+  const geminiReply = agentReply || await geminiJewelryConsultantReply(message, context, mode, understood.intent, result, selectedProduct, dialogue, knowledgeMatches, adviserRequestContext.salesBrain);
+  const openAiReply = geminiReply ? null : await openAiJewelryConsultantReply(message, context, mode, understood.intent, result, selectedProduct, dialogue, knowledgeMatches, adviserRequestContext.salesBrain);
+  const aiReply = geminiReply || openAiReply;
   const agentResearchUsed = Boolean(agentReply && Array.isArray(agentReply.toolsUsed) && agentReply.toolsUsed.includes('get_google_search_reference'));
 
   // V5.3 BACKEND-ONLY AUTO-RESEARCH:
@@ -9690,7 +9911,7 @@ app.post('/api/adviser/recommend', rateLimit('ai-adviser', 60, 10 * 60 * 1000), 
   }
   auditEvent(req, 'adviser.recommend', 'ok', {
     messageHash: shortHash(message),
-    engine: autoResearch ? autoResearch.engine : agentReply ? `gemini-tools:${agentReply.model}` : aiReply ? `gemini-consultant:${aiReply.model}` : publicFallback ? publicFallback.engine : understood.engine,
+    engine: autoResearch ? autoResearch.engine : agentReply ? `gemini-tools:${agentReply.model}` : openAiReply ? `openai-consultant:${openAiReply.model}` : aiReply ? `gemini-consultant:${aiReply.model}` : publicFallback ? publicFallback.engine : understood.engine,
     mode,
     resultCount: result.items.length,
     category: understood.intent.category || 'unknown',
@@ -9702,7 +9923,7 @@ app.post('/api/adviser/recommend', rateLimit('ai-adviser', 60, 10 * 60 * 1000), 
   });
   return json(res, 200, {
     success: true,
-    engine: autoResearch ? autoResearch.engine : agentReply ? `gemini-tools:${agentReply.model}` : aiReply ? `gemini-consultant:${aiReply.model}` : publicFallback ? publicFallback.engine : understood.engine,
+    engine: autoResearch ? autoResearch.engine : agentReply ? `gemini-tools:${agentReply.model}` : openAiReply ? `openai-consultant:${openAiReply.model}` : aiReply ? `gemini-consultant:${aiReply.model}` : publicFallback ? publicFallback.engine : understood.engine,
     mode,
     intent: understood.intent,
     exchangeOrigin,
@@ -11200,8 +11421,9 @@ async function kblMasterGroundedSearch(scope='vi',mode='deep'){
   return {available:false,scope,status:lastStatus||undefined,reason:lastReason||'grounding-failed'};
 }
 async function kblMasterGenerateJson(system,prompt,schema,options={}){
-  if(!GEMINI_API_KEY||typeof fetch!=='function'){kblAiMasterDiag(options.stage||'brain','blocked','Gemini chưa sẵn sàng.');return null}
-  const preferPro=Boolean(options.pro&&KBL_AI_V4_PRO_ENABLED),models=preferPro?geminiModelCandidates(GEMINI_PRO_MODEL,[GEMINI_TEXT_MODEL,'gemini-3.7-flash']):geminiModelCandidates(GEMINI_TEXT_MODEL,['gemini-3.7-flash','gemini-3.6-flash']),stage=cleanLabelText(options.stage||'brain',60),timeoutMs=Math.max(60000,number(options.timeoutMs,KBL_AI_MASTER_BRAIN_TIMEOUT_MS));let last='';
+  if(typeof fetch!=='function'){kblAiMasterDiag(options.stage||'brain','blocked','Runtime fetch chưa sẵn sàng.');return null}
+  const preferPro=Boolean(options.pro&&KBL_AI_V4_PRO_ENABLED),models=GEMINI_API_KEY?(preferPro?geminiModelCandidates(GEMINI_PRO_MODEL,[GEMINI_TEXT_MODEL,'gemini-3.7-flash']):geminiModelCandidates(GEMINI_TEXT_MODEL,['gemini-3.7-flash','gemini-3.6-flash'])):[],stage=cleanLabelText(options.stage||'brain',60),timeoutMs=Math.max(60000,number(options.timeoutMs,KBL_AI_MASTER_BRAIN_TIMEOUT_MS));let last='';
+  if(!GEMINI_API_KEY)kblAiMasterDiag(stage,'retry','Gemini chưa sẵn sàng; V8 sẽ thử provider dự phòng nếu đã cấu hình.');
   for(const model of models){
     for(let attempt=1;attempt<=2;attempt++){
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
@@ -11216,7 +11438,7 @@ async function kblMasterGenerateJson(system,prompt,schema,options={}){
           break;
         }
         const text=geminiResponseText(data);if(!text){last='Gemini trả response rỗng.';if(attempt<2){await new Promise(resolve=>setTimeout(resolve,900));continue}break}
-        try{const parsed=JSON.parse(text);kblAiMasterDiag(stage,'ok',`JSON hợp lệ từ ${model}.`,{model,attempt});return {data:parsed,model,attempt}}catch(error){last='JSON không hợp lệ: '+cleanLabelText(error&&error.message,180);kblAiMasterDiag(stage,attempt<2?'retry':'error',`${model}: ${last}`,{model,attempt});if(attempt<2){await new Promise(resolve=>setTimeout(resolve,900));continue}break}
+        try{const parsed=JSON.parse(text);kblAiMasterDiag(stage,'ok',`JSON hợp lệ từ ${model}.`,{model,attempt});return {data:parsed,model,attempt,provider:'gemini'}}catch(error){last='JSON không hợp lệ: '+cleanLabelText(error&&error.message,180);kblAiMasterDiag(stage,attempt<2?'retry':'error',`${model}: ${last}`,{model,attempt});if(attempt<2){await new Promise(resolve=>setTimeout(resolve,900));continue}break}
       }catch(error){
         last=cleanLabelText(error&&error.name==='AbortError'?`quá ${Math.round(timeoutMs/1000)} giây ở ${model}`:(error&&error.message||'Gemini request failed'),260);
         const transient=/abort|quá|timeout|fetch|network|temporar|try again/i.test(last);kblAiMasterDiag(stage,transient?'retry':'error',`${model} lượt ${attempt}: ${last}`,{model,attempt});
@@ -11226,7 +11448,21 @@ async function kblMasterGenerateJson(system,prompt,schema,options={}){
       }finally{clearTimeout(timer)}
     }
   }
-  kblAiMasterDiag(stage,'error',last||'Không model nào trả JSON hợp lệ.');return null
+  if(KBL_AI_V8_PROVIDER_FALLBACK_ENABLED&&OPENAI_API_KEY){
+    const model=AI_MODEL,controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
+    try{
+      const schemaName=('kbl_master_'+plainVietnamese(stage).replace(/[^a-z0-9]+/g,'_')).replace(/^_+|_+$/g,'').slice(0,58)||'kbl_master_output';
+      kblAiMasterDiag(stage,'retry',`Gemini chưa trả JSON hợp lệ; thử OpenAI fallback ${model}.`,{model,provider:'openai'});
+      const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${OPENAI_API_KEY}`,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({model,store:false,max_output_tokens:Math.max(1600,Math.min(8000,number(options.maxOutputTokens,3600))),input:[{role:'system',content:[{type:'input_text',text:KBL_AI_MASTER_CONTRACT+'\n'+String(system||'')+'\nV8 PROVIDER FALLBACK: giữ nguyên schema, evidence và Fact Lock; không tự bổ sung claim/số liệu ngoài prompt.'}]},{role:'user',content:[{type:'input_text',text:String(prompt||'')}]}],text:{format:{type:'json_schema',name:schemaName,strict:true,schema}}})});
+      const data=await response.json().catch(()=>({}));
+      if(response.ok){
+        const raw=openAiResponseText(data);
+        if(raw){try{const parsed=JSON.parse(raw);kblAiMasterDiag(stage,'ok',`JSON hợp lệ từ OpenAI fallback ${model}.`,{model,provider:'openai'});return {data:parsed,model,attempt:1,provider:'openai-fallback'}}catch(error){last='OpenAI JSON không hợp lệ: '+cleanLabelText(error&&error.message,180)}}
+        else last='OpenAI fallback trả response rỗng.';
+      }else last=cleanLabelText(data&&data.error&&data.error.message||('OpenAI HTTP '+response.status),260);
+    }catch(error){last=cleanLabelText(error&&error.name==='AbortError'?`OpenAI fallback quá ${Math.round(timeoutMs/1000)} giây`:(error&&error.message||'OpenAI fallback request failed'),260)}finally{clearTimeout(timer)}
+  }
+  kblAiMasterDiag(stage,'error',last||'Không provider nào trả JSON hợp lệ.');return null
 }
 function kblMasterOpportunitySchema(){return {type:'object',additionalProperties:false,properties:{signals:{type:'array',items:{type:'object',additionalProperties:false,properties:{
   title:{type:'string'},eventKey:{type:'string'},eventType:{type:'string'},region:{type:'string'},marketNeed:{type:'string'},summary:{type:'string'},reason:{type:'string'},contentAngle:{type:'string'},contentAngles:{type:'array',items:{type:'string'}},demandType:{type:'string'},direction:{type:'string'},timeHorizon:{type:'string'},eventStatus:{type:'string'},eventTimeUtc:{type:'string'},scheduledEvent:{type:'boolean'},
@@ -11247,6 +11483,8 @@ async function kblMasterAssessEvidence(evidence,snapshot){
     'GLOBAL không bị coi là tín hiệu hạng hai. Một sự kiện quốc tế có thể rất quan trọng dù chưa match SKU; KBL Match là lớp sau, không được xóa sự kiện chỉ vì chưa gắn sản phẩm.',
     'vietnamTransmission phải mô tả đường truyền hợp lý như gold spot, USD/VND, yield, tâm lý trú ẩn, chính sách trong nước, sức mua/nhu cầu; nếu chưa chắc phải nói rõ.',
     'factualClaims chỉ ghi claim có bằng chứng trong evidence. Mỗi signal bắt buộc sourceIndexes đúng nguồn hỗ trợ. Không bịa claim ngoài evidence, không bịa giá, không dự báo chắc chắn.',
+    'V8 EVIDENCE ORCHESTRATOR: tách OBSERVED FACT (nguồn nói gì) khỏi INFERENCE (đường truyền/tác động). Claim tác động lớn phải ưu tiên 2 nhóm nguồn độc lập; nếu chỉ có một nguồn thì hạ confidence, thêm caution và để Truth Guard quyết định watch thay vì khẳng định.',
+    'Nếu các nguồn/evidence cho tín hiệu trái chiều, direction= mixed hoặc unclear; tuyệt đối không chọn một phía chỉ để làm headline hấp dẫn.',
     'productIds và featureKeys chỉ lấy đúng ID/key trong snapshot; có thể để rỗng nếu đây là World Event đáng theo dõi nhưng chưa cần gắn sản phẩm.',
     'eventKey phải là khóa sự kiện CANONICAL ngắn, ổn định qua nhiều vòng quét (ví dụ us-iran-hormuz-202609 hoặc us-cpi-2026-09-11); không nhét timestamp quét vào eventKey.',
     'HEADLINE-FIRST: mọi signal hữu ích phải có contentAngle như MỘT TIÊU ĐỀ/HOOK video sẵn dùng, ngắn, có tò mò nhưng không bóp méo sự thật. contentAngles nên có 3 góc khác nhau: news/explainer, myth-busting/curiosity, Vietnam/KBL-life angle. Ví dụ dạng câu hỏi “Trung Quốc mua vàng liên tiếp — họ đang phòng điều gì?” hoặc “Liệu đây là lực đỡ hay có cú quay xe từ USD/lợi suất?”. Không ép bán hàng nếu chưa hợp.',
