@@ -1,0 +1,146 @@
+KIM BAO LAM - GROWTH AUTOPILOT V1
+Release: 18-09-2026
+
+BASELINE
+- Release nay duoc tao truc tiep tren KBL_WEB_AI_AGENT_V8_HOUSE2_FULL_NODE_TWIN_100_18-09-2026.zip.
+- KHONG can cai chong cac ZIP AI Budget / AI Agent V8 / House2 cu.
+- Copy noi dung release nay vao D:\KBL\kbl-web va chon Replace/Merge. KHONG xoa repo cu truoc khi copy.
+
+MUC TIEU
+Noi cac he thong AI da co thanh mot vong tu dong:
+AI MARKET -> INVENTORY MATCHER -> CAMPAIGN PLANNER -> CONTENT AI -> GEMINI SOCIAL IMAGE -> VISUAL QA -> FINAL QA -> PUBLISHER -> ANALYTICS -> LEARN.
+Video van de chu tiem lam/duyet thu cong de tiet kiem chi phi Veo.
+
+AN TOAN MAC DINH
+- Growth Autopilot MAC DINH TAT sau khi cai.
+- Khong tu dong dang bai ngay sau deploy.
+- Khong sua gia POS, kho POS, anh san pham da duyet tren website, policy, House 2 hay logic giao dich.
+- Anh social AI la sidecar asset rieng; neu Vision QA khong dat thi he thong dung anh san pham that, khong dang anh AI sai mau.
+
+NHIP DANG MAC DINH
+- Toi da 3 bai anh / ngay tren toan he thong.
+- Toi da 1 bai / nen tang / ngay.
+- Cach nhau toi thieu 90 phut giua hai bai bat ky.
+- Cach nhau toi thieu 360 phut tren cung nen tang.
+- Khong lap lai cung SKU trong 7 ngay.
+- Khung gio khoi tao:
+  Facebook: 11:30, 19:30
+  Instagram: 11:45, 20:15
+  Threads: 08:15, 12:15, 20:30
+  TikTok: 11:50, 19:45, 21:15
+  Telegram: 08:00, 12:00, 19:00
+- Analytics se hoc lai nen tang va gio manh khi co du du lieu that; neu chua du du lieu thi dung khung gio an toan tren.
+
+KENH BAI ANH TU DONG
+- Facebook: API-ready thi co the tu dang.
+- Instagram: API-ready thi co the tu dang.
+- Threads: API-ready thi co the tu dang.
+- TikTok: API-ready + Direct Post/verified domain thi co the tu dang PHOTO. TikTok dung anh sach; thong tin KBL nam trong caption, khong dong logo/link quang cao len anh.
+- Telegram: Bot API-ready thi co the tu dang.
+- YouTube: KHONG dua vao autopost anh; video van dung quy trinh hien tai.
+- Zalo: chua tu dong trong Growth V1 vi KBL hien chua co connector Zalo OA chuan hoa du de tu publish/care an toan.
+
+GEMINI SOCIAL IMAGE
+- Chi goi Gemini mat phi sau khi Campaign Planner + QA co kenh dang hop le, de tranh ton chi phi vo ich.
+- Anh yeu cau bao toan thiet ke trang suc that.
+- Facebook/Instagram/Threads/Telegram: co the tao anh 4:5 co footer nho:
+  KIM BAO LAM
+  tiemvangkimbaolam.id.vn
+- Sau khi tao, mot Vision QA rieng so anh goc va anh AI. Dieu kien auto-approve rat chat; neu fail thi fallback anh that.
+- TikTok: dung anh sach theo gioi han chia se noi dung cua nen tang; thong tin tiem o caption.
+
+AI MARKET + INVENTORY + PLANNER
+- Market Agent dung AI Market/AI Master hien co, khong bịa trend neu khong co evidence.
+- Inventory Matcher chi duoc chon ID/SKU tu kho that dang publishable.
+- Campaign Planner chon toi da 3 kenh dua tren ready status + analytics thuc + best hour + idea thi truong + SKU.
+- Neu chua co du analytics thi fallback theo khung gio an toan, khong bịa so view.
+
+CONTENT + QA
+- Content AI tao caption rieng theo tung nen tang.
+- Caption tu bo sung Kim Bao Lam + tiemvangkimbaolam.id.vn + Ma SP neu thieu.
+- Final QA chan bai neu co gia/SKU/ton kho/policy/promo/chung nhan/claim thi truong khong duoc xac minh.
+- Claim thi truong can evidence. Noi dung san pham noi bo da verified co the qua deterministic-safe gate neu AI provider tam loi.
+
+AUTO COMMENT / INBOX
+- Facebook comments: co the tu poll + reply sau khi cap care scopes.
+- Instagram comments: co the tu poll + reply sau khi cap care scopes.
+- YouTube comments: co the tu poll + reply khi co youtube.force-ssl.
+- Facebook inbox: Meta webhook + pages_messaging.
+- Instagram inbox: Meta webhook + instagram_manage_messages.
+- Telegram private bot inbox: Bot API polling/reply.
+- TikTok comments/inbox: KHONG tu dong trong V1 vi chua xac minh duoc API thuong mai chinh thuc phu hop cho KBL.
+- Zalo inbox/comment: chua tu dong trong V1 vi connector OA chua san sang.
+- Threads reply: chua auto-conversation trong V1.
+
+SOCIAL CONCIERGE
+- Tra loi ngan, tu nhien, nhu nhan vien tu van gioi, nhung KHONG gia vo la con nguoi.
+- Neu khach hoi, AI noi ro la tro ly Kim Bao Lam.
+- Chi dung du lieu shop/gia/san pham/policy/knowledge da xac minh.
+- Khong xin OTP/mat khau; khong tu xac nhan thanh toan, giam gia, dat coc, khiếu nai/phap ly.
+- Tinh huong rui ro hoac confidence thap -> dua vao HUMAN HANDOFF trong Admin, khong tu tra loi bua.
+
+META WEBHOOK SETUP CHO INBOX
+1. Them env/secret vao House 1:
+   KBL_SOCIAL_WEBHOOK_VERIFY_TOKEN=<mot chuoi bi mat manh>
+2. Callback URL:
+   https://tiemvangkimbaolam.id.vn/api/social/webhook/meta?key=<cung secret>
+3. Verify token trong Meta App = cung secret.
+4. Subscribe cac event messaging phu hop cua Facebook/Instagram trong Meta App.
+5. Trong Admin -> Publisher -> Growth Autopilot, bam ket noi CSKH Facebook/Instagram de xin them care scopes neu token hien tai thieu.
+6. KHONG gui secret/token qua chat hoac commit vao Git.
+
+CARE SCOPES DUOC YEU CAU
+Facebook:
+- pages_read_user_content
+- pages_manage_engagement
+- pages_messaging
+Instagram:
+- instagram_manage_comments
+- instagram_manage_messages
+YouTube:
+- https://www.googleapis.com/auth/youtube.force-ssl
+
+TIKTOK PHOTO AUTO POST
+- Can connector TikTok API-ready.
+- Can video.publish / Direct Post permission phu hop.
+- URL anh PULL_FROM_URL phai public va thuoc domain/prefix TikTok da xac minh.
+- Neu app TikTok chua audit, kha nang visibility co the bi gioi han boi nen tang.
+
+CACH BAT SAU DEPLOY
+1. Vao Admin -> Publisher -> KBL GROWTH AUTOPILOT V1.
+2. Xem Platform Scores / API-ready status.
+3. Ket noi care scopes neu muon auto comment/inbox.
+4. Bam DONG BO ANALYTICS truoc.
+5. Bam CHAY THU NGAY de tao 1 campaign thu; xem queue/review/handoff.
+6. Khi ket qua dung moi bat Growth Autopilot.
+
+HOUSE 2
+- Growth V1 KHONG sua bat ky file House2 nao so voi baseline Full Node Twin 100.
+- Cloudflare Container full twin van can Workers Paid. Account Free hien tai se khong deploy Container; day la gioi han plan, khong phai Growth Autopilot.
+
+GITHUB DESKTOP
+Sau khi copy vao D:\KBL\kbl-web, Changes du kien chu yeu:
+- app.js
+- views/admin.html
+- GROWTH_AUTOPILOT_V1_SETUP_18-09-2026.txt
+- AUDIT_GROWTH_AUTOPILOT_V1_18-09-2026.txt
+- SHA256SUMS.txt
+House2 files phai khong thay doi byte neu repo cua ong da o baseline Full Node Twin 100.
+
+Commit Summary goi y:
+Add KBL Growth Autopilot and social concierge
+
+Sau do Commit to main -> Push origin.
+
+============================================================
+R2 COST GUARD + AUDIT ADDENDUM - 18-09-2026
+============================================================
+- Release R2 fixes 7 findings from the first V1 audit; see AUDIT_GROWTH_AUTOPILOT_V1_R2_18-09-2026.txt.
+- Social AI reply default cost caps: 24/day total, 10/platform/day, 4/cycle.
+- Gemini social image default paid-call cap: 3/day; failure/QA-fail retry cooldown: 24h.
+- Meta webhook POST now requires X-Hub-Signature-256 signed with the saved Meta App Secret in addition to callback secret key.
+- Market idea without sufficiently confident SKU match is skipped, never forced onto a random fallback product.
+- See COST_MAP_GROWTH_AUTOPILOT_R2_18-09-2026.txt before enabling Autopilot.
+- IMPORTANT COST NOTE: existing AI Master defaults quick=15m / deep=30m were NOT changed by R2. To reduce Search Grounding usage, recommended env is:
+  KBL_AI_MASTER_QUICK_MS=7200000
+  KBL_AI_MASTER_DEEP_MS=21600000

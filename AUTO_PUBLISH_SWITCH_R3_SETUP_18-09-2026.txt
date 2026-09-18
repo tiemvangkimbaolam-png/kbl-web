@@ -1,0 +1,47 @@
+KIM BAO LAM - GROWTH AUTOPILOT R3 AUTO PUBLISH SWITCH
+Release: 18-09-2026
+
+MUC TIEU
+- Them nut BAT/TAT rieng cho TU DONG DANG BAI + KEM HINH ANH.
+- Khong can tat toan bo AI Growth/CSKH khi chi muon dung auto publish.
+- Video van THU CONG, khong goi Veo tu dong.
+
+NUT MOI TRONG ADMIN -> PUBLISHER -> AI GROWTH AUTOPILOT
+1. BAT TU DONG DANG BAI + ANH
+   - Bat Auto Publish va tu dong bat Autopilot tong neu dang tat.
+   - Bai den gio moi duoc chuyen qua Publisher API.
+   - Moi bai auto publish bat buoc co anh hop le.
+   - Neu Gemini Image BAT va QA dat: co the dung anh social AI.
+   - Neu Gemini Image TAT / loi / cham Cost Guard: dung anh san pham that.
+2. TAT TU DONG DANG
+   - Khong gui bai moi ra mang xa hoi.
+   - AI CSKH va analytics van co the chay neu Autopilot tong van bat.
+   - Khong tao them backlog tu scheduler trong luc Auto Publish tat.
+
+AN TOAN CHONG DANG DON
+- Mac dinh Auto Publish = OFF sau khi nang cap neu state cu chua co truong nay.
+- Khi bat lai, lich cu qua 120 phut duoc chuyen sang Review de tranh dang bai loi thoi.
+- Luc dispatch server kiem tra lai:
+  + gap toan he thong >= minGapMinutes (mac dinh 90 phut),
+  + gap cung nen tang >= samePlatformGapMinutes (mac dinh 360 phut),
+  + SKU con publishable,
+  + API platform READY,
+  + co anh hop le.
+- Backlog khong duoc xa 2 bai cung luc.
+
+LUU Y ANH
+- Nut 'Gemini tu tao anh social' chi dieu khien viec TAO ANH AI MAT PHI.
+- Nut 'BAT TU DONG DANG BAI + ANH' dieu khien viec DANG RA NEN TANG.
+- Vi vay ong co the:
+  A) Auto Publish ON + Gemini Image ON: bai tu dong + anh AI neu QA pass, fallback anh that.
+  B) Auto Publish ON + Gemini Image OFF: bai tu dong + anh san pham that, khong ton tien tao anh AI.
+  C) Auto Publish OFF: khong dang ra nen tang.
+
+CAI DAT
+- Day la ban supersede R2. Khong cai chong R2 sau R3.
+- Copy noi dung thu muc release vao D:\KBL\kbl-web va chon Replace/Merge.
+- KHONG xoa repo cu.
+- GitHub Desktop -> Changes -> Commit -> Push origin.
+
+COMMIT GOI Y
+Add auto publish on off switch for posts with images

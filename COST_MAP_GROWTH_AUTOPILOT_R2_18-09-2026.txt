@@ -1,0 +1,96 @@
+KIM BAO LAM - GROWTH AUTOPILOT V1 R2 - COST MAP
+Audit date: 18-09-2026
+
+MUC TIEU
+Phan biet ro khau nao co the phat sinh phi, khau nao la logic noi bo/nen tang khong co phi API truc tiep, va dat Cost Guard de tranh goi AI lap vo han.
+
+1) CO THE MAT TIEN / TINH THEO USAGE
+
+A. GEMINI TEXT - mac dinh KBL dang dung gemini-3.7-flash
+Dung cho Inventory Matcher, Campaign Planner, Content AI, Final QA, Vision QA, Social Concierge, va AI Market/Market Scout.
+- Neu project/API key o paid tier: tinh theo token.
+- Google pricing tai thoi diem audit: Gemini 3.7 Flash Standard den 31-12-2026: input $0.75 / 1M tokens, output $3.75 / 1M tokens.
+- Free tier co the mien phi trong quota/model rules, nhung khong nen coi la vo han.
+
+B. GEMINI IMAGE - Nano Banana 2 / gemini-3.1-flash-image
+Dung khi Auto Image bat va campaign da qua cac gate truoc.
+- KHONG co free tier cho image model nay.
+- Standard current price: khoang $0.067 / anh 1K output; input image/text tinh them theo token.
+- R2 Cost Guard: toi da 3 luot tao anh AI/ngay; anh tao/QA fail cho cung product stamp phai cho 24 gio moi goi lai.
+- Neu het quota Cost Guard: dung anh san pham that, khong goi AI anh.
+
+C. GOOGLE SEARCH GROUNDING trong AI MARKET
+- Paid tier: 5,000 search requests/month mien phi dung chung Gemini 3.x, sau do $14 / 1,000 search requests.
+- Mot prompt Market Scout co the sinh mot hoac nhieu Google search queries; Google tinh tung search query thuc te.
+- CODE HIEN CO (baseline, R2 khong sua): AI Master quick=15 phut, deep=30 phut. Ly thuyet ~96 Market Scout run/ngay; moi run quet GLOBAL + VI => toi thieu ~192 grounded model prompts/ngay truoc khi tinh so search query noi bo.
+- Day la diem co nguy co chi phi lon nhat neu de mac dinh 24/7.
+- Khuyen nghi chi phi an toan ma KHONG doi code: env
+  KBL_AI_MASTER_QUICK_MS=7200000
+  KBL_AI_MASTER_DEEP_MS=21600000
+  => quick 2 gio, deep 6 gio; van co event/gold logic khac, nhung giam scan dinh ky rat manh.
+
+D. OPENAI FALLBACK
+- Chi goi khi Gemini khong tra JSON hop le/loi va KBL_AI_V8_PROVIDER_FALLBACK_ENABLED + OPENAI_API_KEY dang bat.
+- KBL default KBL_AI_MODEL = gpt-5.6 (GPT-5.6 Sol alias).
+- Current API price tai audit: $4 / 1M input tokens; $20 / 1M output tokens.
+- Binh thuong khong phai primary cua Growth; no la duong du phong nen chi phi chi phat sinh khi fallback thuc su chay.
+
+E. DEEPSEEK
+- Dung cho Prompt AI finalization, KHONG phai mot buoc bat buoc cua moi Growth image campaign.
+- Tinh phi token tu balance DeepSeek; peak/off-peak khac nhau.
+- Prompt AI co the phat sinh phi khi nguoi dung/nhan vien tao prompt.
+
+F. VEO
+- Growth R2 BAT BUOC autoVideos=false. Khong tu goi Veo.
+- Chi mat tien khi chu tiem chu dong dung luong Video/Veo hien tai.
+
+G. CLOUDFLARE FULL NODE HOUSE 2
+- Khong phai chi phi rieng cua Growth Autopilot.
+- Container chi co tren Workers Paid. Workers Paid minimum $5/month; Container co quota kem goi va usage vuot quota tinh them.
+- Account hien tai cua KBL dang Free nen Full Node House 2 chua chay; Growth tren House 1 van co the chay.
+
+2) KHONG CO PHI AI / KHONG CO PHI API TRUC TIEP TRONG CODE (NHUNG CO QUOTA/RATE LIMIT/APP REVIEW)
+
+- Scheduler local: gio dang, gian cach, max posts/day, SKU cooldown.
+- Loc kho, kiem tra SKU/gia/status, duplicate gate, deterministic fact filter.
+- JSON state/local file persistence.
+- Facebook/Instagram/Threads Graph API publish/care: code khong co dong billing per call; phu thuoc Meta permissions/rate limits/app review.
+- TikTok Content Posting API: code khong co dong billing per post; can video.publish, audit/verified domain va quota cua TikTok.
+- Telegram Bot API: Telegram cong bo Bot/API free of charge; van co rate/anti-spam limits.
+- YouTube Data API: quota-based; default quota chu yeu theo units/day, khong phai billing per API call trong code KBL.
+- Analytics reads tu cac platform: khong co AI fee; van dung quota/rate limit cua tung platform.
+
+3) R2 COST GUARD MAC DINH
+- Autopilot OFF sau deploy.
+- Video auto OFF.
+- Posts: max 3/ngay toan he thong, 1/platform/ngay.
+- AI Social Reply: max 24 AI attempts/ngay, max 10/platform/ngay, max 4/vong poll.
+- Gemini AI Image: max 3 paid image attempts/ngay.
+- Failed AI image: cooldown 24h tren cung product stamp truoc khi thu lai.
+- Khi reply daily/cycle cap cham nguong: de message lai cho vong sau, KHONG goi AI them.
+
+4) MOT CAMPAIGN ANH THUONG GOI BAO NHIEU AI?
+Neu co market idea va moi provider thanh cong ngay lan dau:
+- Inventory Matcher: 1 text AI
+- Campaign Planner: 1 text AI
+- Content AI: 1 text AI
+- Final QA: 1 text AI
+- Gemini Image: 1 image generation (paid)
+- Vision QA: 1 multimodal/text AI
+=> xap xi 5 text/multimodal calls + 1 paid image generation cho mot campaign moi co anh AI.
+Market Scout la he thong rieng va co the chay theo scheduler, khong tinh vao con so tren.
+
+5) CAC SUA LOI AN TOAN TRONG R2
+- Market idea khong match SKU du confidence => bo luot, KHONG ep fallback SKU khong lien quan.
+- Social Concierge co conversation memory theo sender/chat/author thay vi moi message la mot phien moi.
+- Cost Guard cho auto reply va image generation.
+- Anh AI fail/QA fail co retry cooldown, tranh goi paid image lien tuc.
+- Instagram DM dung Instagram Professional ID (igUserId), khong dung Facebook Page ID.
+- Neu webhook nhan duoc inbox ma token/account target thieu => ghi HUMAN HANDOFF, khong nuot mat message.
+- Meta POST webhook yeu cau ca secret callback key VA X-Hub-Signature-256 hop le bang Meta App Secret.
+
+6) LUU Y QUAN TRONG VE AI MARKET PRO BRAIN
+Sau moi scope grounding GLOBAL/VI, code AI Master con goi kblMasterAssessEvidence(..., {pro:true}). Mac dinh Pro model la gemini-3.1-pro-preview neu KBL_AI_V4_PRO_ENABLED.
+- Google current guide lists Gemini 3.1 Pro Preview around $2 input / $12 output per 1M tokens for prompts <=200K; higher long-context tier costs more.
+- Vi vay Market Scout mac dinh 15m/30m khong chi co Search Grounding; no con co the tieu ton Pro-token analysis rat dang ke.
+- R2 khong sua cadence nay de tranh thay doi mot he thong AI Market da chot. Nen giam bang env nhu muc C neu muon kiem soat hoa don.
