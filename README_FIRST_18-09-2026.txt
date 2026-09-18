@@ -46,3 +46,4 @@ Can co:
 - house2Runtime: same-node-app-container
 
 KHONG TAT TENTEN DE TEST DOT NGOT. Lan dau test bang planned failover endpoint theo file SETUP, de prewarm House 2 va tranh transaction dang do.
+Cloudflare full Node House 2 build trigger 18-09-2026
