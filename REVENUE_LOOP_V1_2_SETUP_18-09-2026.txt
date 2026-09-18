@@ -1,0 +1,44 @@
+KBL GROWTH AUTOPILOT V1.2 - REVENUE LOOP
+Ngày: 18/09/2026
+
+CÁCH DEPLOY AN TOÀN
+1. Backup app.js và views/admin.html đang chạy.
+2. Chép đè app.js từ gói V1.2.
+3. Chép đè views/admin.html từ gói V1.2.
+4. GIỮ NGUYÊN data/, modules/, public/, uploads/, .env và cấu hình Publisher/OAuth hiện tại.
+5. Restart Node app trên Plesk.
+6. Mở Admin -> Đăng bài / Growth Autopilot.
+7. Xác nhận tiêu đề:
+   KBL GROWTH AUTOPILOT V1.2 · ĐĂNG → KHÁCH → LEAD → ĐƠN → TIỀN → HỌC
+8. Không reset growth-autopilot-v1.json. Lịch scheduled V1.1 đang chờ sẽ được tự thêm trackingToken khi V1.2 đọc state.
+
+TEST NHANH
+A. Scheduler
+- Lịch đang có vẫn còn.
+- Bài mới vẫn đúng 3 SKU.
+- Poster/card giá vẫn chỉ dựng sát giờ publish và phải qua QA.
+
+B. Tracking
+- Sau khi bài Facebook/Threads/Telegram publish, caption có URL dạng:
+  https://tiemvangkimbaolam.id.vn/g/<token>
+- Mở URL sẽ chuyển tới website #products với UTM ẩn trong redirect.
+- TikTok không tự gắn URL.
+
+C. Funnel
+- Click link của bài -> KHÁCH tăng khi website ghi traffic.
+- Tạo tư vấn/giữ mẫu/đặt lịch/checkout từ phiên đó -> LEAD/ĐƠN tăng đúng bài.
+- Khi order chuyển paid/Đã thanh toán/Hoàn tất -> ĐÃ THU và TIỀN tăng.
+- Nếu thiếu utm_content thì V1.2 không gán đơn cho bất kỳ bài nào.
+
+D. Learning
+- Khi chưa đủ dữ liệu: boost = 0 hoặc rất nhỏ.
+- Khi có lead/order/revenue có attribution: content type/platform/SKU tương ứng tăng confidence.
+- AI Market/Planner dùng boost như tín hiệu phụ, không vượt Truth Guard/QA/readiness.
+
+ROLLBACK
+- Khôi phục app.js + views/admin.html bản R4.
+- Không cần đổi database hay xóa data vì V1.2 chỉ mở rộng field JSON tương thích ngược.
+
+LƯU Ý
+- V1.2 đo doanh thu web có attribution; doanh thu bán tại quầy không có dấu vết bài không được tự gán.
+- Để học tốt, hãy để Autopilot chạy đủ dữ liệu thật thay vì bấm CHẠY 1 VÒNG liên tục.
