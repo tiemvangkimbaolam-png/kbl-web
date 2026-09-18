@@ -4121,7 +4121,7 @@ function adviserBudgetFromText(value) {
 function adviserBudgetConstraintFromText(value) {
   const text = plainVietnamese(value).replace(/\s+/g, ' ').trim();
   const unitScale = (unit) => /(?:trieu|tr|cu|million|mil)/.test(String(unit||'')) ? 1000000 : 1000;
-  const range = text.match(/(?:\btu\s*)?(\d+(?:[.,]\d+)?)\s*(trieu|tr|cu|million|mil)?\s*(?:den|toi|->|-)\s*(\d+(?:[.,]\d+)?)\s*(trieu|tr|cu|million|mil)\b/);
+  const range = text.match(/(?:\b(?:tu|from)\s*)?(\d+(?:[.,]\d+)?)\s*(trieu|tr|cu|million|mil)?\s*(?:den|toi|to|->|-)\s*(\d+(?:[.,]\d+)?)\s*(trieu|tr|cu|million|mil)\b/) || text.match(/\bbetween\s+(\d+(?:[.,]\d+)?)\s*(trieu|tr|cu|million|mil)?\s+and\s+(\d+(?:[.,]\d+)?)\s*(trieu|tr|cu|million|mil)\b/);
   if (range) {
     const scale = unitScale(range[4] || range[2]);
     const a = Math.round(Number(range[1].replace(',', '.')) * scale);
