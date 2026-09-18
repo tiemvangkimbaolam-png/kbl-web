@@ -1,0 +1,53 @@
+KBL GROWTH AUTOPILOT V1.1 / R4 - STATIC AUDIT
+18-09-2026
+
+BASELINE
+- Supersedes R3 AUTO_PUBLISH_SWITCH_AUDITED.
+- R4 was built by copying the complete R3 release, then applying only the triple-product publishing layer.
+
+REGRESSION COMPARISON R3 -> R4
+- Named functions: 1040 -> 1055
+- Lost named functions: 0
+- Added named functions: 15
+- API route signatures: 245 -> 245
+- Lost API routes: 0
+- require() modules: 12 -> 12
+- Lost require() modules: 0
+- Admin element IDs: 519 -> 519
+- Lost Admin IDs: 0
+
+UNCHANGED CRITICAL HOUSE 2 / CLOUDFLARE FILES
+- cloudflare-backup/src/index.js: unchanged
+- cloudflare-backup/wrangler.jsonc: unchanged
+- cloudflare-backup/package.json: unchanged
+- cloudflare-backup/container/bootstrap-env.js: unchanged
+- cloudflare-backup/container/entrypoint.sh: unchanged
+- Dockerfile.house2: unchanged
+- .dockerignore: unchanged
+- scripts/build-house2-env-bundle.js: unchanged
+
+R4 NEW LOGIC VERIFIED STATICALLY
+- Growth version = 1.1.0-growth-autopilot-triple-product-card-post-audited
+- Every new planned automatic image post requests exactly 3 products.
+- Recent SKU cooldown reads productIds from both queue and history.
+- Market matcher selects/assembles a coherent 3-product bundle; insufficient inventory skips the cycle.
+- Captions include all 3 SKUs and are instructed not to lock a price before publish time.
+- Price cards call priceForProduct() at publish time.
+- Non-TikTok channels require a 4:5 triple-product poster.
+- Poster uses 3 authoritative display images as references.
+- Poster Vision QA checks three-product fidelity and exact SKU/price/note/brand/footer text.
+- Poster QA failure routes item to Review Queue and removes it from due queue; no publish.
+- TikTok Photo Post supports a photo_images array and R4 supplies exactly 3 clean display images.
+- autoVideos remains false.
+- Auto Publish remains OFF by default.
+
+SYNTAX / SHELL CHECKS
+- app.js: node --check PASS
+- views/admin.html inline JavaScript: node --check PASS
+- cloudflare-backup/src/index.js: node --check PASS
+- cloudflare-backup/container/bootstrap-env.js: node --check PASS
+- cloudflare-backup/container/entrypoint.sh: bash -n PASS
+
+IMPORTANT RUNTIME LIMITATION
+- Static audit cannot prove a third-party API will accept/publish until the deployed KBL OAuth/app credentials and live platform account are exercised.
+- Gemini poster text/image fidelity is guarded by Vision QA; if QA cannot prove correctness, R4 intentionally does NOT publish that scheduled item.

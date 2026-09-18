@@ -1,0 +1,57 @@
+KBL GROWTH AUTOPILOT V1.1 / R4 - TRIPLE PRODUCT CARD POST
+18-09-2026
+
+MUC TIEU
+- Moi bai auto = DUNG 3 san pham that dang con hang + published + co anh trung bay.
+- Caption duoc lap cho ca 3 SKU, khong khoa gia som trong caption.
+- Gia tren poster duoc doc lai tu priceForProduct() NGAY LUC DEN GIO PUBLISH.
+- Facebook / Instagram / Threads / Telegram: dung poster 4:5 gom 3 san pham + card SKU + gia + vang/trong luong + note gia.
+- TikTok: gui 3 anh trung bay sach trong cung 1 Photo Post. Khong dong logo/card gia len media TikTok de giu dung guideline cua TikTok Content Posting API.
+- Video van 100% thu cong; Growth Autopilot khong goi Veo.
+
+LUONG CHAY
+AI Market/Analytics
+ -> Inventory Matcher chon bo 3 SKU
+ -> Campaign Planner chon kenh/gio
+ -> Content Agent viet caption rieng tung kenh, nhac du 3 SKU, khong ghi gia cu
+ -> Final QA
+ -> Xep lich
+ -> Den gio publish:
+    * kiem tra lai ca 3 SKU con publish-ready
+    * doc lai gia hien tai
+    * doi voi FB/IG/Threads/Telegram: Gemini Image dung 3 anh trung bay lam reference -> poster 4:5
+    * Vision QA so 3 anh that voi poster + kiem tra chu/gia/SKU/vang/trong luong
+    * PASS moi dang; FAIL -> Review Queue, KHONG dang
+    * TikTok: dung 3 anh trung bay sach, khong can goi Gemini poster
+ -> Publisher API
+ -> Analytics hoc lai kenh/gio
+
+COST GUARD
+- Poster Gemini chi goi SÁT GIO DANG, khong goi luc lap ke hoach.
+- Poster da tao duoc cache theo: 3 SKU + anh nguon + gia hien tai + thong tin cap nhat.
+- Neu cung bo 3 SKU va gia chua doi, cac kenh sau co the tai su dung poster da QA.
+- Neu gia doi, stamp doi -> poster phai tao lai de tranh dang gia cu.
+- maxAiImagesPerDay mac dinh van 3.
+- Anh/poster fail thi imageRetryHours mac dinh 24h; cac lich cung stamp khong goi lai lien tuc.
+- TikTok triple clean photos khong ton luot Gemini Image.
+
+SAFE GUARDS
+- Khong du 3 SKU -> bo luot, khong ep san pham.
+- 1 trong 3 SKU het hang/khong con published luc den gio -> BLOCK.
+- Poster khong qua Vision QA -> Review Queue, khong publish.
+- Caption co gia cu/claim khong co fact -> Final QA co the BLOCK.
+- Auto Publish mac dinh OFF sau deploy.
+- SKU cooldown mac dinh 7 ngay tinh tren ca productIds cua bundle + queue/history.
+- Max 3 post/ngay, 1 post/platform/ngay, gap >= 90 phut, cung platform >= 6 gio (giu nguyen R3).
+
+CAI DAT
+1. KHONG cai V1, R2, R3 truoc neu chua cai.
+2. Chi copy NOI DUNG ben trong thu muc release R4 nay vao D:\KBL\kbl-web (Merge/Replace).
+3. GitHub Desktop -> Commit -> Push origin.
+4. Sau deploy vao Admin -> Publisher -> AI Growth Autopilot.
+5. Kiem tra API READY cac kenh.
+6. Bam CHAY 1 VONG NGAY de xem lich bo 3 SKU.
+7. Sau khi kiem tra, bam BAT TU DONG DANG BAI + ANH.
+
+COMMIT GOI Y
+Upgrade Growth Autopilot to R4 triple product price-card posts
