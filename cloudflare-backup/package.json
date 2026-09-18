@@ -1,13 +1,17 @@
 {
-  "name": "kbl-backup",
-  "version": "0.1.0",
+  "name": "kbl-backup-worker",
+  "version": "1.2.1",
   "private": true,
+  "type": "module",
   "scripts": {
+    "deploy": "wrangler deploy --containers-rollout=immediate",
     "check": "node --check src/index.js",
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "dry-run": "wrangler deploy --dry-run --outdir dist"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "0.3.7"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "4.134.0"
   }
 }

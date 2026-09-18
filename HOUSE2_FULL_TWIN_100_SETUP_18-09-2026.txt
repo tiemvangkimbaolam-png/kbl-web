@@ -1,0 +1,69 @@
+KIM BAO LAM - HOUSE 2 FULL NODE TWIN
+Release: 18-09-2026
+Worker: 1.2.1-house2-full-node-twin-safe
+
+MUC TIEU
+- House 2 chay CHINH app.js, views, modules va public assets cua cung commit Git voi House 1.
+- Khi TENTEN bao tri/mat ket noi, Cloudflare latch sang House 2; UI va API khong doi sang trang backup rut gon.
+- Dang nhap/session, Admin, AI Agent, Prompt AI, AI Market, san pham, gia, don/giu mau va cac API cua Node deu di qua cung code app.js khi House 2 active.
+- Data mutable duoc mirror tu House 1 -> R2; House 2 mount R2 lam filesystem; khi failback, data va file moi/xoa duoc dong bo nguoc lai primary truoc khi clear latch.
+- Moi Git production deploy build lai container tu cung repo. Worker dung Version Metadata de mo container instance theo Worker version, tranh bam vao instance image cu sau deploy.
+
+CAC LOP
+1) House 1 TENTEN Node: primary khi khoe.
+2) House 2 Cloudflare Container: full Node twin, same code + same secrets + R2 runtime state.
+3) Emergency mirror D1/R2/UI: chi la lop cuu ho cuoi neu Container cung khong khoi dong duoc.
+
+MOT LAN TRUOC KHI BAT FULL TWIN
+1. Cloudflare account phai co Workers Paid; Containers khong hoat dong tren Free.
+2. Worker Builds production phai dung deploy command co wrangler deploy (khong dung versions upload).
+   De dam bao dependency cua Worker duoc cai, dat Deploy command:
+   cd cloudflare-backup && npm install --no-audit --no-fund && npm run deploy
+3. Giu cac secret hien co, dac biet KBL_BACKUP_SYNC_SECRET.
+4. Tao R2 S3 API token quyen Object Read + Write cho bucket kbl-backup-media va them 3 Secret vao Worker:
+   KBL_R2_ACCOUNT_ID
+   KBL_R2_ACCESS_KEY_ID
+   KBL_R2_SECRET_ACCESS_KEY
+5. Dong goi .env House 1 bang:
+   node scripts/build-house2-env-bundle.js .env
+   Thu muc data/.house2-secrets nam trong data/ da duoc gitignore va TUYET DOI KHONG commit.
+   Them cac file KBL_HOUSE2_ENV_BUNDLE_1... vao Cloudflare Worker Secrets theo README sinh ra.
+
+SAU KHI DEPLOY
+Mo direct Worker:
+https://kbl-backup.tiemvangkimbaolam.workers.dev/api/health
+Can thay toi thieu:
+- version = 1.2.1-house2-full-node-twin-safe
+- fullNodeRuntimeReady = true
+- readyForFailover = true
+- house2Runtime = same-node-app-container
+- fullRuntimeState.ready = true
+- primaryOriginSeparated = true
+
+PLANNED TENTEN MAINTENANCE - KHONG CO KHOANG REPLAY WRITE MO HO
+Truoc khi bao tri, goi POST direct Worker /api/failover/activate voi header x-kbl-sync-secret.
+Endpoint nay prewarm Container truoc, sau do latch tat ca traffic sang House 2.
+Khi latch active, ca GET va WRITE deu di thang House 2.
+
+UNPLANNED OUTAGE
+- GET/HEAD: Worker tu latch va replay sang House 2.
+- WRITE dang bi timeout o dung khoanh khac House 1 sap: Worker KHONG replay cung write sang House 2 de tranh duplicate don/thanh toan. No bat House 2, tra retryOnHouse2=true; retry 1 lan se chi vao House 2.
+
+FAILBACK AN TOAN
+1. De House 1 khoi dong lai nhung CHUA clear latch.
+2. POST /api/failover/sync-back nhieu lan den syncBackState.stable=true.
+   He thong copy file moi/sua va cung xoa tren primary nhung file da bi xoa trong House 2.
+3. Restart Node app tren TENTEN de load state vua sync ve.
+4. POST /api/failover/clear voi confirmPrimaryRestarted=true.
+5. Kiem tra x-kbl-served-by quay lai tenten-via-cloudflare.
+
+CAP NHAT SAU NAY
+- Khi push commit moi len main, Workers Builds build lai Worker + Docker image tu cung repo.
+- views/, modules/, public/, app.js o House 2 vi vay la cung commit voi House 1; khong con phai mirror giao dien bang tay.
+- Worker Version Metadata tao ten Container theo Worker version, nen deploy moi khong tiep tuc dung instance cua image cu.
+- Data runtime tiep tuc sync rieng vi no khong nam trong Git.
+- Neu doi API key/secret trong .env House 1, can cap nhat House 2 env bundle Secret; khong dua .env vao Git.
+
+GIOI HAN TRUNG THUC
+- Same-code/same-feature parity dat duoc khi Cloudflare Container duoc cau hinh day du secret va external provider van online.
+- Khong the cam ket zero-loss tuyet doi cho mot write dang nam dung trong vai mili-giay TENTEN chet, vi House 1 hien van ghi file local truoc khi replicate. Thiet ke nay uu tien KHONG duplicate giao dich; planned maintenance pre-activate House 2 se tranh cua so do.

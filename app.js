@@ -473,6 +473,7 @@ function writeJson(file, value) {
   fs.writeFileSync(tmp, JSON.stringify(value, null, 2), { encoding: 'utf8', mode: 0o600 });
   fs.renameSync(tmp, file);
   try { fs.chmodSync(file, 0o600); } catch (_) {}
+  kblHouse2QueueRuntimeFile(file);
 }
 
 
@@ -488,6 +489,7 @@ function writeJsonAsyncQueued(file, value) {
       await fs.promises.writeFile(tmp, payload, { encoding: 'utf8', mode: 0o600 });
       await fs.promises.rename(tmp, file);
       try { await fs.promises.chmod(file, 0o600); } catch (_) {}
+      kblHouse2QueueRuntimeFile(file);
     } finally {
       try { await fs.promises.unlink(tmp); } catch (_) {}
     }
@@ -496,6 +498,141 @@ function writeJsonAsyncQueued(file, value) {
   task.finally(() => { if (kblAsyncJsonQueues.get(file) === task) kblAsyncJsonQueues.delete(file); }).catch(() => {});
   return task;
 }
+
+// ============================================================================
+// KBL HOUSE 2 FULL-TWIN RUNTIME STATE BRIDGE
+// Mirrors mutable Node state to the Cloudflare House 2 R2 runtime store.
+// Primary stays authoritative while healthy. When House 2 is active, writes are
+// already persisted on the R2-backed filesystem and only mark the failover dirty.
+// ============================================================================
+const KBL_HOUSE2_RUNTIME = String(process.env.KBL_HOUSE2_RUNTIME || '').trim() === '1';
+const KBL_HOUSE2_SYNC_DEBOUNCE_MS = Math.min(10000, Math.max(750, Number(process.env.KBL_HOUSE2_SYNC_DEBOUNCE_MS || 1800) || 1800));
+const kblHouse2RuntimeDirty = new Set();
+let kblHouse2RuntimeSyncTimer = null;
+let kblHouse2RuntimeSyncBusy = false;
+
+function kblHouse2RuntimeRelativePath(file) {
+  try {
+    const absolute = path.resolve(String(file || ''));
+    const dataRoot = path.resolve(DATA_DIR);
+    const uploadRoot = path.resolve(path.join(PUBLIC_DIR, 'uploads'));
+    if (absolute === dataRoot || absolute.startsWith(dataRoot + path.sep)) {
+      const relative = path.relative(dataRoot, absolute).split(path.sep).join('/');
+      return relative && !relative.startsWith('../') ? `data/${relative}` : '';
+    }
+    if (absolute === uploadRoot || absolute.startsWith(uploadRoot + path.sep)) {
+      const relative = path.relative(uploadRoot, absolute).split(path.sep).join('/');
+      return relative && !relative.startsWith('../') ? `uploads/${relative}` : '';
+    }
+  } catch (_) {}
+  return '';
+}
+function kblHouse2SyncTargetUrl(kind = 'paths') {
+  const configured = String(process.env.KBL_BACKUP_SYNC_URL || '').trim();
+  try {
+    const url = new URL(configured);
+    if (url.protocol !== 'https:') return '';
+    url.pathname = kind === 'house2-write' ? '/api/sync/full-runtime/house2-write' : '/api/sync/full-runtime/paths';
+    url.search = '';
+    url.hash = '';
+    return url.toString();
+  } catch (_) { return ''; }
+}
+async function kblHouse2FlushRuntimeDirty() {
+  if (kblHouse2RuntimeSyncBusy || !kblHouse2RuntimeDirty.size || typeof fetch !== 'function') return false;
+  const secret = String(process.env.KBL_BACKUP_SYNC_SECRET || '').trim();
+  const url = kblHouse2SyncTargetUrl(KBL_HOUSE2_RUNTIME ? 'house2-write' : 'paths');
+  if (!url || secret.length < 32) return false;
+  const paths = Array.from(kblHouse2RuntimeDirty).slice(0, 64);
+  paths.forEach((item) => kblHouse2RuntimeDirty.delete(item));
+  kblHouse2RuntimeSyncBusy = true;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-kbl-sync-secret': secret },
+      body: JSON.stringify({ paths, source: KBL_HOUSE2_RUNTIME ? 'house2-node' : 'tenten-node', at: new Date().toISOString() }),
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`House 2 state bridge HTTP ${response.status}`);
+    return true;
+  } catch (_) {
+    paths.forEach((item) => kblHouse2RuntimeDirty.add(item));
+    return false;
+  } finally {
+    clearTimeout(timer);
+    kblHouse2RuntimeSyncBusy = false;
+    if (kblHouse2RuntimeDirty.size && !kblHouse2RuntimeSyncTimer) {
+      kblHouse2RuntimeSyncTimer = setTimeout(() => {
+        kblHouse2RuntimeSyncTimer = null;
+        kblHouse2FlushRuntimeDirty().catch(() => {});
+      }, KBL_HOUSE2_SYNC_DEBOUNCE_MS);
+      if (kblHouse2RuntimeSyncTimer.unref) kblHouse2RuntimeSyncTimer.unref();
+    }
+  }
+}
+function kblHouse2QueueRuntimeFile(file) {
+  const relative = kblHouse2RuntimeRelativePath(file);
+  if (!relative) return;
+  kblHouse2RuntimeDirty.add(relative);
+  if (kblHouse2RuntimeSyncTimer) return;
+  kblHouse2RuntimeSyncTimer = setTimeout(() => {
+    kblHouse2RuntimeSyncTimer = null;
+    kblHouse2FlushRuntimeDirty().catch(() => {});
+  }, KBL_HOUSE2_SYNC_DEBOUNCE_MS);
+  if (kblHouse2RuntimeSyncTimer.unref) kblHouse2RuntimeSyncTimer.unref();
+}
+
+function kblHouse2SyncAuthorized(req) {
+  const expected = String(process.env.KBL_BACKUP_SYNC_SECRET || '').trim();
+  return secretMatches(suppliedSecret(req, 'x-kbl-sync-secret'), expected);
+}
+function kblHouse2ResolveRuntimePath(relativePath) {
+  const clean = String(relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!clean || clean.includes('\0') || clean.split('/').some((part) => part === '..' || part === '')) return null;
+  let root = '';
+  let suffix = '';
+  if (clean.startsWith('data/')) { root = path.resolve(DATA_DIR); suffix = clean.slice(5); }
+  else if (clean.startsWith('uploads/')) { root = path.resolve(path.join(PUBLIC_DIR, 'uploads')); suffix = clean.slice('uploads/'.length); }
+  else return null;
+  const full = path.resolve(root, suffix);
+  if (!(full === root || full.startsWith(root + path.sep))) return null;
+  return { relative: clean, full, root };
+}
+function kblHouse2WalkFiles(root, prefix, maxFiles = 8000) {
+  const rows = [];
+  const stack = [{ dir: root, prefix }];
+  while (stack.length && rows.length < maxFiles) {
+    const current = stack.pop();
+    let entries = [];
+    try { entries = fs.readdirSync(current.dir, { withFileTypes: true }); } catch (_) { continue; }
+    for (const entry of entries) {
+      if (rows.length >= maxFiles) break;
+      if (!entry || !entry.name || entry.name === '.DS_Store') continue;
+      const full = path.join(current.dir, entry.name);
+      const rel = `${current.prefix}/${entry.name}`.replace(/\\/g, '/');
+      try {
+        if (entry.isSymbolicLink()) continue;
+        if (entry.isDirectory()) { stack.push({ dir: full, prefix: rel }); continue; }
+        if (!entry.isFile()) continue;
+        const stat = fs.statSync(full);
+        rows.push({ path: rel, size: stat.size, mtimeMs: Math.round(stat.mtimeMs) });
+      } catch (_) {}
+    }
+  }
+  return rows;
+}
+function kblHouse2RuntimeManifest() {
+  const uploadRoot = path.join(PUBLIC_DIR, 'uploads');
+  try { fs.mkdirSync(uploadRoot, { recursive: true, mode: 0o755 }); } catch (_) {}
+  const files = [
+    ...kblHouse2WalkFiles(DATA_DIR, 'data'),
+    ...kblHouse2WalkFiles(uploadRoot, 'uploads')
+  ].sort((a, b) => a.path.localeCompare(b.path));
+  return { version: 1, generatedAt: new Date().toISOString(), source: KBL_HOUSE2_RUNTIME ? 'house2-node' : 'tenten-node', files };
+}
+
 function number(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -1742,6 +1879,7 @@ function auditEvent(req, event, outcome = 'ok', details = {}) {
   try {
     const file = path.join(AUDIT_DIR, `audit-${dayKey()}.jsonl`);
     fs.appendFileSync(file, JSON.stringify(entry) + '\n', { encoding: 'utf8', mode: 0o600 });
+    kblHouse2QueueRuntimeFile(file);
   } catch (error) {
     console.error('KBL audit error:', error.message);
   }
@@ -2001,6 +2139,7 @@ function saveTryonCacheResult(user, product, mode, cacheKey, result, charged, us
   const filename = `tryon-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.${ext}`;
   const target = path.join(TRYON_CACHE_DIR, filename);
   fs.writeFileSync(target, Buffer.from(result.data, 'base64'), { mode: 0o600 });
+  kblHouse2QueueRuntimeFile(target);
   const now = Date.now();
   const row = { id:'TRY-'+crypto.randomBytes(8).toString('hex'), userId:user.id, customerId:customerForUser(user)?.id || '', productId:product.id, sku:cleanInventoryCode(product.sku), mode, cacheKey, cacheFile:filename, mimeType:result.mimeType || 'image/jpeg', at:new Date(now).toISOString(), day:tryonDayKey(new Date(now)), cacheUntil:now+TRYON_CACHE_MS, charged:Boolean(charged), usedBonus:Boolean(usedBonus), model:cleanLabelText(result.model,120) };
   tryonUsage.unshift(row); tryonUsage = tryonUsage.slice(0, 5000); writeJson(TRYON_USAGE_FILE, tryonUsage);
@@ -3479,7 +3618,7 @@ function kblV4Trace(event={}) {
       verifier:cleanLabelText(event.verifier,80), resultCount:Math.max(0,Math.floor(number(event.resultCount))),
       durationMs:Math.max(0,Math.round(number(event.durationMs))), proEscalated:Boolean(event.proEscalated)
     };
-    fs.appendFile(KBL_AI_V4_TRACE_FILE, JSON.stringify(row)+'\n', {encoding:'utf8',mode:0o600}, ()=>{});
+    fs.appendFile(KBL_AI_V4_TRACE_FILE, JSON.stringify(row)+'\n', {encoding:'utf8',mode:0o600}, ()=>{ kblHouse2QueueRuntimeFile(KBL_AI_V4_TRACE_FILE); });
   } catch (_) {}
 }
 
@@ -5439,6 +5578,7 @@ function persistInlineImageToPublic(image, prefix) {
   const file = `${cleanLabelText(prefix || 'kbl-studio', 40).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase() || 'kbl-studio'}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`;
   const full = path.join(publicUploadsDir(), file);
   fs.writeFileSync(full, Buffer.from(parsed.data, 'base64'), { mode: 0o644 });
+  kblHouse2QueueRuntimeFile(full);
   return '/uploads/studio/' + file;
 }
 function extensionForVideoMime(mimeType) {
@@ -5459,7 +5599,9 @@ function persistRawVideoToPublic(buffer,mimeType,prefix) {
   const ext=extensionForVideoMime(mime);
   const stem=cleanLabelText(prefix||'kbl-source-video',40).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase()||'kbl-source-video';
   const file=`${stem}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`;
-  fs.writeFileSync(path.join(publicUploadsDir(),file),buffer,{mode:0o644});
+  const full=path.join(publicUploadsDir(),file);
+  fs.writeFileSync(full,buffer,{mode:0o644});
+  kblHouse2QueueRuntimeFile(full);
   return '/uploads/studio/'+file;
 }
 
@@ -5467,7 +5609,9 @@ function persistGeneratedVideoToPublic(buffer,prefix) {
   if(!Buffer.isBuffer(buffer)||!buffer.length||buffer.length>180*1024*1024)return '';
   const stem=cleanLabelText(prefix||'kbl-veo',48).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase()||'kbl-veo';
   const file=`${stem}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.mp4`;
-  fs.writeFileSync(path.join(publicUploadsDir(),file),buffer,{mode:0o644});
+  const full=path.join(publicUploadsDir(),file);
+  fs.writeFileSync(full,buffer,{mode:0o644});
+  kblHouse2QueueRuntimeFile(full);
   return '/uploads/studio/'+file;
 }
 function mimeFromImagePath(source) {
@@ -7739,6 +7883,87 @@ const rateCleanup = setInterval(() => {
 }, 10 * 60 * 1000);
 if (rateCleanup.unref) rateCleanup.unref();
 
+
+// House 2 full-runtime sync endpoints are intentionally registered before the
+// global JSON parser so large restore streams are never buffered in memory.
+app.get('/api/house2-sync/manifest', (req, res) => {
+  if (!kblHouse2SyncAuthorized(req)) return json(res, 401, { success:false, message:'Unauthorized.' });
+  const manifest = kblHouse2RuntimeManifest();
+  res.setHeader('Cache-Control', 'no-store');
+  return json(res, 200, { success:true, ...manifest });
+});
+app.get('/api/house2-sync/file', (req, res) => {
+  if (!kblHouse2SyncAuthorized(req)) return json(res, 401, { success:false, message:'Unauthorized.' });
+  const resolved = kblHouse2ResolveRuntimePath(req.query && req.query.path);
+  if (!resolved) return json(res, 400, { success:false, message:'Invalid runtime path.' });
+  let stat;
+  try { stat = fs.statSync(resolved.full); } catch (_) { return json(res, 404, { success:false, message:'Runtime file not found.' }); }
+  if (!stat.isFile()) return json(res, 404, { success:false, message:'Runtime file not found.' });
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-KBL-Runtime-Path', resolved.relative);
+  res.setHeader('X-KBL-Runtime-Size', String(stat.size));
+  res.setHeader('X-KBL-Runtime-Mtime', String(Math.round(stat.mtimeMs)));
+  res.setHeader('Content-Length', String(stat.size));
+  const ext = path.extname(resolved.full).toLowerCase();
+  const contentType = ({'.json':'application/json; charset=utf-8','.jsonl':'application/x-ndjson; charset=utf-8','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.mp4':'video/mp4','.webm':'video/webm','.mov':'video/quicktime','.txt':'text/plain; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8'})[ext] || 'application/octet-stream';
+  res.setHeader('Content-Type', contentType);
+  return fs.createReadStream(resolved.full).on('error', () => { try { res.destroy(); } catch (_) {} }).pipe(res);
+});
+app.delete('/api/house2-sync/file', (req, res) => {
+  if (!kblHouse2SyncAuthorized(req)) return json(res, 401, { success:false, message:'Unauthorized.' });
+  if (KBL_HOUSE2_RUNTIME) return json(res, 409, { success:false, message:'Delete restore endpoint is only for the primary Node origin.' });
+  const resolved = kblHouse2ResolveRuntimePath(req.query && req.query.path);
+  if (!resolved) return json(res, 400, { success:false, message:'Invalid runtime path.' });
+  try {
+    if (fs.existsSync(resolved.full)) {
+      const stat = fs.statSync(resolved.full);
+      if (!stat.isFile()) return json(res, 409, { success:false, message:'Runtime path is not a file.' });
+      fs.unlinkSync(resolved.full);
+    }
+    return json(res, 200, { success:true, path:resolved.relative, deleted:true });
+  } catch (error) {
+    return json(res, 500, { success:false, message:String(error && error.message || error) });
+  }
+});
+
+app.put('/api/house2-sync/file', (req, res) => {
+  if (!kblHouse2SyncAuthorized(req)) return json(res, 401, { success:false, message:'Unauthorized.' });
+  if (KBL_HOUSE2_RUNTIME) return json(res, 409, { success:false, message:'Restore endpoint is only for the primary Node origin.' });
+  const resolved = kblHouse2ResolveRuntimePath(req.query && req.query.path);
+  if (!resolved) return json(res, 400, { success:false, message:'Invalid runtime path.' });
+  const declared = Math.max(0, Number(req.headers['content-length'] || 0));
+  const maxBytes = 650 * 1024 * 1024;
+  if (declared > maxBytes) return json(res, 413, { success:false, message:'Runtime file too large.' });
+  try { fs.mkdirSync(path.dirname(resolved.full), { recursive:true, mode: resolved.relative.startsWith('data/') ? 0o700 : 0o755 }); } catch (_) {}
+  const tmp = `${resolved.full}.house2-restore-${process.pid}-${Date.now()}`;
+  const out = fs.createWriteStream(tmp, { mode: resolved.relative.startsWith('data/') ? 0o600 : 0o644 });
+  let bytes = 0;
+  let finished = false;
+  const fail = (status, message) => {
+    if (finished) return;
+    finished = true;
+    try { out.destroy(); } catch (_) {}
+    try { fs.unlinkSync(tmp); } catch (_) {}
+    return json(res, status, { success:false, message });
+  };
+  req.on('data', (chunk) => { bytes += chunk.length; if (bytes > maxBytes) { req.pause(); fail(413, 'Runtime file too large.'); } });
+  req.on('error', () => fail(400, 'Runtime stream interrupted.'));
+  out.on('error', () => fail(500, 'Cannot store restored runtime file.'));
+  out.on('finish', () => {
+    if (finished) return;
+    finished = true;
+    try {
+      fs.renameSync(tmp, resolved.full);
+      if (resolved.relative.startsWith('data/')) try { fs.chmodSync(resolved.full, 0o600); } catch (_) {}
+      return json(res, 200, { success:true, path:resolved.relative, bytes, message:'Runtime file restored. Restart/reload the primary Node app before failback.' });
+    } catch (error) {
+      try { fs.unlinkSync(tmp); } catch (_) {}
+      return json(res, 500, { success:false, message:String(error && error.message || error) });
+    }
+  });
+  req.pipe(out);
+});
+
 // Image reads have their own budget; loading thumbnails must not exhaust the
 // existing API/write-operation budget for customers sharing the shop's Wi-Fi.
 app.get('/api/catalog-media/:productKey/:field/:version', rateLimit('catalog-media', 3000, 5 * 60 * 1000), kblCatalogMedia.serve);
@@ -7762,7 +7987,7 @@ function kblVideoChunkHeader(req,name,max=300){let raw=String(req.headers[name]|
 function kblVideoChunkMime(value){return String(value||'application/octet-stream').toLowerCase().split(';')[0].trim()}
 function kblVideoChunkMimeAllowed(mime){return ['video/mp4','video/webm','video/quicktime','video/x-m4v','application/octet-stream'].includes(kblVideoChunkMime(mime))}
 function kblVideoChunkCleanup(){const now=Date.now();if(now-kblVideoChunkLastCleanupAt<60*60*1000)return;kblVideoChunkLastCleanupAt=now;let rows=[];try{rows=fs.readdirSync(KBL_VIDEO_CHUNK_SESSION_DIR,{withFileTypes:true})}catch(_){return}for(const row of rows){if(!row.isDirectory())continue;const dir=path.join(KBL_VIDEO_CHUNK_SESSION_DIR,row.name);try{const meta=JSON.parse(fs.readFileSync(path.join(dir,'meta.json'),'utf8')),stamp=Date.parse(meta.updatedAt||meta.createdAt||'')||0;if(stamp&&now-stamp>24*60*60*1000)fs.rmSync(dir,{recursive:true,force:true})}catch(_){try{const st=fs.statSync(dir);if(now-st.mtimeMs>24*60*60*1000)fs.rmSync(dir,{recursive:true,force:true})}catch(__){}}}}
-function kblVideoChunkPublicMove(meta){const source=kblVideoChunkPartialFile(meta.id);if(!source||!fs.existsSync(source))throw new Error('Không tìm thấy master tạm để hoàn tất upload.');const mime=kblVideoChunkMime(meta.mime),ext=extensionForVideoMime(mime),prefix=meta.kind==='veo'?'kbl-veo-raw':'publisher-long',file=`${prefix}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`,full=path.join(publicUploadsDir(),file);try{fs.renameSync(source,full)}catch(error){if(error&&error.code==='EXDEV'){fs.copyFileSync(source,full);fs.unlinkSync(source)}else throw error}try{fs.chmodSync(full,0o644)}catch(_){}return {source:'/uploads/studio/'+file,full}}
+function kblVideoChunkPublicMove(meta){const source=kblVideoChunkPartialFile(meta.id);if(!source||!fs.existsSync(source))throw new Error('Không tìm thấy master tạm để hoàn tất upload.');const mime=kblVideoChunkMime(meta.mime),ext=extensionForVideoMime(mime),prefix=meta.kind==='veo'?'kbl-veo-raw':'publisher-long',file=`${prefix}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`,full=path.join(publicUploadsDir(),file);try{fs.renameSync(source,full)}catch(error){if(error&&error.code==='EXDEV'){fs.copyFileSync(source,full);fs.unlinkSync(source)}else throw error}try{fs.chmodSync(full,0o644)}catch(_){}kblHouse2QueueRuntimeFile(full);return {source:'/uploads/studio/'+file,full}}
 function kblVideoChunkPublisherJob(meta,source){const now=new Date().toISOString(),job={id:'EXT-'+crypto.randomBytes(6).toString('hex').toUpperCase(),template:'external-long-video',templateLabel:'Video ngoài / video dài',title:cleanLabelText(meta.title||meta.fileName||'Video ngoài',180)||'Video ngoài',durationSeconds:Math.max(0,number(meta.durationSeconds)),sourceVideo:source,resultVideo:source,status:'review',approvedAt:'',createdAt:now,updatedAt:now,caption:'',publisherDrafts:{},publisherStatus:{},longVideoAnalysis:null,longVideoSource:true};videoRenderJobs.unshift(job);videoRenderJobs=videoRenderJobs.slice(0,120);persistVideoRenderJobs();return job}
 app.post('/api/admin/video-upload/init',rateLimit('video-chunk-init',300,10*60*1000),(req,res)=>{if(!requireAdmin(req,res))return;kblVideoChunkCleanup();const kind=String(req.headers['x-kbl-upload-kind']||'').trim().toLowerCase(),size=Math.max(0,number(req.headers['x-kbl-file-size'])),mime=kblVideoChunkMime(req.headers['x-kbl-file-type']),fileName=kblVideoChunkHeader(req,'x-kbl-file-name',180),title=kblVideoChunkHeader(req,'x-kbl-video-title',180),resumeKey=kblVideoChunkHeader(req,'x-kbl-upload-key',500),lastModified=Math.max(0,number(req.headers['x-kbl-file-last-modified'])),durationSeconds=Math.max(0,number(req.headers['x-kbl-video-duration']));if(!['veo','publisher-long'].includes(kind))return json(res,400,{success:false,message:'Loại upload video không hợp lệ.'});if(!size||size>KBL_VIDEO_CHUNK_MAX_TOTAL_BYTES)return json(res,413,{success:false,message:`Video phải lớn hơn 0 và không vượt ${Math.round(KBL_VIDEO_CHUNK_MAX_TOTAL_BYTES/1024/1024)}MB.`});if(!kblVideoChunkMimeAllowed(mime))return json(res,415,{success:false,message:'Chỉ nhận MP4/WebM/MOV.'});const requested=kblVideoChunkSessionId(req.headers['x-kbl-upload-id']);if(requested){const old=kblVideoChunkReadMeta(requested);if(old&&old.kind===kind&&Number(old.size)===size&&String(old.resumeKey||'')===String(resumeKey||'')){return json(res,200,{success:true,uploadId:old.id,receivedBytes:Math.max(0,number(old.receivedBytes)),size:old.size,finalized:Boolean(old.finalized),result:old.result||null,uploadEngine:'chunk-resumable-v1',message:old.finalized?'Upload này đã hoàn tất trước đó.':'Đã nối lại phiên upload đang dở.'})}}const id='UP-'+crypto.randomBytes(12).toString('hex').toUpperCase(),dir=kblVideoChunkSessionPath(id);fs.mkdirSync(dir,{recursive:true,mode:0o700});fs.writeFileSync(kblVideoChunkPartialFile(id),Buffer.alloc(0),{mode:0o600});const now=new Date().toISOString(),meta={id,kind,size,mime,fileName,title,resumeKey,lastModified,durationSeconds,receivedBytes:0,finalized:false,result:null,createdAt:now,updatedAt:now};kblVideoChunkWriteMeta(meta);auditEvent(req,'video.chunk-init','ok',{id,kind,size,mime});return json(res,200,{success:true,uploadId:id,receivedBytes:0,size,finalized:false,result:null,uploadEngine:'chunk-resumable-v1',message:'Đã mở phiên upload chia nhỏ/resume.'})});
 app.post('/api/admin/video-upload/chunk/:id',rateLimit('video-chunk-piece',5000,30*60*1000),(req,res)=>{if(!requireAdmin(req,res))return;const id=kblVideoChunkSessionId(req.params.id),meta=kblVideoChunkReadMeta(id);if(!meta)return json(res,404,{success:false,message:'Phiên upload không còn tồn tại. Hãy bắt đầu lại.'});if(meta.finalized)return json(res,200,{success:true,uploadId:id,receivedBytes:meta.size,size:meta.size,finalized:true,result:meta.result||null});const start=Math.max(0,number(req.headers['x-kbl-upload-offset'])),expectedHash=String(req.headers['x-kbl-chunk-sha256']||'').trim().toLowerCase(),length=Math.max(0,number(req.headers['content-length']));if(start!==Math.max(0,number(meta.receivedBytes)))return json(res,409,{success:false,message:'Mốc resume đã thay đổi.',receivedBytes:Math.max(0,number(meta.receivedBytes))});if(length&&length>KBL_VIDEO_CHUNK_MAX_REQUEST_BYTES)return json(res,413,{success:false,message:`Chunk vượt ${Math.round(KBL_VIDEO_CHUNK_MAX_REQUEST_BYTES/1024/1024)}MB.`});if(expectedHash&&!/^[a-f0-9]{64}$/.test(expectedHash))return json(res,400,{success:false,message:'SHA-256 chunk không hợp lệ.'});const partial=kblVideoChunkPartialFile(id),out=fs.createWriteStream(partial,{flags:'a',mode:0o600}),hash=crypto.createHash('sha256');let bytes=0,done=false;const rollback=()=>{try{fs.truncateSync(partial,start)}catch(_){}};const fail=(status,message)=>{if(done)return;done=true;try{req.unpipe(out)}catch(_){};try{out.destroy()}catch(_){};rollback();try{req.resume()}catch(_){};return json(res,status,{success:false,message,receivedBytes:start})};req.on('aborted',()=>fail(400,'Chunk upload bị ngắt; có thể bấm tải lại để resume.'));req.on('error',()=>fail(400,'Không đọc được chunk video.'));req.on('data',chunk=>{bytes+=chunk.length;hash.update(chunk);if(bytes>KBL_VIDEO_CHUNK_MAX_REQUEST_BYTES||start+bytes>Number(meta.size))fail(413,'Chunk vượt giới hạn hoặc vượt kích thước master.')});out.on('error',()=>fail(500,'Server không ghi được chunk video.'));out.on('finish',()=>{if(done)return;const digest=hash.digest('hex');if(expectedHash&&digest!==expectedHash)return fail(409,'Kiểm tra SHA-256 chunk không khớp; chunk đã được hoàn tác.');done=true;meta.receivedBytes=start+bytes;meta.updatedAt=new Date().toISOString();meta.lastChunkSha256=digest;kblVideoChunkWriteMeta(meta);return json(res,200,{success:true,uploadId:id,receivedBytes:meta.receivedBytes,size:meta.size,chunkSha256:digest,integrity:'size+chunk-sha256',finalized:false})});req.pipe(out)});
@@ -7799,7 +8024,7 @@ function kblVideoUploadStream(req,res,{maxBytes,prefix,onSaved}){
   req.on('error',()=>fail(400,'Không đọc được luồng video upload.'));
   req.on('data',chunk=>{bytes+=chunk.length;if(bytes>maxBytes)fail(413,`Video vượt ${Math.round(maxBytes/1024/1024)}MB.`)});
   out.on('error',()=>fail(500,'Server không ghi được video lên đĩa.'));
-  out.on('finish',()=>{if(done)return;if(!bytes)return fail(400,'Video rỗng.');try{fs.renameSync(tmp,full);try{fs.chmodSync(full,0o644)}catch(_){};done=true;const source='/uploads/studio/'+file;return onSaved({source,bytes,mime,full})}catch(_){return fail(500,'Server không hoàn tất được file video.')}});
+  out.on('finish',()=>{if(done)return;if(!bytes)return fail(400,'Video rỗng.');try{fs.renameSync(tmp,full);try{fs.chmodSync(full,0o644)}catch(_){};kblHouse2QueueRuntimeFile(full);done=true;const source='/uploads/studio/'+file;return onSaved({source,bytes,mime,full})}catch(_){return fail(500,'Server không hoàn tất được file video.')}});
   req.pipe(out);
 }
 app.post('/api/admin/content/source-video/:id',rateLimit('content-source-video-stream',20,10*60*1000),(req,res)=>{
@@ -7838,14 +8063,14 @@ app.post('/api/video-studio/worker/complete/:id',(req,res)=>{
   const stem=cleanLabelText(`video-studio-master-${job.template}-${job.sku||job.id}`,70).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase()||'video-studio-master';const file=`${stem}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.mp4`,full=path.join(publicUploadsDir(),file),tmp=full+'.uploading';const out=fs.createWriteStream(tmp,{mode:0o600});let bytes=0,done=false;
   const cleanup=()=>{try{fs.unlinkSync(tmp)}catch(_){}};const fail=(status,message)=>{if(done)return;done=true;try{req.unpipe(out)}catch(_){};try{out.destroy()}catch(_){};cleanup();try{req.resume()}catch(_){};return json(res,status,{success:false,message})};
   req.on('aborted',()=>fail(400,'Worker upload video master bị ngắt giữa chừng.'));req.on('error',()=>fail(400,'Không đọc được video master từ Worker.'));req.on('data',chunk=>{bytes+=chunk.length;if(bytes>KBL_VIDEO_WORKER_COMPLETE_STREAM_MAX_BYTES)fail(413,`Video master vượt ${Math.round(KBL_VIDEO_WORKER_COMPLETE_STREAM_MAX_BYTES/1024/1024)}MB.`)});out.on('error',()=>fail(500,'Server không ghi được video master.'));
-  out.on('finish',()=>{if(done)return;if(!bytes)return fail(400,'Worker trả về video rỗng.');if(job.status==='canceled')return fail(409,'Job đã bị chủ tiệm hủy trong lúc Worker upload; file tạm đã bỏ.');try{fs.renameSync(tmp,full);try{fs.chmodSync(full,0o644)}catch(_){};done=true;const headerDuration=number(req.headers['x-kbl-video-duration'],0);if(headerDuration>0&&headerDuration<3600)job.durationSeconds=Number(headerDuration.toFixed(2));job.status='done';job.completedAt=new Date().toISOString();job.resultVideo='/uploads/studio/'+file;job.masterQuality={...kblVideoMasterQualityProfile(),workerVersion:cleanLabelText(req.headers['x-kbl-worker-version']||'',80),sourceFps:cleanLabelText(req.headers['x-kbl-source-fps']||'',30),outputFps:cleanLabelText(req.headers['x-kbl-output-fps']||'',30),width:Math.max(0,Math.round(number(req.headers['x-kbl-output-width']))),height:Math.max(0,Math.round(number(req.headers['x-kbl-output-height']))),bytes};job.message=job.autoCardFromVideo?'AI quét nội dung + Worker gắn card xong ở SOCIAL MASTER QUALITY. Hãy duyệt trước khi đăng.':'Hậu kỳ SOCIAL MASTER QUALITY xong: giữ độ phân giải/FPS nguồn, encode đúng 1 lần, chờ chủ tiệm duyệt.';persistVideoRenderJobs();auditEvent(req,'video-studio.worker-complete-master','ok',{jobId:job.id,template:job.template,sku:job.sku,bytes,quality:job.masterQuality});res.set('X-KBL-Video-Quality','social-master');return json(res,200,{success:true,job:videoRenderPublicJob(job),queue:videoRenderQueueStatus()})}catch(_){return fail(500,'Server không hoàn tất được video master.')}});req.pipe(out);
+  out.on('finish',()=>{if(done)return;if(!bytes)return fail(400,'Worker trả về video rỗng.');if(job.status==='canceled')return fail(409,'Job đã bị chủ tiệm hủy trong lúc Worker upload; file tạm đã bỏ.');try{fs.renameSync(tmp,full);try{fs.chmodSync(full,0o644)}catch(_){};kblHouse2QueueRuntimeFile(full);done=true;const headerDuration=number(req.headers['x-kbl-video-duration'],0);if(headerDuration>0&&headerDuration<3600)job.durationSeconds=Number(headerDuration.toFixed(2));job.status='done';job.completedAt=new Date().toISOString();job.resultVideo='/uploads/studio/'+file;job.masterQuality={...kblVideoMasterQualityProfile(),workerVersion:cleanLabelText(req.headers['x-kbl-worker-version']||'',80),sourceFps:cleanLabelText(req.headers['x-kbl-source-fps']||'',30),outputFps:cleanLabelText(req.headers['x-kbl-output-fps']||'',30),width:Math.max(0,Math.round(number(req.headers['x-kbl-output-width']))),height:Math.max(0,Math.round(number(req.headers['x-kbl-output-height']))),bytes};job.message=job.autoCardFromVideo?'AI quét nội dung + Worker gắn card xong ở SOCIAL MASTER QUALITY. Hãy duyệt trước khi đăng.':'Hậu kỳ SOCIAL MASTER QUALITY xong: giữ độ phân giải/FPS nguồn, encode đúng 1 lần, chờ chủ tiệm duyệt.';persistVideoRenderJobs();auditEvent(req,'video-studio.worker-complete-master','ok',{jobId:job.id,template:job.template,sku:job.sku,bytes,quality:job.masterQuality});res.set('X-KBL-Video-Quality','social-master');return json(res,200,{success:true,job:videoRenderPublicJob(job),queue:videoRenderQueueStatus()})}catch(_){return fail(500,'Server không hoàn tất được video master.')}});req.pipe(out);
 });
 app.use('/api/video-studio/worker/complete/', express.raw({ type: ['video/mp4','application/octet-stream'], limit: '600mb' }));
 app.use('/api/video-studio/worker/fail/', express.json({ limit: '128kb', strict: true }));
 app.use('/api/admin/content/video-caption', express.json({ limit: '5mb', strict: true }));
 // KBL V6.1 Long Video: stream thẳng ra file, không giữ video dài trong RAM Node.
 app.post('/api/admin/publisher/long-video/upload',rateLimit('publisher-long-video-upload',10,60*60*1000),(req,res)=>{
-  if(!requireAdmin(req,res))return;const mime=String(req.headers['content-type']||'').toLowerCase().split(';')[0].trim();if(!['video/mp4','video/webm','video/quicktime','application/octet-stream'].includes(mime))return json(res,415,{success:false,message:'Chỉ nhận MP4/WebM/MOV.'});const max=600*1024*1024,length=number(req.headers['content-length']);if(length>max)return json(res,413,{success:false,message:'Video vượt 600MB. Hãy nén video trước khi tải lên.'});const ext=extensionForVideoMime(mime),stem='publisher-long-'+Date.now()+'-'+crypto.randomBytes(4).toString('hex'),file=stem+'.'+ext,full=path.join(publicUploadsDir(),file),out=fs.createWriteStream(full,{mode:0o644});let bytes=0,finished=false;const fail=(status,message)=>{if(finished)return;finished=true;try{out.destroy()}catch(_){};try{fs.unlinkSync(full)}catch(_){};return json(res,status,{success:false,message})};req.on('data',chunk=>{bytes+=chunk.length;if(bytes>max){req.pause();fail(413,'Video vượt 600MB.')}});req.on('error',()=>fail(400,'Không đọc được video upload.'));out.on('error',()=>fail(500,'Không lưu được video trên server.'));out.on('finish',()=>{if(finished)return;finished=true;if(!bytes){try{fs.unlinkSync(full)}catch(_){};return json(res,400,{success:false,message:'Video rỗng.'})}const now=new Date().toISOString(),job={id:'EXT-'+crypto.randomBytes(6).toString('hex').toUpperCase(),template:'external-long-video',templateLabel:'Video ngoài / video dài',title:cleanLabelText(decodeURIComponent(String(req.headers['x-kbl-video-name']||'Video ngoài')),180)||'Video ngoài',durationSeconds:Math.max(0,number(req.headers['x-kbl-video-duration'])),sourceVideo:'/uploads/studio/'+file,resultVideo:'/uploads/studio/'+file,status:'review',approvedAt:'',createdAt:now,updatedAt:now,caption:'',publisherDrafts:{},publisherStatus:{},longVideoAnalysis:null,longVideoSource:true};videoRenderJobs.unshift(job);videoRenderJobs=videoRenderJobs.slice(0,120);persistVideoRenderJobs();auditEvent(req,'publisher.long-video-upload','ok',{jobId:job.id,bytes,mime});return json(res,200,{success:true,job:kblLongVideoPublicJob(job),message:'Đã tải video. Bấm AI QUÉT VIDEO; video chưa được phép xuất bản cho tới khi chủ tiệm duyệt.'})});req.pipe(out)
+  if(!requireAdmin(req,res))return;const mime=String(req.headers['content-type']||'').toLowerCase().split(';')[0].trim();if(!['video/mp4','video/webm','video/quicktime','application/octet-stream'].includes(mime))return json(res,415,{success:false,message:'Chỉ nhận MP4/WebM/MOV.'});const max=600*1024*1024,length=number(req.headers['content-length']);if(length>max)return json(res,413,{success:false,message:'Video vượt 600MB. Hãy nén video trước khi tải lên.'});const ext=extensionForVideoMime(mime),stem='publisher-long-'+Date.now()+'-'+crypto.randomBytes(4).toString('hex'),file=stem+'.'+ext,full=path.join(publicUploadsDir(),file),out=fs.createWriteStream(full,{mode:0o644});let bytes=0,finished=false;const fail=(status,message)=>{if(finished)return;finished=true;try{out.destroy()}catch(_){};try{fs.unlinkSync(full)}catch(_){};return json(res,status,{success:false,message})};req.on('data',chunk=>{bytes+=chunk.length;if(bytes>max){req.pause();fail(413,'Video vượt 600MB.')}});req.on('error',()=>fail(400,'Không đọc được video upload.'));out.on('error',()=>fail(500,'Không lưu được video trên server.'));out.on('finish',()=>{if(finished)return;finished=true;if(!bytes){try{fs.unlinkSync(full)}catch(_){};return json(res,400,{success:false,message:'Video rỗng.'})}kblHouse2QueueRuntimeFile(full);const now=new Date().toISOString(),job={id:'EXT-'+crypto.randomBytes(6).toString('hex').toUpperCase(),template:'external-long-video',templateLabel:'Video ngoài / video dài',title:cleanLabelText(decodeURIComponent(String(req.headers['x-kbl-video-name']||'Video ngoài')),180)||'Video ngoài',durationSeconds:Math.max(0,number(req.headers['x-kbl-video-duration'])),sourceVideo:'/uploads/studio/'+file,resultVideo:'/uploads/studio/'+file,status:'review',approvedAt:'',createdAt:now,updatedAt:now,caption:'',publisherDrafts:{},publisherStatus:{},longVideoAnalysis:null,longVideoSource:true};videoRenderJobs.unshift(job);videoRenderJobs=videoRenderJobs.slice(0,120);persistVideoRenderJobs();auditEvent(req,'publisher.long-video-upload','ok',{jobId:job.id,bytes,mime});return json(res,200,{success:true,job:kblLongVideoPublicJob(job),message:'Đã tải video. Bấm AI QUÉT VIDEO; video chưa được phép xuất bản cho tới khi chủ tiệm duyệt.'})});req.pipe(out)
 });
 app.use('/api/video-studio/worker/studio-scan', express.json({limit:'8mb',strict:true}));
 app.use('/api/admin/sales-studio', express.json({limit:'512kb',strict:true}));
@@ -9124,7 +9349,7 @@ function persistVeoRawVideoToPublic(buffer,mimeType,prefix){
   if(!['video/mp4','video/webm','video/quicktime','application/octet-stream'].includes(mime))return '';
   const ext=extensionForVideoMime(mime),stem=cleanLabelText(prefix||'kbl-veo-raw',48).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase()||'kbl-veo-raw';
   const file=`${stem}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`;
-  fs.writeFileSync(path.join(publicUploadsDir(),file),buffer,{mode:0o644});return '/uploads/studio/'+file;
+  const full=path.join(publicUploadsDir(),file);fs.writeFileSync(full,buffer,{mode:0o644});kblHouse2QueueRuntimeFile(full);return '/uploads/studio/'+file;
 }
 function createVideoRenderJob(input={}) {
   const built=videoStudioResolveDraft(input);if(built.error)return built;const draft=built.draft,template=VIDEO_STUDIO_TEMPLATES[draft.template];
@@ -14137,7 +14362,7 @@ function kblGlobalAiPublicImage(p){
       const parsed=parseDataImage(raw,8*1024*1024);if(!parsed)continue;
       try{
         const hash=crypto.createHash('sha256').update(parsed.bytes).digest('hex').slice(0,18),sku=(cleanInventoryCode(p.sku||p.id)||'kbl-product').replace(/[^a-z0-9_-]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase(),ext=extensionForMime(parsed.mimeType),file=`${sku}-${hash}.${ext}`,dir=kblGlobalAiDiscoveryImageDir(),full=path.join(dir,file);
-        if(!fs.existsSync(full)||fs.statSync(full).size!==parsed.bytes.length){const tmp=full+'.new';try{fs.writeFileSync(tmp,parsed.bytes,{mode:0o644});if(fs.existsSync(full)){try{fs.unlinkSync(full)}catch(_){}}fs.renameSync(tmp,full)}catch(e){try{fs.unlinkSync(tmp)}catch(_){}if(!fs.existsSync(full)||fs.statSync(full).size!==parsed.bytes.length)throw e}}
+        if(!fs.existsSync(full)||fs.statSync(full).size!==parsed.bytes.length){const tmp=full+'.new';try{fs.writeFileSync(tmp,parsed.bytes,{mode:0o644});if(fs.existsSync(full)){try{fs.unlinkSync(full)}catch(_){}}fs.renameSync(tmp,full);kblHouse2QueueRuntimeFile(full)}catch(e){try{fs.unlinkSync(tmp)}catch(_){}if(!fs.existsSync(full)||fs.statSync(full).size!==parsed.bytes.length)throw e}}
         return KBL_INTL_PUBLIC_BASE+'/uploads/discovery/'+encodeURIComponent(file);
       }catch(e){console.warn('[KBL DISCOVERY IMAGE]',cleanInventoryCode(p.sku||p.id),cleanLabelText(e&&e.message,180));}
     }
