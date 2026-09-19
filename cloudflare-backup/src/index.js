@@ -3,7 +3,7 @@ var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
 // src/index.js
-var VERSION = "1.2.1-house2-full-node-twin-safe";
+var VERSION = "1.2.2-house2-public-failover-primary-control-plane";
 var PUBLIC_SITE_ORIGIN = "https://tiemvangkimbaolam.id.vn";
 var PRIMARY_PROXY_TIMEOUT_MS = 5e3;
 var PRIMARY_PAGE_PROXY_TIMEOUT_MS = 15e3;
@@ -1971,9 +1971,46 @@ async function fetchPrimaryThroughHiddenOrigin(request, env) {
   }
 }
 __name(fetchPrimaryThroughHiddenOrigin, "fetchPrimaryThroughHiddenOrigin");
+function isPrimaryOnlyControlPlanePath(pathname) {
+  const p = String(pathname || "");
+  return p === "/admin" || p.startsWith("/admin/") || p.startsWith("/api/admin/") || p.startsWith("/api/auth/") || p.startsWith("/api/prompt-ai/") || p === "/api/tryon/ai" || p.startsWith("/api/local-ai/worker/") || p.startsWith("/api/video-studio/worker/");
+}
+__name(isPrimaryOnlyControlPlanePath, "isPrimaryOnlyControlPlanePath");
+async function primaryOnlyControlPlane(request, env) {
+  const url = new URL(request.url);
+  try {
+    const response = await fetchPrimaryThroughHiddenOrigin(request, env);
+    const headers = new Headers(response.headers);
+    headers.set("x-kbl-served-by", "primary-only-control-plane");
+    headers.set("x-kbl-house2-bypassed", "1");
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  } catch (error) {
+    const reason = error?.name === "AbortError" ? "Primary request timed out." : safeText(error?.message || String(error), 260);
+    const headers = {
+      "cache-control": "no-store",
+      "x-kbl-served-by": "primary-only-control-plane",
+      "x-kbl-house2-bypassed": "1",
+      "x-kbl-primary-unavailable": "1"
+    };
+    if (url.pathname.startsWith("/api/")) {
+      return new Response(JSON.stringify({
+        success: false,
+        primaryOnly: true,
+        house2Bypassed: true,
+        message: "Primary Node/Plesk is unavailable. Admin/AI/Autopilot/Publisher do not fail over to House 2.",
+        detail: reason
+      }, null, 2), { status: 503, headers: { ...headers, "content-type": "application/json; charset=utf-8", "x-content-type-options": "nosniff" } });
+    }
+    return new Response(`<!doctype html><meta charset="utf-8"><title>KBL Primary Node unavailable</title><style>body{font-family:system-ui;background:#f7f3ea;color:#1d2433;padding:40px}.box{max-width:760px;margin:auto;background:white;border:1px solid #d9c89a;border-radius:18px;padding:28px}.bad{color:#b42318;font-weight:800}code{background:#f2f4f7;padding:2px 6px;border-radius:6px}</style><div class="box"><h2>KBL Control Center</h2><p class="bad">Primary Node/Plesk đang không phản hồi.</p><p>Trang Admin, AI, Autopilot và Publisher được cấu hình chạy <b>Primary-only</b>; House 2 không được dùng cho control plane này.</p><p>Chi tiết: <code>${htmlEscape(reason)}</code></p></div>`, { status: 503, headers: { ...headers, "content-type": "text/html; charset=utf-8" } });
+  }
+}
+__name(primaryOnlyControlPlane, "primaryOnlyControlPlane");
 async function proxyPrimaryOrFallback(request, env) {
   const url = new URL(request.url);
   const method = request.method.toUpperCase();
+  if (isPrimaryOnlyControlPlanePath(url.pathname)) {
+    return primaryOnlyControlPlane(request, env);
+  }
   const fallbackRequest = request.clone();
   const latched = await readFailoverLatch(env);
   if (latched?.active) {
