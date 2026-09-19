@@ -1,0 +1,31 @@
+KBL GROWTH AUTOPILOT V1.2.7 FULL AUTO R4 · AUDIT
+Ngày: 19-09-2026
+
+BASE: V1.2.6 R3 Server Recovery
+
+CHECKS
+- node --check app.js: PASS
+- views/admin.html inline JS: 3 blocks / 0 syntax failures
+- package.json identical to R3: PASS
+- package-lock.json identical to R3: PASS
+- package dependencies == package-lock root: PASS (express ^5.2.1)
+- API routes: 252 -> 252; removed 0; added 0
+- named functions: removed 0; added only Growth Full Auto helpers
+- Admin HTML IDs: 533 -> 533; removed 0; added 0
+- local QR decode: https://tiemvangkimbaolam.id.vn : PASS
+- production logo bundled: PASS
+
+FULL AUTO BEHAVIOR
+1. One-time enable after deploy.
+2. Scheduler continues server-side every 60 seconds; browser does not need to stay open.
+3. Auto selects 3 eligible SKU.
+4. AI Market/caption/QA stay in existing flow.
+5. All currently API-ready image channels are included, not capped at 3 channels.
+6. Generates/reuses 3 final poster images for the 3 SKU.
+7. Facebook album, Instagram carousel, Threads carousel, Telegram media group, TikTok 3-photo flow remain platform-specific.
+8. Gemini/composer failure on FB/IG/Threads/TG -> automatic clean 3-image fallback.
+9. Media preparation failure -> Review log + automatic replan with another bundle.
+10. Publisher only records PUBLISHED from actual platform result / follow-up state, not fake status.
+
+SCOPE GUARD
+No changes were made to package dependencies or non-Growth AI subsystems.
