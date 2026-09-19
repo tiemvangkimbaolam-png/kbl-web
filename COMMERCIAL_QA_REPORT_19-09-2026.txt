@@ -1,0 +1,54 @@
+KBL COMMERCIAL QA REPORT - V1.3.4
+================================
+Kết luận: PASS toàn bộ release gate nội bộ có thể kiểm soát trong môi trường QA.
+
+PASS - SOURCE / PACKAGE
+- Full repo có app.js, views, public, cloudflare-backup và toàn bộ modules KBL bắt buộc.
+- package.json / package-lock.json dependencies khớp nhau (Express ^5.2.1).
+- Tất cả local require của server/module resolve được.
+- Node syntax app.js/modules/public scripts/tests: PASS.
+- Cloudflare Worker syntax: PASS.
+
+PASS - SECURITY / RELEASE HYGIENE
+- Không đóng gói .env, data/, logs/, public/uploads/ runtime.
+- public/app.js server-source leak đã được loại bỏ.
+- Secret literal scan không thấy Gemini/OpenAI/GitHub key hard-code.
+- QR/logo production là asset tracked dưới public/images/kbl-growth/.
+
+PASS - SALES STUDIO UI
+- Admin inline scripts parse: PASS.
+- Không duplicate markup ID.
+- Chromium smoke: không ReferenceError/TypeError; lỗi `ready is not defined` đã hết.
+- Sales Studio Image pipeline render được READY, busy Idea Review và empty state.
+- Growth card nằm đúng Sales Studio -> Hình ảnh & nội dung.
+- Network failure được hiển thị thành LỖI API có kiểm soát, không làm JS sập.
+
+PASS - BACKEND / ROUTES
+- App boot registration smoke: PASS, 428 routes.
+- /api/admin/growth-autopilot/status: 200.
+- Growth version: 1.3.4-commercial-qa-release.
+- Deterministic composer status: sharp-deterministic READY.
+- Settings / Auto Publish toggle / Run Now / Sales Studio asset route: PASS.
+
+PASS - IMAGE COMPOSER / QR
+- Vendored Sharp 0.34.1 + libvips 8.16.1 load thành công.
+- Final poster render đúng 4:5 (1254 x 1568 trong smoke).
+- QR đọc trực tiếp từ FINAL COMPOSITED POSTER thành công: https://tiemvangkimbaolam.id.vn
+- Fact QA / pipeline progress / Idea Review safe fallback: PASS.
+
+PASS - 3 IMAGE PUBLISH PAYLOAD
+- Facebook: 3-image payload PASS.
+- Instagram: 3-image payload PASS.
+- Threads: 3-image payload PASS.
+- Telegram: 3-image payload PASS.
+- TikTok: 3 clean HTTPS image payload PASS.
+
+PASS - BUILT-IN TEST COMMANDS
+- npm run check
+- npm run test:ui
+- npm run test:security
+- npm run test:ai
+- npm run test:release
+
+GIỚI HẠN KIỂM THỬ BÊN NGOÀI
+Môi trường QA này không có quyền/token production của Facebook/Instagram/Threads/TikTok/Telegram và không có npm-registry Internet, nên không được phép tạo bài thật để chứng minh provider acceptance. Đây không phải lỗi code nội bộ. Phần mềm đã kiểm tra preflight/fallback/3-image payload và chỉ đánh dấu PUBLISHED khi API nền tảng trả Post/Media ID thật. npm registry không truy cập được trong QA, vì vậy package-lock được kiểm tra tính nhất quán và app route/runtime được boot bằng harness Express tương thích; server production tiếp tục cài Express bằng package-lock như repo hiện tại.

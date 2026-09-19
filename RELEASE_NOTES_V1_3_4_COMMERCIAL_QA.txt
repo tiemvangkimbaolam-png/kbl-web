@@ -1,0 +1,29 @@
+KBL V1.3.4 COMMERCIAL QA RELEASE
+Ngày đóng gói: 19-09-2026
+
+MỤC TIÊU
+- Sales Studio có 2 nhánh: VIDEO và HÌNH ẢNH & NỘI DUNG.
+- Nhánh hình ảnh chạy PREP-FIRST: cơ hội -> AI duyệt ý tưởng -> 3 ảnh -> AI Art Director -> Fact/QR/HTTPS QA -> READY TO POST -> tới giờ chỉ Publisher dispatch -> Post/Media ID -> Revenue Loop.
+- Không thay đổi nghiệp vụ POS, AI Adviser, Try-on, Video Studio và các module đã chốt ngoài các điểm cần tích hợp/ổn định.
+
+SỬA ỔN ĐỊNH QUAN TRỌNG
+1. Rebuild từ full GitHub-ready source để bản phát hành có đủ modules/ thật, không còn ZIP thiếu module runtime.
+2. Fix lỗi UI `ready is not defined` và tách lỗi API / lỗi giao diện.
+3. Sales Studio Hình ảnh & nội dung tự boot/refresh và hiển thị tiến trình realtime.
+4. Composer deterministic được đóng gói tại vendor/sharp để không phụ thuộc việc Sharp có sẵn ở root node_modules.
+5. Poster final được ép đúng tỷ lệ 4:5; QR/logo/text được ghép deterministic.
+6. QR và logo production chuyển sang public/images/kbl-growth để Git/GitHub theo dõi; runtime uploads vẫn không đóng gói.
+7. Xóa public/app.js cũ để không công khai source server qua express.static(public).
+8. Giữ Primary-only control plane cho Admin/AI/Autopilot/Publisher; House 2 chỉ là fallback public theo cấu hình hiện có.
+
+PUBLISHER 3 ẢNH
+- Facebook: album multi-photo.
+- Instagram: carousel.
+- Threads: carousel.
+- Telegram: media group.
+- TikTok: photo post 3 ảnh sạch khi connector Production ready.
+- PUBLISHED chỉ được ghi nhận khi provider trả Post/Media ID thật.
+
+DEPLOY
+Giải nén -> copy/paste đè repo hiện tại -> Commit main -> Push origin -> Plesk Deploy/Update -> Restart Node App.
+Không xóa data/, public/uploads/ hay .env trên server.

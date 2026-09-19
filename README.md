@@ -34,4 +34,3 @@ Cloudflare sits in front of the origins so `tiemvangkimbaolam.id.vn` can continu
 7. Put Cloudflare failover in front only after both origins pass health checks.
 
 See `docs/` before enabling deployment.
-Automatic deploy test 16-09-2026

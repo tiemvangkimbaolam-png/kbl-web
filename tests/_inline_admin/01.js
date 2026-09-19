@@ -1,0 +1,3 @@
+
+      (()=>{const root=document.getElementById('growth-autopilot-card');if(!root)return;const buttons=[...root.querySelectorAll('[data-growth-tab]')],panels=[...root.querySelectorAll('[data-growth-panel]')];const open=name=>{buttons.forEach(b=>b.classList.toggle('active',b.dataset.growthTab===name));panels.forEach(p=>p.classList.toggle('active',p.dataset.growthPanel===name));try{localStorage.setItem('kbl_growth_workflow_tab',name)}catch(_){}};buttons.forEach(b=>b.addEventListener('click',()=>open(b.dataset.growthTab)));let saved='overview';try{saved=localStorage.getItem('kbl_growth_workflow_tab')||'overview'}catch(_){};if(!buttons.some(b=>b.dataset.growthTab===saved))saved='overview';open(saved)})();
+      

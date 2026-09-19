@@ -10,7 +10,8 @@
     "check": "node --check app.js",
     "test:ui": "node tests/ui-static-smoke.js",
     "test:security": "node tests/security-smoke.js",
-    "test:ai": "node tests/ai-adviser-smoke.js"
+    "test:ai": "node tests/ai-adviser-smoke.js",
+    "test:release": "node tests/release-smoke.js"
   },
   "dependencies": {
     "express": "^5.2.1"
