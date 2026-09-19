@@ -1,0 +1,15 @@
+AUDIT KBL GROWTH AUTOPILOT V1.2.6 R2
+
+PASS:
+- JS syntax: node --check app.js
+- Deterministic image object parsing fixed
+- Bundled production logo PNG valid
+- Bundled website QR PNG valid and decoded successfully
+- Threads 3-image carousel adapter present
+- Final branded poster URLs require HTTPS probe 3/3 before dispatch
+- Admin UI file unchanged versus V1.2.5
+
+PRODUCTION SAFETY:
+- Existing AI subsystems intentionally untouched.
+- Existing fallback behavior remains when Gemini quota fails.
+- PUBLISHED remains dependent on external platform Post/Media ID/status.
