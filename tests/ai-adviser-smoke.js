@@ -8,6 +8,6 @@ const must=[
 ];
 for(const token of must)if(!app.includes(token)&&!admin.includes(token))throw new Error('Missing Growth/Publisher contract: '+token);
 for(const p of ['facebook','instagram','threads','tiktok','telegram'])if(!app.includes(`platform==='${p}'`)&&!app.includes(`platform === '${p}'`))throw new Error('Publisher adapter dispatch missing '+p);
-if(!app.includes("require('./vendor/sharp')"))throw new Error('Vendored deterministic composer fallback missing');
+if(!app.includes("path.join(__dirname,'vendor','sharp')"))throw new Error('Vendored deterministic composer fallback missing');
 for(const asset of ['kbl-logo-production.png','kbl-website-qr.png'])if(!fs.existsSync(path.join(root,'public','images','kbl-growth',asset)))throw new Error('Missing production asset '+asset);
 console.log('GROWTH_PIPELINE_STATIC_SMOKE_OK');

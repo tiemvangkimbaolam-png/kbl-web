@@ -1,0 +1,50 @@
+KBL V1.3.5 MEDIA RUNTIME RELEASE
+Ngày: 19-09-2026
+
+MỤC TIÊU
+- Sửa lỗi production làm pipeline Sales Studio Hình ảnh dừng ở bước chuẩn bị media:
+  "KBL_PUBLIC_BASE_URL is not defined".
+- Giữ nguyên kiến trúc PREP-FIRST, các AI hiện hữu, Publisher, POS, Video, Try-on và Cloudflare.
+
+LỖI GỐC ĐÃ XÁC ĐỊNH
+- kblGrowthAbsolute() dùng KBL_PUBLIC_BASE_URL như một biến JavaScript dù đây là tên Environment Variable.
+- Khi ảnh sản phẩm có URL tương đối /api/catalog-media/... hệ thống gọi nhánh này và phát sinh ReferenceError.
+- Vì vậy 3 SKU đều thất bại trước bước tạo poster/Art Director/QA.
+
+SỬA
+- Thêm kblGrowthPublicBaseUrl() làm nguồn base URL duy nhất cho Growth Autopilot.
+- Base URL ưu tiên KBL_PUBLISHER_PUBLIC_BASE_URL, sau đó process.env.KBL_PUBLIC_BASE_URL, cuối cùng tiemvangkimbaolam.id.vn.
+- kblGrowthAbsolute() không còn tham chiếu biến KBL_PUBLIC_BASE_URL không tồn tại.
+- kblGrowthTrackingBase() dùng chung helper base URL để tránh hai logic khác nhau.
+- Loader deterministic composer dùng đường dẫn tuyệt đối __dirname/vendor/sharp và trả diagnostic rõ ràng.
+- UI Sales Studio nâng nhãn V1.3.5 và giữ composer diagnostic trong tooltip.
+
+REGRESSION TEST MỚI
+- tests/growth-media-runtime-smoke.js:
+  + cấm bare KBL_PUBLIC_BASE_URL trong app.js
+  + thực thi kblGrowthPublicBaseUrl/kblGrowthAbsolute bằng VM
+  + kiểm /api/catalog-media/... được đổi thành HTTPS đúng
+  + kiểm ảnh /images/... được đổi thành HTTPS đúng
+  + kiểm vendored Sharp + logo/QR đọc được
+- tests/sales-studio-runtime-smoke.js:
+  + thực thi renderSalesStudioImagePipeline với campaign PREPARING + READY
+  + bắt lỗi scope/runtime giao diện kiểu "ready is not defined"
+- tests/app-startup-stub-smoke.js:
+  + boot app.js bằng Express stub
+  + đăng ký route thật
+  + gọi /api/admin/growth-autopilot/status
+  + bắt buộc composer READY bằng vendored Sharp ngay cả khi npm sharp bị giả lập là không có
+
+KHÔNG THAY ĐỔI
+- package.json dependencies
+- package-lock.json dependencies
+- AI Master / AI Market
+- Gemini Auto
+- POS / giá / tồn kho
+- Try-on
+- Video Studio
+- Publisher OAuth/API adapters
+- Cloudflare Worker
+
+UI CLEANUP
+- Review log cũ chứa đúng lỗi đã sửa 'KBL_PUBLIC_BASE_URL is not defined' được ẩn khỏi danh sách cần xử lý hiện tại; dữ liệu state gốc không bị xóa.

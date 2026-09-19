@@ -4,10 +4,10 @@ fa2c6da47102dd86cdf21a74a118e220a46d145f58a5e92d2634811ac86f351f  ./.github/work
 e5b10df17e9f0815ffcc253005e62ba154f6521209dbb14763b9237fc27673d1  ./.github/workflows/ci.yml
 72a04bd40948cfaf7320a99d813a594bdfdcae5c9e437a52a2f7cfb0204ef018  ./.gitignore
 68ca3fba3b7e864770cb61aeb306d4bd4354b68ab4dd38450860c5d823e42a53  ./.node-version
-45e53b7f717a112ecfe5949f37ed5f5ec2e229f3cb432f5b6ec8417234fbe195  ./COMMERCIAL_QA_REPORT_19-09-2026.txt
+43189e437bdb91040bea8fbc09dfad36e6679f288986434c4b6aad68a4244c31  ./COMMERCIAL_QA_REPORT_V1_3_5_19-09-2026.txt
 bb990d0e920e95bf1a34bbdd42660674ff477db4eaee0de6ec2ff7e705130f00  ./README.md
-ce11aec522f20d3b24a1856154a1dfaa4c71957de543b2393a606d418a357927  ./RELEASE_NOTES_V1_3_4_COMMERCIAL_QA.txt
-09dde6a133f45a0758d9afef534c6fd30ef84bf58dd4cad2424e596ef32e28e8  ./app.js
+ea367e1945e2c57ec27fcadbfa50e661b6f98e31ebfac81b36a6d6c9a165d9c4  ./RELEASE_NOTES_V1_3_5_MEDIA_RUNTIME.txt
+0deff1d3d7dd1bb1acecbe55d851d5f2e7d0b132bb372856f23a186ede076634  ./app.js
 2d09693d3ed6b460e0fe6b3f32205f4e85088bb793856fe90b561e4674daf815  ./apple-touch-icon-precomposed.png
 2d09693d3ed6b460e0fe6b3f32205f4e85088bb793856fe90b561e4674daf815  ./apple-touch-icon.png
 ccd81f1661569b28b17d30cd97a028fdcfd65558f58aec6e65628cc78591b56f  ./cloudflare-backup/container/bootstrap-env.js
@@ -82,8 +82,11 @@ d74e44954894fb23bed483c5fbbc48dc5a83d291120ace8c68415e10c536f390  ./public/vietq
 de3258eafab3697013c93ad790c052838f0f68f555fb82c9ffd671c91c119780  ./tests/_inline_admin/01.js
 ff5dce6ee881a6f031d260743c9e5a8148a4aba907a3d20d52082c9c0c52d4a3  ./tests/_inline_admin/02.js
 b2c10d97180a491672df1cf009863bd95d869ba172e67b590dbbc9ad7ecf5b0d  ./tests/_inline_admin/03.js
-7fb0da05e0f27320e558bf2ed23e57d02219f65aa62a794cef33e4b6b151a7cd  ./tests/ai-adviser-smoke.js
-8a0211206e81417b9564033863924add575909c67f8b6fa6da20d03287cd06b6  ./tests/release-smoke.js
+ece4fbd0eb45ecf48353047b52c8cfb1f5d48baca57e654363dd4f32978c9d7b  ./tests/ai-adviser-smoke.js
+cbfb47cdf5e5ddb23c7429f5530ccf2d4f7d0c12d93cf9daeae7f5a48cee9ed9  ./tests/app-startup-stub-smoke.js
+d2708bb46bd64fcdb1432404ac7d3b3cb43ae57c58cd565ec76bab442fcb1f0e  ./tests/growth-media-runtime-smoke.js
+17301237a58ce242bc90e30ac733cf129a8f1ef7603fd1a6e96efc9a19efcbf7  ./tests/release-smoke.js
+0d5460ada80378a592f468490c9dbcc4a9e2f56a0186eca51927bbe33828d1d1  ./tests/sales-studio-runtime-smoke.js
 27a0034609458cde782aeb31344ae430ba2829e2bd5441701e818bda1e478213  ./tests/security-smoke.js
 6999cb30d3d37c210c3f585e6c54124889745b29083ca06a00c8fee159018775  ./tests/ui-static-smoke.js
 73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68  ./vendor/sharp/LICENSE
@@ -103,6 +106,7 @@ ff5dc442f5e46473e989465cd4d257376202eaca9db4aa9694cc30f0ddf9407d  ./vendor/sharp
 b44f5463f94e83576e9b14af474ca96c15ffee82e3cc1375b5b8b3fe906f8049  ./vendor/sharp/lib/resize.js
 104aee6cb80e60cb9148dcde1c68c7b33583281b0b9da818c269664115837dec  ./vendor/sharp/lib/sharp.js
 f0e557691a5016cb1c660b9b7f4ceb8b16039b98faba8fac6f40d9b1fe003cda  ./vendor/sharp/lib/utility.js
+ad25dc10977d5f51e783a48f8721fcc8f0f2284f1a99614d14eb1428b959ce47  ./vendor/sharp/node_modules/.bin/semver
 cabdbb8c9c67431d964dabd29630f07813cd58a0e090f280a88a58887757821d  ./vendor/sharp/node_modules/@img/sharp-libvips-linux-x64/README.md
 7e06a40701464186a4492594fb07dd09aef85dfedbf47ea038ef5c32c457ee04  ./vendor/sharp/node_modules/@img/sharp-libvips-linux-x64/lib/glib-2.0/include/glibconfig.h
 516a08c06660cddb50d5f30ccac29a0514b05724956a11e8a7e6b799f2e1ab72  ./vendor/sharp/node_modules/@img/sharp-libvips-linux-x64/lib/index.js
@@ -231,7 +235,7 @@ c818bf6c806a11bc6fb95d20d2565c8b61f48d4c8598ca5836dee5e2063d5f31  ./views/CHINH-
 8465309f7e1a80d40de2d5180b539a66cdb608e493a4eea244118e87d6ca1abe  ./views/DIEU-K~1.HTM
 c1bcdd398ae1ba34521f64fe1bea7c223919afacc1d7b11beb0d4d9e94885a4c  ./views/account.html
 e387178da92ff3a69d8b184f6697eb38c02d16c2a72b5317fa3a18a164c0bcdb  ./views/admin cu .html
-6a9c5bd773b7de2c3fe594070e2974e0e1d58466ea5231bfbefdcbf6a38c7c77  ./views/admin.html
+727ab504832dab5631500fbe8a2b62a7f306e63172ca42033f3bf94c1b0e17cf  ./views/admin.html
 ee0f51105693d6f0fd765d5a738978b6acaf881070c9f71787f274bbf3795c8f  ./views/bo-chinh-sach.html
 2447a8d331456a941942086a24f227f6003fb80eea21a68ce3fa00e13d636590  ./views/chinh-sach-bao-hanh-doi-tra.html
 9d45f6f6519f4ed132a89032ea071c363ffdac84b347c2b7da696a0778284157  ./views/chinh-sach-bao-mat.html
