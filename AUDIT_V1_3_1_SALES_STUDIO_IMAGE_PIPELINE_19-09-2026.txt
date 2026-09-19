@@ -1,0 +1,25 @@
+AUDIT V1.3.1 SALES STUDIO IMAGE PIPELINE
+
+Base: V1.3.0 PREP-FIRST WORKFLOW
+
+Changes:
+- app.js:
+  * Version -> 1.3.1-sales-studio-image-pipeline
+  * Added independent AI Idea Reviewer gate before image generation.
+  * Added activityPhase for early live progress.
+  * Enriched preparedPosts with ideaReview, ideaSnapshot, campaign, QA, schedules and progress.
+  * Workflow status now exposes OPPORTUNITY -> IDEA_REVIEW -> GENERATING_3_IMAGES -> DESIGN_REVIEW -> FACT_QR_MEDIA_QA -> READY_TO_POST -> PUBLISHING -> PUBLISHED.
+- views/admin.html:
+  * Sales Studio now has VIDEO and HÌNH ẢNH & NỘI DUNG tabs.
+  * Added realtime pipeline monitor, 8-stage progress, 3-image preview, reviewer scores, QA badges, schedules, recent publish/review list.
+  * Poll every 10 seconds only when Sales Studio image tab is visible.
+  * Existing Growth controls moved under collapsed Advanced area.
+
+Static checks:
+- node --check app.js: PASS
+- Inline Admin JavaScript syntax: PASS (all inline scripts)
+- API routes: 292 -> 292 (removed: 0)
+- Admin IDs: 543 -> 550 (removed: 0; added: 7)
+- package.json unchanged
+- package-lock.json unchanged
+- New duplicate IDs introduced: 0
