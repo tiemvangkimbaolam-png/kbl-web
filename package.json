@@ -1,18 +1,18 @@
 {
-  "name": "kimbaolam-public-web",
-  "version": "3.1.0",
+  "name": "kbl-web-safe-merged-growth-autopilot",
   "private": true,
-  "description": "KBL N10 + Video Studio V2.0: queue Admin -> local HTML/Chromium/FFmpeg worker -> MP4 preview/approve",
+  "version": "1.2.6",
+  "type": "commonjs",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "ai-patch-v2": "node ai-v2.txt app.js views/home.html",
-    "check": "node --check app.js",
-    "test:ui": "node tests/ui-static-smoke.js",
-    "test:security": "node tests/security-smoke.js",
-    "test:ai": "node tests/ai-adviser-smoke.js"
+    "check": "node --check app.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^4.21.2",
+    "sharp": "^0.33.5"
   }
 }

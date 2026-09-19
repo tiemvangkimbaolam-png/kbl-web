@@ -321,7 +321,7 @@ const requestedGeminiImageModel = String(process.env.KBL_GEMINI_IMAGE_MODEL || '
 const GEMINI_IMAGE_MODEL = /^[a-z0-9._:-]{1,100}$/i.test(requestedGeminiImageModel) ? requestedGeminiImageModel : 'gemini-3.1-flash-image';
 // E7.1 AI POWER: Photo Studio ưu tiên model ảnh chất lượng trước; lite chỉ là fallback khi quota/model mạnh không sẵn sàng.
 // Có thể override bằng KBL_GEMINI_PHOTO_MODELS=model1,model2,... trên Plesk.
-const PHOTO_MODEL_DEFAULTS = [GEMINI_IMAGE_MODEL, 'gemini-3-pro-image', 'gemini-3.1-flash-lite-image'];
+const PHOTO_MODEL_DEFAULTS = [GEMINI_IMAGE_MODEL, 'gemini-3-pro-image', 'gemini-3.1-flash-lite-image', 'gemini-2.5-flash-image'];
 const requestedPhotoModels = String(process.env.KBL_GEMINI_PHOTO_MODELS || '').split(',').map((item) => item.trim()).filter(Boolean);
 const GEMINI_PHOTO_MODELS = [...new Set((requestedPhotoModels.length ? requestedPhotoModels : PHOTO_MODEL_DEFAULTS)
   .filter((item) => /^[a-z0-9._:-]{1,100}$/i.test(item)))];
@@ -4721,11 +4721,13 @@ async function storedImageForGemini(source) {
       return { mimeType, data: bytes.toString('base64') };
     } catch (_) { return null; }
   }
-  if (/^https:\/\/[^\s"'<>]+$/i.test(raw) && typeof fetch === 'function') {
+  const catalogRoute=/^\/api\/catalog-media\/[a-z0-9_-]+\/(?:image|tryOnImage|geminiTryOnImage)\/[a-f0-9]{64}$/i.test(raw);
+  const remoteUrl=/^https:\/\/[^\s"'<>]+$/i.test(raw)?raw:(catalogRoute?String(process.env.KBL_PUBLISHER_PUBLIC_BASE_URL||process.env.KBL_PUBLIC_BASE_URL||'https://tiemvangkimbaolam.id.vn').replace(/\/$/,'')+raw:'');
+  if (remoteUrl && typeof fetch === 'function') {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
     try {
-      const response = await fetch(raw, { signal: controller.signal, redirect: 'follow' });
+      const response = await fetch(remoteUrl, { signal: controller.signal, redirect: 'follow', headers:{'User-Agent':'KBL-Gemini-Image-Reference/1.2.4','Accept':'image/png,image/jpeg,image/webp,*/*;q=0.1'} });
       if (!response.ok) return null;
       const mime = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
       if (!['image/png','image/jpeg','image/webp'].includes(mime)) return null;
@@ -5768,7 +5770,8 @@ function photoModelLabel(model) {
   const labels = {
     'gemini-3.1-flash-lite-image': 'Gemini 3.1 Flash Lite Image',
     'gemini-3.1-flash-image': 'Gemini 3.1 Flash Image',
-    'gemini-3-pro-image': 'Gemini 3 Pro Image'
+    'gemini-3-pro-image': 'Gemini 3 Pro Image',
+    'gemini-2.5-flash-image': 'Gemini 2.5 Flash Image (Nano Banana)'
   };
   return labels[model] || model;
 }
@@ -5779,10 +5782,9 @@ function photoModelIsCoolingDown(model) {
   return true;
 }
 function photoStudioResponseFormat(model, aspectRatio) {
-  const format = { type:'image', mime_type:'image/jpeg', aspect_ratio:aspectRatio };
-  // Flash Lite Image chỉ cần để mặc định 1K; bỏ image_size để tránh sai tham số giữa model.
-  if (model !== 'gemini-3.1-flash-lite-image') format.image_size = '1K';
-  return format;
+  // KBL V1.2.4: để model tự chọn 1K mặc định. Không ép image_size để request dùng được
+  // trên cả Nano Banana 2 (Gemini 3.1 Flash Image) và Gemini 2.5 Flash Image fallback.
+  return { type:'image', mime_type:'image/jpeg', aspect_ratio:aspectRatio };
 }
 function conciseGeminiImageError(model, status, detail) {
   const label = photoModelLabel(model);
@@ -5792,92 +5794,47 @@ function conciseGeminiImageError(model, status, detail) {
   if (status === 400) return `${label}: request ảnh bị từ chối (HTTP 400${detail ? ` · ${detail}` : ''})`;
   return `${label}: HTTP ${status}${detail ? ` · ${detail}` : ''}`;
 }
-async function geminiProductStudioImage(referenceImage, prompt, aspectRatio = '1:1') {
-  if (!AI_PHOTO_STUDIO_ENABLED) return { ok:false, error:'AI Photo Studio đang tắt (KBL_AI_PHOTO_STUDIO_ENABLED=0).' };
-  if (!GEMINI_API_KEY) return { ok:false, error:'Server chưa có KBL_GEMINI_API_KEY.' };
-  if (typeof fetch !== 'function') return { ok:false, error:'Runtime Node không hỗ trợ fetch.' };
-  if (!referenceImage) return { ok:false, error:'Không có ảnh nguồn hợp lệ.' };
-
-  const models = GEMINI_PHOTO_MODELS.length ? GEMINI_PHOTO_MODELS : ['gemini-3.1-flash-lite-image','gemini-3.1-flash-image','gemini-3-pro-image'];
-  const errors=[];
-  const attempted=[];
-  for (const model of models) {
-    if (photoModelIsCoolingDown(model)) {
-      errors.push(`${photoModelLabel(model)}: đang tạm nghỉ sau lỗi quota 429`);
-      continue;
-    }
-    attempted.push(model);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), AI_TRYON_TIMEOUT_MS);
-    try {
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
-        method: 'POST',
-        headers: { 'x-goog-api-key': GEMINI_API_KEY, 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model,
-          input: [
-            { type: 'text', text: String(prompt || '') },
-            { type: 'image', mime_type: referenceImage.mimeType, data: referenceImage.data }
-          ],
-          response_format: photoStudioResponseFormat(model, aspectRatio)
-        })
-      });
-      if (!response.ok) {
-        let detail='';
-        try {
-          const payload=await response.json();
-          detail=String(payload?.error?.message||payload?.message||'')
-            .replace(/https?:\/\/\S+/gi,'')
-            .replace(/\s+/g,' ')
-            .trim()
-            .slice(0,180);
-        } catch (_) {}
-        if (response.status === 429) {
-          const retryAfterSec = Number(response.headers && response.headers.get ? response.headers.get('retry-after') : 0);
-          const retryMs = Number.isFinite(retryAfterSec) && retryAfterSec > 0 ? retryAfterSec * 1000 : 0;
-          photoModelCooldowns.set(model, Date.now() + Math.min(60 * 60 * 1000, Math.max(AI_PHOTO_QUOTA_COOLDOWN_MS, retryMs)));
-        }
-        errors.push(conciseGeminiImageError(model, response.status, detail));
-        continue;
-      }
-      const payload = await response.json();
-      const image = geminiInteractionImage(payload);
-      if (image) return { ok:true, image:{ ...image, model }, attempted, errors };
-      errors.push(`${photoModelLabel(model)}: API trả về thành công nhưng không có ảnh.`);
-    } catch (error) {
-      errors.push(`${photoModelLabel(model)}: ${error?.name==='AbortError'?'quá thời gian xử lý':String(error?.message||error).slice(0,180)}`);
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-  return { ok:false, attempted, errors, error: errors.join(' | ') || 'Gemini không tạo được ảnh với các model hiện có.' };
-}
-
-// R4: same paid Gemini image pipeline, but with 3 authoritative product references for one 4:5 social poster.
-async function geminiProductStudioImageMulti(referenceImages, prompt, aspectRatio = '4:5') {
+async function kblGeminiStudioGenerate(referenceImages, prompt, aspectRatio='4:5') {
   if (!AI_PHOTO_STUDIO_ENABLED) return { ok:false, error:'AI Photo Studio đang tắt (KBL_AI_PHOTO_STUDIO_ENABLED=0).' };
   if (!GEMINI_API_KEY) return { ok:false, error:'Server chưa có KBL_GEMINI_API_KEY.' };
   if (typeof fetch !== 'function') return { ok:false, error:'Runtime Node không hỗ trợ fetch.' };
   const refs=(Array.isArray(referenceImages)?referenceImages:[]).filter(x=>x&&x.mimeType&&x.data).slice(0,3);
-  if (refs.length!==3) return { ok:false, error:'Poster 3 sản phẩm cần đúng 3 ảnh nguồn hợp lệ.' };
-  const baseModels=GEMINI_PHOTO_MODELS.length?GEMINI_PHOTO_MODELS:['gemini-3.1-flash-lite-image','gemini-3.1-flash-image','gemini-3-pro-image'];
-  const models=[...new Set([
-    ...baseModels.filter(x=>x==='gemini-3.1-flash-image'),
-    ...baseModels.filter(x=>x==='gemini-3-pro-image'),
-    ...baseModels.filter(x=>x!=='gemini-3.1-flash-image'&&x!=='gemini-3-pro-image')
-  ])];
+  if(!refs.length)return {ok:false,error:'Không có ảnh nguồn hợp lệ.'};
+  const baseModels=GEMINI_PHOTO_MODELS.length?GEMINI_PHOTO_MODELS:[GEMINI_IMAGE_MODEL,'gemini-3.1-flash-image','gemini-2.5-flash-image'];
+  const models=[...new Set([...baseModels,'gemini-3.1-flash-image','gemini-2.5-flash-image'].filter(x=>/^[a-z0-9._:-]{1,100}$/i.test(x)))];
   const errors=[],attempted=[];
   for(const model of models){
     if(photoModelIsCoolingDown(model)){errors.push(`${photoModelLabel(model)}: đang tạm nghỉ sau lỗi quota 429`);continue}
-    attempted.push(model);const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),AI_TRYON_TIMEOUT_MS);
-    try{
-      const response=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',headers:{'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({model,input:[{type:'text',text:String(prompt||'')},...refs.map(ref=>({type:'image',mime_type:ref.mimeType,data:ref.data}))],response_format:photoStudioResponseFormat(model,aspectRatio)})});
-      if(!response.ok){let detail='';try{const payload=await response.json();detail=String(payload?.error?.message||payload?.message||'').replace(/https?:\/\/\S+/gi,'').replace(/\s+/g,' ').trim().slice(0,180)}catch(_){}if(response.status===429){const retryAfterSec=Number(response.headers&&response.headers.get?response.headers.get('retry-after'):0),retryMs=Number.isFinite(retryAfterSec)&&retryAfterSec>0?retryAfterSec*1000:0;photoModelCooldowns.set(model,Date.now()+Math.min(60*60*1000,Math.max(AI_PHOTO_QUOTA_COOLDOWN_MS,retryMs)))}errors.push(conciseGeminiImageError(model,response.status,detail));continue}
-      const payload=await response.json(),image=geminiInteractionImage(payload);if(image)return {ok:true,image:{...image,model},attempted,errors};errors.push(`${photoModelLabel(model)}: API trả về thành công nhưng không có ảnh.`);
-    }catch(error){errors.push(`${photoModelLabel(model)}: ${error?.name==='AbortError'?'quá thời gian xử lý':String(error?.message||error).slice(0,180)}`)}finally{clearTimeout(timeout)}
+    attempted.push(model);
+    // API hiện hành của Gemini Image: Interactions.
+    {
+      const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),AI_TRYON_TIMEOUT_MS);
+      try{
+        const response=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',headers:{'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({model,input:[{type:'text',text:String(prompt||'')},...refs.map(ref=>({type:'image',mime_type:ref.mimeType,data:ref.data}))],response_format:photoStudioResponseFormat(model,aspectRatio)})});
+        const {payload,raw}=await readGeminiJsonResponse(response);
+        if(response.ok){const image=geminiInteractionImage(payload);if(image)return {ok:true,image:{...image,model,api:'interactions'},attempted,errors};errors.push(`${photoModelLabel(model)} interactions: thành công nhưng không có ảnh.`)}
+        else {const detail=geminiApiErrorDetail(payload,raw);if(response.status===429){const retryAfterSec=Number(response.headers&&response.headers.get?response.headers.get('retry-after'):0),retryMs=Number.isFinite(retryAfterSec)&&retryAfterSec>0?retryAfterSec*1000:0;photoModelCooldowns.set(model,Date.now()+Math.min(60*60*1000,Math.max(AI_PHOTO_QUOTA_COOLDOWN_MS,retryMs)))}errors.push(conciseGeminiImageError(model,response.status,detail))}
+      }catch(error){errors.push(`${photoModelLabel(model)} interactions: ${error?.name==='AbortError'?'quá thời gian xử lý':String(error?.message||error).slice(0,180)}`)}finally{clearTimeout(timeout)}
+    }
+    // Fallback chính thức generateContent: giúp project/model nào chưa nhận Interactions vẫn tạo được ảnh.
+    {
+      const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),AI_TRYON_TIMEOUT_MS);
+      try{
+        const generationConfig={responseModalities:['IMAGE'],responseFormat:{image:{aspectRatio}}};
+        const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({contents:[{role:'user',parts:[{text:String(prompt||'')},...refs.map(ref=>({inline_data:{mime_type:ref.mimeType,data:ref.data}}))]}],generationConfig})});
+        const {payload,raw}=await readGeminiJsonResponse(response);
+        if(response.ok){const image=geminiGenerateContentImage(payload);if(image)return {ok:true,image:{...image,model,api:'generateContent'},attempted,errors};errors.push(`${photoModelLabel(model)} generateContent: thành công nhưng không có ảnh.`)}
+        else {const detail=geminiApiErrorDetail(payload,raw);if(response.status===429){const retryAfterSec=Number(response.headers&&response.headers.get?response.headers.get('retry-after'):0),retryMs=Number.isFinite(retryAfterSec)&&retryAfterSec>0?retryAfterSec*1000:0;photoModelCooldowns.set(model,Date.now()+Math.min(60*60*1000,Math.max(AI_PHOTO_QUOTA_COOLDOWN_MS,retryMs)))}errors.push(conciseGeminiImageError(model,response.status,detail))}
+      }catch(error){errors.push(`${photoModelLabel(model)} generateContent: ${error?.name==='AbortError'?'quá thời gian xử lý':String(error?.message||error).slice(0,180)}`)}finally{clearTimeout(timeout)}
+    }
   }
-  return {ok:false,attempted,errors,error:errors.join(' | ')||'Gemini không tạo được poster 3 sản phẩm.'};
+  return {ok:false,attempted,errors,error:errors.join(' | ')||'Gemini/Nano Banana không tạo được ảnh với các model hiện có.'};
+}
+async function geminiProductStudioImage(referenceImage,prompt,aspectRatio='1:1'){return kblGeminiStudioGenerate(referenceImage?[referenceImage]:[],prompt,aspectRatio)}
+async function geminiProductStudioImageMulti(referenceImages,prompt,aspectRatio='4:5'){
+  const refs=(Array.isArray(referenceImages)?referenceImages:[]).filter(x=>x&&x.mimeType&&x.data).slice(0,3);
+  if(refs.length!==3)return {ok:false,error:'Poster 3 sản phẩm cần đúng 3 ảnh nguồn hợp lệ.'};
+  return kblGeminiStudioGenerate(refs,prompt,aspectRatio);
 }
 
 async function runProductPhotoStudio(product, sourceImage) {
@@ -12222,7 +12179,7 @@ async function kblAnalyticsSync(){const tasks={facebook:kblAnalyticsFacebook,ins
 // Keeps V1.1 triple-product JIT price-card safety, then adds exact post-level attribution and guarded commercial learning.
 // Missing attribution is never guessed. Video remains manual by owner choice. Never rewrites POS price/inventory or approved website media.
 // ============================================================================
-const KBL_GROWTH_AUTOPILOT_VERSION = '1.2.2-growth-autopilot-quota-proof-audited';
+const KBL_GROWTH_AUTOPILOT_VERSION = '1.2.4-nano-banana-static-media-audited';
 const KBL_GROWTH_AUTOPILOT_FILE = path.join(DATA_DIR, 'growth-autopilot-v1.json');
 const KBL_GROWTH_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const KBL_SOCIAL_WEBHOOK_VERIFY_TOKEN = String(process.env.KBL_SOCIAL_WEBHOOK_VERIFY_TOKEN || '').trim();
@@ -12436,14 +12393,37 @@ async function kblGrowthQaBundle(products,idea,drafts){const op=kblGrowthIdeaOpp
 function kblGrowthSelectPlatforms(){const scores=kblGrowthRefreshPlatformScores();return KBL_GROWTH_IMAGE_PLATFORMS.filter(p=>scores[p]&&scores[p].ready&&(p==='tiktok'||kblGrowthState.settings.autoImages)).sort((a,b)=>number(scores[b].score)-number(scores[a].score)).slice(0,3)}
 async function kblGrowthCampaignPlanBundle(idea,products){const fallbackPlatforms=kblGrowthSelectPlatforms(),scores=kblGrowthState.platformScores||{},fallbackCampaign=kblGrowthTripleCampaignText(idea,products);if(!fallbackPlatforms.length)return {platforms:[],campaign:fallbackCampaign,engine:'no-ready-channel'};const schema={type:'object',additionalProperties:false,properties:{platforms:{type:'array',items:{type:'string'}},angle:{type:'string'},objective:{type:'string'},audience:{type:'string'},cta:{type:'string'},reason:{type:'string'}},required:['platforms','angle','objective','audience','cta','reason']};try{const r=await kblMasterGenerateJson('Bạn là KBL CAMPAIGN PLANNER AGENT. Lập kế hoạch cho BÀI ẢNH 3 SẢN PHẨM, video để chủ tiệm làm thủ công. Chọn tối đa 3 platform trong readyPlatforms dựa trên analytics. Không bịa trend/view/giá/khuyến mãi. Bộ 3 sản phẩm đã khóa từ kho; CTA mềm. TikTok dùng 3 ảnh trưng bày sạch; các kênh còn lại dùng poster 4:5 có card giá được khóa sát giờ đăng. Trả JSON.',JSON.stringify({marketIdea:idea?{title:idea.title,hook:idea.hook,concept:idea.concept,targetAudience:idea.targetAudience,cta:idea.cta}:null,products:products.map(kblGrowthProductCardFacts).map(({id,sku,name,goldCode,category})=>({id,sku,name,goldCode,category})),readyPlatforms:fallbackPlatforms.map(p=>({platform:p,score:number(scores[p]&&scores[p].score),commerceBoost:number(scores[p]&&scores[p].commerceBoost),commerceConfidence:number(scores[p]&&scores[p].commerceConfidence),bestHour:scores[p]&&scores[p].bestHour,sampleCount:number(scores[p]&&scores[p].sampleCount)})),constraints:{productsPerPost:3,maxPlatforms:3,maxPostsPerDay:kblGrowthState.settings.maxPostsPerDay,minGapMinutes:kblGrowthState.settings.minGapMinutes,videoAutomatic:false}}),schema,{stage:'growth-campaign-planner-3-product',timeoutMs:60000,maxOutputTokens:1200,temperature:.16,thinkingLevel:'low'}),d=r&&r.data;if(d){const allowed=new Set(fallbackPlatforms),platforms=[...new Set((Array.isArray(d.platforms)?d.platforms:[]).map(x=>String(x||'').toLowerCase()).filter(x=>allowed.has(x)))].slice(0,3),campaign=cleanContentText([d.objective,d.audience?`Đối tượng: ${d.audience}`:'',d.angle,d.cta].filter(Boolean).join(' · '),1100)||fallbackCampaign;return {platforms:platforms.length?platforms:fallbackPlatforms,campaign,engine:'master-campaign-planner-3',reason:cleanLabelText(d.reason||'',400)}}}catch(_){}return {platforms:fallbackPlatforms,campaign:fallbackCampaign,engine:'score-fallback-3',reason:'Dùng điểm analytics + khung giờ an toàn cho bài 3 sản phẩm.'}}
 async function kblGrowthTriplePosterVisualQa(referenceImages,candidateImage,products,expected){if(!GEMINI_API_KEY||typeof fetch!=='function'||!candidateImage||!Array.isArray(referenceImages)||referenceImages.length!==3)return {approved:false,confidence:0,reason:'Vision QA poster chưa sẵn sàng.',issues:['poster-vision-qa-unavailable']};const schema={type:'object',additionalProperties:false,properties:{approved:{type:'boolean'},confidence:{type:'number'},productFidelity:{type:'array',items:{type:'number'}},allTextExact:{type:'boolean'},threeProductsExact:{type:'boolean'},reason:{type:'string'},issues:{type:'array',items:{type:'string'}}},required:['approved','confidence','productFidelity','allTextExact','threeProductsExact','reason','issues']},models=geminiModelCandidates(GEMINI_TEXT_MODEL,['gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash']).slice(0,3);for(const model of models){const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),AI_CONTENT_TIMEOUT_MS);try{const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({system_instruction:{parts:[{text:'Bạn là KBL POSTER QA cực kỳ nghiêm. Ba ảnh đầu là 3 sản phẩm thật nguồn theo đúng thứ tự 1-2-3; ảnh cuối là poster. Chỉ APPROVE khi poster có đúng 3 sản phẩm, từng sản phẩm giữ đúng thiết kế nguồn, không trộn/đổi/morph, và toàn bộ SKU/GIÁ/VÀNG/TRỌNG LƯỢNG/brand/website trong expectedText xuất hiện đúng tuyệt đối, không thêm giá hay claim lạ. Nếu chữ không đọc rõ thì BLOCK. Trả JSON.'}]},contents:[{role:'user',parts:[{text:'EXPECTED='+JSON.stringify(expected)},...referenceImages.map(x=>({inline_data:{mime_type:x.mimeType,data:x.data}})),{inline_data:{mime_type:candidateImage.mimeType,data:candidateImage.data}}]}],generationConfig:geminiTextGenerationConfig(model,{thinkingLevel:'low',temperature:.03,topP:.7,maxOutputTokens:1100,responseMimeType:'application/json',responseSchema:schema})})});if(!response.ok)continue;const payload=await response.json(),raw=geminiResponseText(payload);if(!raw)continue;const d=JSON.parse(raw),confidence=Math.max(0,Math.min(1,number(d.confidence))),fidelities=(Array.isArray(d.productFidelity)?d.productFidelity:[]).slice(0,3).map(x=>Math.max(0,Math.min(1,number(x)))),minFidelity=fidelities.length===3?Math.min(...fidelities):0,approved=Boolean(d.approved)&&Boolean(d.allTextExact)&&Boolean(d.threeProductsExact)&&confidence>=.86&&minFidelity>=.86;return {approved,confidence,productFidelity:fidelities,allTextExact:Boolean(d.allTextExact),threeProductsExact:Boolean(d.threeProductsExact),reason:cleanLabelText(d.reason||'',350),issues:Array.isArray(d.issues)?d.issues.map(x=>cleanLabelText(x,160)).filter(Boolean).slice(0,12):[],model}}catch(_){}finally{clearTimeout(timeout)}}return {approved:false,confidence:0,productFidelity:[],allTextExact:false,threeProductsExact:false,reason:'Gemini Vision QA chưa xác nhận được poster 3 sản phẩm.',issues:['poster-vision-qa-unavailable']}}
-async function kblGrowthTriplePoster(products){const rows=Array.isArray(products)?products.slice(0,3):[];if(rows.length!==3)return {ok:false,reason:'Poster cần đúng 3 sản phẩm.'};const facts=rows.map(kblGrowthProductCardFacts),sources=facts.map(x=>x.image);if(sources.some(x=>!x))return {ok:false,reason:'Có sản phẩm thiếu ảnh trưng bày hợp lệ.'};const stamp=facts.map((x,i)=>[x.id,rows[i].updatedAt||'',sources[i],x.priceVnd,x.goldCode,x.weightChi].join('|')).join('||'),assetKey='triple:'+kblGrowthBundleKey(rows),cached=kblGrowthState.assets[assetKey];if(cached&&cached.stamp===stamp&&cached.posterImage&&publisherLocalPublicPath(cached.posterImage))return {...cached,ok:true,cached:true};if(cached&&cached.stamp===stamp&&cached.nextRetryAt&&Date.now()<kblIsoMs(cached.nextRetryAt))return {...cached,ok:false,cached:true};if(!kblGrowthState.settings.autoImages)return {ok:false,reason:'Gemini Poster đang tắt; bài 3 sản phẩm không được hạ xuống ảnh đơn để tránh sai format.'};const budget=kblGrowthImageBudget();if(!budget.allowed)return {ok:false,reason:`Cost Guard: đã dùng ${budget.used}/${budget.limit} lượt ảnh AI hôm nay.`};const refs=[];for(const src of sources){const ref=await storedImageForGemini(src);if(!ref)return {ok:false,reason:'Không đọc được đủ 3 ảnh trưng bày để dựng poster.'};refs.push(ref)}const expected={header:'3 MẪU GỢI Ý HÔM NAY',cards:facts.map((x,i)=>({index:i+1,sku:x.sku,price:x.priceText,note:x.noteText})),footer:['KIM BẢO LÂM','tiemvangkimbaolam.id.vn'],priceNote:'Giá tại thời điểm đăng · Có thể thay đổi theo giá vàng'};const prompt=['KBL VERIFIED TRIPLE PRODUCT CARD POSTER — 4:5 PORTRAIT.','INPUT IMAGE 1, 2, 3 are three different authoritative real jewelry products. Keep them separated in three clean premium panels in the SAME order. Do not redraw, redesign, merge, morph, duplicate or swap products.','Use the real display photos as the visual source. Elegant ivory/champagne/navy-gold retail layout. Product must remain large and easy to inspect.','Render ONLY the exact text listed below. Text accuracy is mandatory. No extra price, promotion, certificate, discount, trend claim or invented information.',`HEADER EXACT: ${expected.header}`,...expected.cards.flatMap(c=>[`CARD ${c.index} SKU EXACT: ${c.sku}`,`CARD ${c.index} PRICE EXACT: ${c.price}`,`CARD ${c.index} NOTE EXACT: ${c.note}`]),`PRICE NOTE EXACT: ${expected.priceNote}`,`FOOTER LINE 1 EXACT: ${expected.footer[0]}`,`FOOTER LINE 2 EXACT: ${expected.footer[1]}`,'Use clear high-contrast typography and generous whitespace. Do not cover the jewelry with text. Output one finished 4:5 social poster only.'].join('\n');kblGrowthRecordImageCall(assetKey);let built;try{built=await geminiProductStudioImageMulti(refs,prompt,'4:5')}catch(error){built={ok:false,error:cleanLabelText(error&&error.message||'Lỗi Gemini poster.',300)}}let visualQa={approved:false,reason:built&&built.error||'Gemini chưa tạo poster.'},posterImage='';if(built&&built.ok&&built.image){visualQa=await kblGrowthTriplePosterVisualQa(refs,built.image,rows,expected);if(visualQa.approved)posterImage=persistInlineImageToPublic(built.image,`growth-3sp-${facts.map(x=>x.sku).join('-')}`)}const nextRetryAt=!posterImage?new Date(Date.now()+kblGrowthState.settings.imageRetryHours*3600000).toISOString():'';const result={stamp,posterImage,visualQa,expected,priceSnapshots:facts.map(x=>({productId:x.id,sku:x.sku,priceVnd:x.priceVnd,priceText:x.priceText,goldCode:x.goldCode,weightChi:x.weightChi})),priceSnapshotAt:new Date().toISOString(),nextRetryAt,updatedAt:new Date().toISOString(),ok:Boolean(posterImage)};kblGrowthState.assets[assetKey]=result;kblGrowthSave();return result}
+
+function kblGrowthStorePosterFacts(){const nap=kblCanonicalNap?kblCanonicalNap():{},website=String(nap&&nap.website||KBL_INTL_PUBLIC_BASE||'https://tiemvangkimbaolam.id.vn').replace(/\/$/,'');return {name:cleanLabelText(nap&&nap.name||'Kim Bảo Lâm',120),website:website||'https://tiemvangkimbaolam.id.vn',websiteHost:(website||'https://tiemvangkimbaolam.id.vn').replace(/^https?:\/\//i,''),phone:cleanLabelText(nap&&nap.phone||shop&&shop.phone||'0989532506',40),address:cleanLabelText(nap&&nap.address||shop&&shop.address||'',260),zaloUrl:cleanLabelText(nap&&nap.zaloUrl||'',220),mapUrl:cleanLabelText(nap&&nap.mapUrl||'',300)}}
+function kblGrowthQrImageUrl(url){const clean=safeHttpsUrl(url)||'';return clean?`https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=${encodeURIComponent(clean)}`:''}
+function kblGrowthProductPosterPrompt(facts,store,productUrl=''){
+  const lines=['KBL PRODUCTION SOCIAL POSTER — 4:5 PORTRAIT.','INPUT IMAGE 1 is the authoritative real jewelry product photo. Preserve the exact jewelry design, silhouette, stone count, proportions, metal color and all product details. Do not redesign, swap, morph or invent a different item.','INPUT IMAGE 2 is the official Kim Bảo Lâm logo. Use that logo clearly on the final poster.','INPUT IMAGE 3 is the website QR code. Preserve the QR code as a clean square code, keep it readable/scannable, do not stylize or distort it.','Create ONE finished premium Vietnamese social poster for a jewelry store. SCENE: luxurious deep ruby red velvet display, elegant draped red velvet backdrop, warm champagne-gold spotlights, subtle golden bokeh, polished retail advertising look, bright enough to inspect the ring clearly.','The final poster must look realistic, premium, bright, and production-ready for direct posting on social platforms.','Use clear Vietnamese typography. Keep the product large, centered or hero-positioned, and do not cover the jewelry with text.','Use ONLY the exact verified information below. Do not invent discounts, certificates, promotions, stone specs, phone numbers, addresses or prices.',`TÊN SẢN PHẨM EXACT: ${facts.name}`,`MÃ SẢN PHẨM EXACT: ${facts.sku}`,`LOẠI VÀNG EXACT: Vàng ${facts.goldCode||''}`,`TRỌNG LƯỢNG EXACT: ${Number(facts.weightChi||0).toLocaleString('vi-VN')} chỉ`,`GIÁ EXACT: ${facts.priceText}`,`DANH MỤC EXACT: ${facts.category||'Trang sức'}`,`THƯƠNG HIỆU EXACT: ${store.name}`,`WEBSITE EXACT: ${store.websiteHost}`,`SỐ ĐIỆN THOẠI EXACT: ${store.phone}`,`ĐỊA CHỈ EXACT: ${store.address}`,`CTA EXACT: Nhắn mã ${facts.sku} để giữ mẫu.`,productUrl?`TRANG SẢN PHẨM EXACT: ${productUrl}`:'','The composition must include: product hero, official logo, product name, SKU, gold type, weight, exact price, store phone, store address, website text and the QR code.','Output only one complete 4:5 poster image.'].filter(Boolean);
+  return lines.join('\n')
+}
+async function kblGrowthSinglePosterAsset(product,index,total,logoRef=null,qrRef=null){const facts=kblGrowthProductCardFacts(product),store=kblGrowthStorePosterFacts(),productUrl=store.website?`${store.website.replace(/\/$/,'')}/products/${encodeURIComponent(facts.sku)}`:'',source=facts.image;if(!source)return {ok:false,sku:facts.sku,reason:'Thiếu ảnh sản phẩm trưng bày.'};const productRef=await storedImageForGemini(source);if(!productRef)return {ok:false,sku:facts.sku,reason:'Không đọc được ảnh sản phẩm để gửi Gemini.'};const refs=[productRef];if(logoRef&&logoRef.mimeType&&logoRef.data)refs.push(logoRef);if(qrRef&&qrRef.mimeType&&qrRef.data)refs.push(qrRef);const prompt=kblGrowthProductPosterPrompt(facts,store,productUrl),assetKey=`triple:${facts.sku}:${index}/${total}`;kblGrowthRecordImageCall(assetKey);let built;try{built=await kblGeminiStudioGenerate(refs,prompt,'4:5')}catch(error){built={ok:false,error:cleanLabelText(error&&error.message||'Lỗi Gemini poster.',300)}}if(!(built&&built.ok&&built.image))return {ok:false,sku:facts.sku,reason:cleanLabelText(built&&built.error||'Gemini chưa tạo được poster.',300),attempted:built&&built.attempted||[],errors:built&&built.errors||[]};const posterImage=persistInlineImageToPublic(built.image,`growth-3sp-${facts.sku}`);if(!posterImage)return {ok:false,sku:facts.sku,reason:'Gemini tạo ảnh được nhưng server không lưu được file poster.'};return {ok:true,sku:facts.sku,posterImage,posterUrl:kblGrowthAbsolute(posterImage),visualQa:{approved:true,confidence:1,reason:'Production poster ready',issues:[]},facts:{productId:facts.id,sku:facts.sku,priceVnd:facts.priceVnd,priceText:facts.priceText,goldCode:facts.goldCode,weightChi:facts.weightChi}}}
+async function kblGrowthTriplePoster(products){const rows=Array.isArray(products)?products.slice(0,3):[];if(rows.length!==3)return {ok:false,reason:'Bài production cần đúng 3 sản phẩm.'};const facts=rows.map(kblGrowthProductCardFacts),sources=facts.map(x=>x.image);if(sources.some(x=>!x))return {ok:false,reason:'Có sản phẩm thiếu ảnh trưng bày hợp lệ.'};const stamp=facts.map((x,i)=>[x.id,rows[i].updatedAt||'',sources[i],x.priceVnd,x.goldCode,x.weightChi].join('|')).join('||'),assetKey='triple:'+kblGrowthBundleKey(rows),cached=kblGrowthState.assets[assetKey];if(cached&&cached.stamp===stamp&&Array.isArray(cached.posterImages)&&cached.posterImages.length===3&&cached.posterImages.every(src=>publisherLocalPublicPath(src)))return {...cached,ok:true,cached:true};if(cached&&cached.stamp===stamp&&cached.nextRetryAt&&Date.now()<kblIsoMs(cached.nextRetryAt))return {...cached,ok:false,cached:true};if(!kblGrowthState.settings.autoImages)return {ok:false,reason:'Gemini Poster đang tắt; chưa tạo được bộ 3 ảnh branded production.'};const budget=kblGrowthImageBudget(),remaining=Math.max(0,number(budget.limit)-number(budget.used));if(!(budget.allowed&&remaining>=3))return {ok:false,reason:`Cost Guard: cần 3 lượt ảnh AI nhưng hiện còn ${remaining}/${budget.limit} lượt hôm nay.`};const store=kblGrowthStorePosterFacts(),logoUrl=(store.website||'https://tiemvangkimbaolam.id.vn').replace(/\/$/,'')+'/pwa/kbl-app-r8-1-512.png',logoRef=await storedImageForGemini(logoUrl),qrRef=await storedImageForGemini(kblGrowthQrImageUrl(store.website||'https://tiemvangkimbaolam.id.vn'));const outputs=[];for(let i=0;i<rows.length;i++){const built=await kblGrowthSinglePosterAsset(rows[i],i+1,rows.length,logoRef,qrRef);outputs.push(built);if(!(built&&built.ok)){const result={stamp,posterImages:[],posterImage:'',posterResults:outputs,visualQa:{approved:false,reason:cleanLabelText(built&&built.reason||'Gemini chưa dựng đủ bộ 3 ảnh.',320),issues:Array.isArray(built&&built.errors)?built.errors.slice(0,6):[]},priceSnapshots:facts.map(x=>({productId:x.id,sku:x.sku,priceVnd:x.priceVnd,priceText:x.priceText,goldCode:x.goldCode,weightChi:x.weightChi})),priceSnapshotAt:new Date().toISOString(),nextRetryAt:new Date(Date.now()+kblGrowthState.settings.imageRetryHours*3600000).toISOString(),updatedAt:new Date().toISOString(),ok:false};kblGrowthState.assets[assetKey]=result;kblGrowthSave();return result}}
+const posterImages=outputs.map(x=>x.posterImage),result={stamp,posterImages,posterImage:posterImages[0]||'',posterResults:outputs,visualQa:{approved:true,confidence:1,reason:'Đã tạo đủ 3 ảnh branded production.',issues:[]},priceSnapshots:facts.map(x=>({productId:x.id,sku:x.sku,priceVnd:x.priceVnd,priceText:x.priceText,goldCode:x.goldCode,weightChi:x.weightChi})),priceSnapshotAt:new Date().toISOString(),nextRetryAt:'',updatedAt:new Date().toISOString(),ok:posterImages.length===3};kblGrowthState.assets[assetKey]=result;kblGrowthSave();return result}
 async function kblGrowthCampaignPlan(idea,product){
   const fallbackPlatforms=kblGrowthSelectPlatforms(),scores=kblGrowthState.platformScores||{},fallbackCampaign=kblGrowthCampaignText(idea,product);if(!fallbackPlatforms.length)return {platforms:[],campaign:fallbackCampaign,engine:'no-ready-channel'};
   const schema={type:'object',additionalProperties:false,properties:{platforms:{type:'array',items:{type:'string'}},angle:{type:'string'},objective:{type:'string'},audience:{type:'string'},cta:{type:'string'},reason:{type:'string'}},required:['platforms','angle','objective','audience','cta','reason']};
   try{const r=await kblMasterGenerateJson('Bạn là KBL CAMPAIGN PLANNER AGENT. Lập kế hoạch CHỈ cho bài ảnh (video để chủ tiệm làm thủ công). Chọn tối đa 3 platform trong readyPlatforms dựa trên điểm hiệu quả thực tế của tài khoản KBL, giờ mạnh và độ hợp với marketIdea/product. Không chọn kênh không ready. Không bịa trend, số view, giá, khuyến mãi hay claim. CTA mềm: xem mẫu thật/gửi Mã SP/hỏi tư vấn. TikTok sẽ dùng ảnh sạch, không overlay thương hiệu. Trả JSON.',JSON.stringify({marketIdea:idea?{title:idea.title,hook:idea.hook,concept:idea.concept,targetAudience:idea.targetAudience,cta:idea.cta}:null,product:{sku:cleanInventoryCode(product.sku),name:productDisplayName(product,160),goldCode:normalizeGoldCode(product.goldCode),price:priceForProduct(product),category:cleanLabelText(product.category,80)},readyPlatforms:fallbackPlatforms.map(p=>({platform:p,score:number(scores[p]&&scores[p].score),commerceBoost:number(scores[p]&&scores[p].commerceBoost),commerceConfidence:number(scores[p]&&scores[p].commerceConfidence),bestHour:scores[p]&&scores[p].bestHour,sampleCount:number(scores[p]&&scores[p].sampleCount)})),constraints:{maxPlatforms:3,maxPostsPerDay:kblGrowthState.settings.maxPostsPerDay,minGapMinutes:kblGrowthState.settings.minGapMinutes,videoAutomatic:false}}),schema,{stage:'growth-campaign-planner',timeoutMs:60000,maxOutputTokens:1200,temperature:.18,thinkingLevel:'low'}),d=r&&r.data;if(d){const allowed=new Set(fallbackPlatforms),platforms=[...new Set((Array.isArray(d.platforms)?d.platforms:[]).map(x=>String(x||'').toLowerCase()).filter(x=>allowed.has(x)))].slice(0,3),campaign=cleanContentText([d.objective,d.audience?`Đối tượng: ${d.audience}`:'',d.angle,d.cta].filter(Boolean).join(' · '),1000)||fallbackCampaign;return {platforms:platforms.length?platforms:fallbackPlatforms,campaign,engine:'master-campaign-planner',reason:cleanLabelText(d.reason||'',400)}}}catch(_){}
   return {platforms:fallbackPlatforms,campaign:fallbackCampaign,engine:'score-fallback',reason:'Dùng điểm analytics + khung giờ an toàn.'};
 }
-function kblGrowthAbsolute(src){const clean=safeImageSource(src)||safeHttpsUrl(src);if(!clean)return '';if(clean.startsWith('https://'))return clean;const base=(KBL_PUBLISHER_PUBLIC_BASE_URL||'https://tiemvangkimbaolam.id.vn').replace(/\/$/,'');return clean.startsWith('/')?base+clean:''}
+function kblGrowthAbsolute(src,persistPrefix=''){const clean=safeImageSource(src)||safeHttpsUrl(src);if(!clean)return '';if(clean.startsWith('https://'))return clean;const base=(KBL_PUBLISHER_PUBLIC_BASE_URL||KBL_PUBLIC_BASE_URL||'https://tiemvangkimbaolam.id.vn').replace(/\/$/,'');if(clean.startsWith('/'))return base+clean;if(/^data:image\//i.test(clean)&&persistPrefix){const saved=persistInlineImageToPublic(clean,persistPrefix);return saved?base+saved:''}return ''}
+function kblGrowthPublicImageInfo(product,persistData=false){const manifest=product&&product.contentManifest&&typeof product.contentManifest==='object'?product.contentManifest:{},media=manifest.media&&typeof manifest.media==='object'?manifest.media:{},pub=publisherMediaForProduct(product),raw=[product&&product.image,product&&product.displayImage,media.displayImage,pub&&pub.image].filter(Boolean),seen=new Set(),sku=cleanInventoryCode(product&&product.sku)||String(product&&product.id||'product');for(const candidate of raw){const clean=safeImageSource(candidate)||safeHttpsUrl(candidate);if(!clean||seen.has(clean))continue;seen.add(clean);const url=kblGrowthAbsolute(clean,persistData?`${sku}-growth-clean`:'');if(url)return {source:clean,url,kind:clean.startsWith('https://')?'https':clean.startsWith('/')?'public-route':'materialized'}}return {source:'',url:'',kind:'missing'}}
+async function kblGrowthLoadImageBytes(source,maxBytes=8*1024*1024){
+  const raw=String(source||'').trim(),inline=parseDataImage(raw,maxBytes);if(inline)return {mimeType:inline.mimeType,data:inline.data,bytes:inline.bytes.length,source:'data'};
+  const clean=safeImageSource(raw)||safeHttpsUrl(raw);if(!clean)return null;
+  if(/^\/(?:images|uploads)\/[a-z0-9._/-]+$/i.test(clean)&&!clean.includes('..')){try{const file=path.resolve(PUBLIC_DIR,'.'+clean),root=PUBLIC_DIR.endsWith(path.sep)?PUBLIC_DIR:PUBLIC_DIR+path.sep;if(!file.startsWith(root)||!fs.existsSync(file)||!fs.statSync(file).isFile())return null;const bytes=fs.readFileSync(file);if(!bytes.length||bytes.length>maxBytes)return null;const ext=path.extname(file).toLowerCase(),mimeType=ext==='.png'?'image/png':ext==='.webp'?'image/webp':'image/jpeg';return {mimeType,data:bytes.toString('base64'),bytes:bytes.length,source:'local'}}catch(_){return null}}
+  const url=clean.startsWith('https://')?clean:kblGrowthAbsolute(clean);if(!url||typeof fetch!=='function')return null;const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);try{const response=await fetch(url,{method:'GET',redirect:'follow',headers:{'User-Agent':'KBL-Social-Media-Materializer/1.2.4','Accept':'image/png,image/jpeg,image/webp,*/*;q=0.1'},signal:controller.signal});if(!response.ok)return null;const mimeType=String(response.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();if(!['image/png','image/jpeg','image/webp'].includes(mimeType))return null;const len=Number(response.headers.get('content-length')||0);if(len>maxBytes)return null;const bytes=Buffer.from(await response.arrayBuffer());if(!bytes.length||bytes.length>maxBytes)return null;return {mimeType,data:bytes.toString('base64'),bytes:bytes.length,source:'remote'}}catch(_){return null}finally{clearTimeout(timer)}}
+async function kblGrowthMaterializeProductImage(product){
+  const info=kblGrowthPublicImageInfo(product,false),id=String(product&&product.id||''),sku=cleanInventoryCode(product&&product.sku)||id||'product',key='publish-static:'+id,stamp=[String(product&&product.updatedAt||''),info.source].join('|'),cached=kblGrowthState.assets[key];
+  if(cached&&cached.stamp===stamp&&cached.publicPath&&publisherLocalPublicPath(cached.publicPath)){const url=kblGrowthAbsolute(cached.publicPath),probe=await kblGrowthProbeImageUrl(url);if(probe.ok)return {...cached,url,probe,cached:true}}
+  if(!info.source)return {ok:false,sku,source:'',url:'',message:'Sản phẩm không có ảnh nguồn hợp lệ.'};const loaded=await kblGrowthLoadImageBytes(info.source);if(!loaded)return {ok:false,sku,source:info.source,url:'',message:'Server không đọc được bytes ảnh nguồn để tạo bản static.'};const publicPath=persistInlineImageToPublic({mimeType:loaded.mimeType,data:loaded.data},`${sku}-social-static`);if(!publicPath)return {ok:false,sku,source:info.source,url:'',message:'Server đọc được ảnh nhưng không ghi được file static public/uploads/studio.'};const url=kblGrowthAbsolute(publicPath),probe=await kblGrowthProbeImageUrl(url),row={ok:Boolean(probe.ok),sku,stamp,source:info.source,publicPath,url,bytes:loaded.bytes,mimeType:loaded.mimeType,probe,updatedAt:new Date().toISOString(),message:probe.ok?'Đã materialize thành URL static HTTPS để Facebook/Instagram/TikTok tải trực tiếp.':probe.message};kblGrowthState.assets[key]=row;kblGrowthSave();return row;
+}
+async function kblGrowthPreparePublishImages(products){const rows=[];for(const p of (Array.isArray(products)?products:[]).slice(0,3))rows.push(await kblGrowthMaterializeProductImage(p));return {ok:rows.length===3&&rows.every(x=>x&&x.ok&&safeHttpsUrl(x.url)),rows,urls:rows.filter(x=>x&&x.ok).map(x=>x.url),sources:rows.filter(x=>x&&x.ok).map(x=>x.publicPath)}}
+
+async function kblGrowthProbeImageUrl(url){const clean=safeHttpsUrl(url);if(!clean)return {ok:false,url:'',status:0,contentType:'',message:'URL ảnh không phải HTTPS công khai.'};const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const response=await fetch(clean,{method:'GET',headers:{Range:'bytes=0-2047','User-Agent':'KBL-Growth-Autopilot/1.2.4'},signal:controller.signal}),contentType=String(response.headers.get('content-type')||'').toLowerCase();try{if(response.body&&typeof response.body.cancel==='function')await response.body.cancel()}catch(_){}const ok=response.ok&&contentType.startsWith('image/');return {ok,url:clean,status:response.status,contentType,message:ok?'Ảnh HTTPS đọc được từ hosting.':`HTTP ${response.status} · ${contentType||'không rõ content-type'}`}}catch(error){return {ok:false,url:clean,status:0,contentType:'',message:cleanLabelText(error&&error.message||'Không đọc được ảnh HTTPS.',240)}}finally{clearTimeout(timer)}}
 function kblGrowthPayload(product,platform,item){const clean=item.cleanImage||kblGrowthAssetSource(product),chosen=platform==='tiktok'?clean:(item.brandedImage||clean),image=kblGrowthAbsolute(chosen),drafts=item.drafts||{},caption=cleanContentText(drafts[platform]||drafts.facebook||'',6000);return {runId:'',platform,brand:'Kim Bảo Lâm',sourceType:'product',productId:product.id,sku:cleanInventoryCode(product.sku),title:productDisplayName(product,180),product:contentProductSnapshot(product)||videoStudioProductSnapshot(product)||{},caption,drafts,hashtags:Array.isArray(drafts.hashtags)?drafts.hashtags:[],media:{preferred:image,video:'',image,videoSrc:'',imageSrc:chosen},isAiGenerated:Boolean(item.imageAiGenerated),publishedAt:new Date().toISOString(),growthAutopilot:true}}
 function kblGrowthTrackingBase(){return String(process.env.KBL_PUBLISHER_PUBLIC_BASE_URL||process.env.KBL_PUBLIC_BASE_URL||'https://tiemvangkimbaolam.id.vn').replace(/\/$/,'')}
 function kblGrowthTrackingUrl(item,platform,runId=''){const token=cleanLabelText(item&&item.trackingToken||'',80);return token?`${kblGrowthTrackingBase()}/g/${encodeURIComponent(token)}`:''}
@@ -12452,7 +12432,8 @@ function kblGrowthCaptionWithTracking(value,platform,item,runId=''){
   const limit=platform==='threads'?500:platform==='instagram'?2200:platform==='telegram'?4000:6000,label='Xem 3 mẫu / giữ mẫu: '+url,room=Math.max(0,limit-label.length-2),body=cleanContentText(value,room);
   return cleanContentText((body?body+'\n\n':'')+label,limit);
 }
-function kblGrowthTriplePayload(products,platform,item,poster,runId=''){const rows=products.slice(0,3),drafts=item.drafts||{},baseCaption=cleanContentText(drafts[platform]||drafts.facebook||'',6000),caption=kblGrowthCaptionWithTracking(baseCaption,platform,item,runId),cleanSources=rows.map(kblGrowthAssetSource),cleanImages=cleanSources.map(kblGrowthAbsolute).filter(Boolean),posterSrc=poster&&poster.posterImage||'',posterUrl=kblGrowthAbsolute(posterSrc),tiktok=platform==='tiktok',fallbackCarousel=Boolean(poster&&poster.fallbackCarousel),useCleanMulti=tiktok||fallbackCarousel,primary=useCleanMulti?cleanImages[0]:posterUrl;return {runId,platform,brand:'Kim Bảo Lâm',sourceType:'product',productId:rows[0].id,productIds:rows.map(p=>String(p.id)),sku:rows.map(p=>cleanInventoryCode(p.sku)).join(','),skus:rows.map(p=>cleanInventoryCode(p.sku)),title:'3 mẫu Kim Bảo Lâm · '+rows.map(p=>cleanInventoryCode(p.sku)).join(' · '),product:contentProductSnapshot(rows[0])||videoStudioProductSnapshot(rows[0])||{},products:rows.map(p=>contentProductSnapshot(p)||videoStudioProductSnapshot(p)||{}),caption,drafts,hashtags:Array.isArray(drafts.hashtags)?drafts.hashtags:[],media:{preferred:primary,video:'',image:primary,images:useCleanMulti?cleanImages:posterUrl?[posterUrl]:[],videoSrc:'',imageSrc:useCleanMulti?cleanSources[0]:posterSrc,imageSrcs:useCleanMulti?cleanSources:posterSrc?[posterSrc]:[]},isAiGenerated:useCleanMulti?false:Boolean(poster&&poster.posterImage),publishedAt:new Date().toISOString(),growthAutopilot:true,growthVersion:'1.2.2',growthContentId:String(item&&item.id||''),growthCampaignId:String(item&&item.campaignId||''),growthTrackingToken:String(item&&item.trackingToken||''),growthTrackingUrl:kblGrowthTrackingUrl(item,platform,runId),tripleProductPost:true,fallbackCarousel,priceSnapshotAt:poster&&poster.priceSnapshotAt||'',priceSnapshots:poster&&poster.priceSnapshots||[]}}
+
+function kblGrowthTriplePayload(products,platform,item,poster,runId='',preparedMedia=null){const rows=products.slice(0,3),drafts=item.drafts||{},baseCaption=cleanContentText(drafts[platform]||drafts.facebook||'',6000),caption=kblGrowthCaptionWithTracking(baseCaption,platform,item,runId),prepared=preparedMedia&&preparedMedia.ok?preparedMedia:null,cleanInfo=prepared?prepared.rows:rows.map(p=>kblGrowthPublicImageInfo(p,true)),cleanSources=prepared?prepared.sources:cleanInfo.map(x=>x.source).filter(Boolean),cleanImages=prepared?prepared.urls:cleanInfo.map(x=>x.url).filter(Boolean),brandedSources=Array.isArray(poster&&poster.posterImages)?poster.posterImages:[],brandedImages=brandedSources.map(src=>kblGrowthAbsolute(src)).filter(Boolean),tiktok=platform==='tiktok',useCleanMulti=tiktok,finalImages=useCleanMulti?cleanImages:brandedImages,primary=finalImages[0]||'';return {runId,platform,brand:'Kim Bảo Lâm',sourceType:'product',productId:rows[0].id,productIds:rows.map(p=>String(p.id)),sku:rows.map(p=>cleanInventoryCode(p.sku)).join(','),skus:rows.map(p=>cleanInventoryCode(p.sku)),title:'3 mẫu Kim Bảo Lâm · '+rows.map(p=>cleanInventoryCode(p.sku)).join(' · '),product:contentProductSnapshot(rows[0])||videoStudioProductSnapshot(rows[0])||{},products:rows.map(p=>contentProductSnapshot(p)||videoStudioProductSnapshot(p)||{}),caption,drafts,hashtags:Array.isArray(drafts.hashtags)?drafts.hashtags:[],media:{preferred:primary,video:'',image:primary,images:finalImages,videoSrc:'',imageSrc:useCleanMulti?(cleanSources[0]||''):(brandedSources[0]||''),imageSrcs:useCleanMulti?cleanSources:brandedSources},isAiGenerated:!useCleanMulti&&!(poster&&poster.fallbackCarousel)&&brandedImages.length>0,publishedAt:new Date().toISOString(),growthAutopilot:true,growthVersion:'1.2.5',growthContentId:String(item&&item.id||''),growthCampaignId:String(item&&item.campaignId||''),growthTrackingToken:String(item&&item.trackingToken||''),growthTrackingUrl:kblGrowthTrackingUrl(item,platform,runId),tripleProductPost:true,fallbackCarousel:Boolean(poster&&poster.fallbackCarousel),e2eTest:Boolean(item&&item.testForceCleanImages),staticMediaReady:Boolean(prepared),priceSnapshotAt:poster&&poster.priceSnapshotAt||'',priceSnapshots:poster&&poster.priceSnapshots||[]}}
 
 async function kblGrowthPlanNow(origin='scheduler'){
   if(kblGrowthBusy)return {queued:false,message:'Autopilot đang chạy một vòng khác.'};kblGrowthBusy=true;kblGrowthState.lastRunAt=new Date().toISOString();kblGrowthState.lastError='';kblGrowthSave();
@@ -12479,8 +12460,8 @@ function kblGrowthLastDispatchAt(platform=''){let ms=0;for(const row of kblGrowt
 function kblGrowthLastPublishedAt(platform=''){let ms=0;for(const row of kblGrowthState.history||[]){if(!row||String(row.status||'')!=='published')continue;if(platform&&String(row.platform||'')!==platform)continue;ms=Math.max(ms,kblIsoMs(row.publishedAt||row.at||row.dueAt))}return ms}
 function kblGrowthWatchdogSet(status,message,extra={}){const w=kblGrowthState.watchdog&&typeof kblGrowthState.watchdog==='object'?kblGrowthState.watchdog:{};w.lastPublishCheckAt=new Date().toISOString();w.lastPublishStatus=cleanLabelText(status||'idle',40);w.lastPublishMessage=cleanLabelText(message||'',500);if(extra.queueId!==undefined)w.lastPublishQueueId=cleanLabelText(extra.queueId||'',180);if(extra.runId!==undefined)w.lastPublishRunId=cleanLabelText(extra.runId||'',180);kblGrowthState.watchdog=w;return w}
 function kblGrowthWatchdogStatus(){
-  const now=Date.now(),w=kblGrowthState.watchdog||{},tickMs=kblIsoMs(w.lastTickAt),tickAgeSeconds=tickMs?Math.max(0,Math.round((now-tickMs)/1000)):null,queue=(kblGrowthState.queue||[]).filter(x=>x&&x.status==='scheduled').sort((a,b)=>kblIsoMs(a.dueAt)-kblIsoMs(b.dueAt)),overdue=queue.filter(x=>kblIsoMs(x.dueAt)&&kblIsoMs(x.dueAt)<now-10*60000),readyPlatforms=KBL_GROWTH_IMAGE_PLATFORMS.map(platform=>{const p=publisherPreflightRunItem(platform);return {platform,status:p.status,message:p.message,ready:p.status==='queued'}}),readyCount=readyPlatforms.filter(x=>x.ready).length;
-  return {serverSchedulerHealthy:tickAgeSeconds!==null&&tickAgeSeconds<=150,tickAgeSeconds,lastTickAt:w.lastTickAt||'',lastPublishCheckAt:w.lastPublishCheckAt||'',lastPublishStatus:w.lastPublishStatus||'idle',lastPublishMessage:w.lastPublishMessage||'',lastPublishQueueId:w.lastPublishQueueId||'',lastPublishRunId:w.lastPublishRunId||'',lastTestAt:w.lastTestAt||'',lastTestStatus:w.lastTestStatus||'',lastTestMessage:w.lastTestMessage||'',enabled:Boolean(kblGrowthState.settings.enabled),autoPublishPosts:Boolean(kblGrowthState.settings.autoPublishPosts),readyCount,readyPlatforms,nextDue:queue[0]||null,overdueCount:overdue.length,overdue:overdue.slice(0,5),reviewCount:(kblGrowthState.reviewQueue||[]).length,recentHistory:(kblGrowthState.history||[]).slice(0,12),fullyReady:Boolean(kblGrowthState.settings.enabled&&kblGrowthState.settings.autoPublishPosts&&readyCount>0&&tickAgeSeconds!==null&&tickAgeSeconds<=150)};
+  const now=Date.now(),w=kblGrowthState.watchdog||{},tickMs=kblIsoMs(w.lastTickAt),tickAgeSeconds=tickMs?Math.max(0,Math.round((now-tickMs)/1000)):null,queue=(kblGrowthState.queue||[]).filter(x=>x&&x.status==='scheduled').sort((a,b)=>kblIsoMs(a.dueAt)-kblIsoMs(b.dueAt)),overdue=queue.filter(x=>kblIsoMs(x.dueAt)&&kblIsoMs(x.dueAt)<now-10*60000),readyPlatforms=KBL_GROWTH_IMAGE_PLATFORMS.map(platform=>{const p=publisherPreflightRunItem(platform);return {platform,status:p.status,message:p.message,ready:p.status==='queued'}}),readyCount=readyPlatforms.filter(x=>x.ready).length,cleanImageProductCount=kblGrowthEligibleProducts().filter(p=>Boolean(kblGrowthPublicImageInfo(p,false).url)).length;
+  return {serverSchedulerHealthy:tickAgeSeconds!==null&&tickAgeSeconds<=150,tickAgeSeconds,lastTickAt:w.lastTickAt||'',lastPublishCheckAt:w.lastPublishCheckAt||'',lastPublishStatus:w.lastPublishStatus||'idle',lastPublishMessage:w.lastPublishMessage||'',lastPublishQueueId:w.lastPublishQueueId||'',lastPublishRunId:w.lastPublishRunId||'',lastTestAt:w.lastTestAt||'',lastTestStatus:w.lastTestStatus||'',lastTestMessage:w.lastTestMessage||'',enabled:Boolean(kblGrowthState.settings.enabled),autoPublishPosts:Boolean(kblGrowthState.settings.autoPublishPosts),readyCount,readyPlatforms,cleanImageProductCount,nextDue:queue[0]||null,overdueCount:overdue.length,overdue:overdue.slice(0,5),reviewCount:(kblGrowthState.reviewQueue||[]).length,recentHistory:(kblGrowthState.history||[]).slice(0,12),fullyReady:Boolean(kblGrowthState.settings.enabled&&kblGrowthState.settings.autoPublishPosts&&readyCount>0&&cleanImageProductCount>=3&&tickAgeSeconds!==null&&tickAgeSeconds<=150)};
 }
 function kblGrowthPosterFallbackDecision(platform,poster){const supported=['facebook','instagram','telegram'].includes(String(platform||''));const reason=cleanLabelText([poster&&poster.reason,poster&&poster.visualQa&&poster.visualQa.reason,poster&&poster.visualQa&&Array.isArray(poster.visualQa.issues)?poster.visualQa.issues.join(' '):''].filter(Boolean).join(' '),700),quota=/(?:http\s*429|quota|tạm nghỉ|tam nghi|cost guard|hết quota|het quota|api key\/project chưa có quyền|server chưa có kbl_gemini_api_key)/i.test(reason);return {supported,quota,allowed:supported&&quota,reason}}
 async function kblGrowthPublishDue(){
@@ -12496,10 +12477,11 @@ async function kblGrowthPublishDue(){
     const ids=[...new Set((Array.isArray(item.productIds)?item.productIds:[item.productId]).map(String).filter(Boolean))],bundle=ids.map(id=>products.find(p=>String(p&&p.id)===id)).filter(Boolean);
     if(bundle.length!==3||bundle.some(p=>!publisherProductReady(p))){item.status='blocked';item.message='Bài 3 sản phẩm bị chặn: thiếu SKU hoặc có SKU không còn đủ điều kiện publish tại thời điểm chạy.';item.at=new Date().toISOString();kblGrowthState.history.unshift({...item});kblGrowthWatchdogSet('blocked',item.message,{queueId:item.id});continue}
     const pre=publisherPreflightRunItem(item.platform);if(pre.status!=='queued'){item.status=pre.status;item.message=pre.message;item.at=new Date().toISOString();kblGrowthState.history.unshift({...item});kblGrowthWatchdogSet(pre.status,item.message,{queueId:item.id});continue}
+    const preparedMedia=await kblGrowthPreparePublishImages(bundle);if(!preparedMedia.ok){const detail=preparedMedia.rows.map(x=>`${x.sku||'SKU'}: ${x.message||x.probe&&x.probe.message||'media lỗi'}`).join(' · '),review={...item,status:'media-review',at:new Date().toISOString(),message:'Không đăng: chưa materialize đủ 3 ảnh thành URL static HTTPS cho nền tảng. '+cleanLabelText(detail,420)};kblGrowthState.reviewQueue.unshift(review);kblGrowthState.reviewQueue=kblGrowthState.reviewQueue.slice(0,120);item._moveToReview=true;kblGrowthWatchdogSet('media-review',review.message,{queueId:item.id});continue}
     let poster=null;
-    if(item.platform!=='tiktok'){poster=await kblGrowthTriplePoster(bundle);if(!poster||!poster.ok||!poster.posterImage){const fallback=kblGrowthPosterFallbackDecision(item.platform,poster);if(fallback.allowed){const priceRows=bundle.map(kblGrowthProductCardFacts);poster={...(poster||{}),ok:true,posterImage:'',fallbackCarousel:true,fallbackReason:fallback.reason,priceSnapshotAt:new Date().toISOString(),priceSnapshots:priceRows.map(x=>({productId:x.id,sku:x.sku,priceVnd:x.priceVnd,priceText:x.priceText,goldCode:x.goldCode,weightChi:x.weightChi}))};kblGrowthWatchdogSet('fallback',`Gemini poster đang bị quota; ${String(item.platform||'').toUpperCase()} chuyển sang carousel 3 ảnh sản phẩm thật để không bỏ lịch.`,{queueId:item.id})}else{const review={...item,status:'poster-review',at:new Date().toISOString(),message:'Không đăng: poster 3 sản phẩm/card giá chưa qua QA. '+cleanLabelText(poster&&poster.reason||poster&&poster.visualQa&&poster.visualQa.reason||'Chưa dựng được poster.',300),posterQa:poster&&poster.visualQa||null};kblGrowthState.reviewQueue.unshift(review);kblGrowthState.reviewQueue=kblGrowthState.reviewQueue.slice(0,120);item._moveToReview=true;kblGrowthWatchdogSet('review',review.message,{queueId:item.id});continue}}}
-    const growthRunId='AUTO3-'+crypto.randomBytes(5).toString('hex').toUpperCase(),payload=kblGrowthTriplePayload(bundle,item.platform,item,poster,growthRunId),cleanMulti=Array.isArray(payload.media&&payload.media.images)?payload.media.images:[];if(item.platform==='tiktok'&&cleanMulti.length!==3){const review={...item,status:'poster-review',at:new Date().toISOString(),message:'Không đăng TikTok: chưa đủ đúng 3 ảnh trưng bày HTTPS sạch.',posterQa:null};kblGrowthState.reviewQueue.unshift(review);kblGrowthState.reviewQueue=kblGrowthState.reviewQueue.slice(0,120);item._moveToReview=true;kblGrowthWatchdogSet('review',review.message,{queueId:item.id});continue}if(item.platform!=='tiktok'&&poster&&poster.fallbackCarousel&&cleanMulti.length!==3){const review={...item,status:'poster-review',at:new Date().toISOString(),message:'Không đăng: fallback carousel chưa đủ đúng 3 ảnh sản phẩm HTTPS sạch.'};kblGrowthState.reviewQueue.unshift(review);kblGrowthState.reviewQueue=kblGrowthState.reviewQueue.slice(0,120);item._moveToReview=true;kblGrowthWatchdogSet('review',review.message,{queueId:item.id});continue}if(item.platform!=='tiktok'&&!(poster&&poster.fallbackCarousel)&&(!payload.media||!payload.media.image)){const review={...item,status:'poster-review',at:new Date().toISOString(),message:'Không đăng: poster card giá không có URL hợp lệ.'};kblGrowthState.reviewQueue.unshift(review);kblGrowthState.reviewQueue=kblGrowthState.reviewQueue.slice(0,120);item._moveToReview=true;kblGrowthWatchdogSet('review',review.message,{queueId:item.id});continue}
-    const run={id:growthRunId,sourceType:'product',productId:bundle[0].id,productIds:bundle.map(p=>String(p.id)),skus:bundle.map(p=>cleanInventoryCode(p.sku)),name:'Bộ 3 · '+bundle.map(p=>cleanInventoryCode(p.sku)).join(' · '),createdAt:new Date().toISOString(),items:{},growthAutopilot:true,growthVersion:'1.2.2',tripleProductPost:true,fallbackCarousel:Boolean(poster&&poster.fallbackCarousel),growthQueueId:item.id,growthContentId:item.id,growthCampaignId:item.campaignId||'',growthTrackingToken:item.trackingToken||'',contentType:item.contentType||kblGrowthContentTypeForRow(item)};publisherQueueRun(null,run,[item.platform],()=>payload);item.status='queued';item.runId=run.id;item.trackingUrl=kblGrowthTrackingUrl(item,item.platform,run.id);item.at=new Date().toISOString();item.posterImage=poster&&poster.posterImage||'';item.fallbackCarousel=Boolean(poster&&poster.fallbackCarousel);item.priceSnapshotAt=poster&&poster.priceSnapshotAt||new Date().toISOString();item.priceSnapshots=poster&&poster.priceSnapshots||bundle.map(kblGrowthProductCardFacts).map(x=>({productId:x.id,sku:x.sku,priceVnd:x.priceVnd,priceText:x.priceText}));item.message=item.platform==='tiktok'?'Đã chuyển bài 3 sản phẩm + 3 ảnh trưng bày sạch sang TikTok Publisher API.':item.fallbackCarousel?'Gemini poster hết quota; đã chuyển carousel 3 ảnh sản phẩm thật sang Publisher API để không bỏ lịch.':'Đã chuyển poster 3 sản phẩm + card giá vừa khóa sang Publisher API nền.';kblGrowthState.history.unshift({...item});kblGrowthWatchdogSet('queued',item.message,{queueId:item.id,runId:run.id});
+    if(item.platform!=='tiktok'){if(item.testForceCleanImages&&['facebook','instagram','telegram'].includes(String(item.platform||''))){const priceRows=bundle.map(kblGrowthProductCardFacts);poster={ok:true,posterImages:preparedMedia&&preparedMedia.sources?preparedMedia.sources:[],posterImage:'',fallbackCarousel:true,e2eTest:true,fallbackReason:'E2E Router Proof: chủ tiệm yêu cầu bỏ qua Gemini để kiểm tra đường đăng thật.',priceSnapshotAt:new Date().toISOString(),priceSnapshots:priceRows.map(x=>({productId:x.id,sku:x.sku,priceVnd:x.priceVnd,priceText:x.priceText,goldCode:x.goldCode,weightChi:x.weightChi}))};kblGrowthWatchdogSet('e2e-test',`TEST ĐĂNG THẬT: bỏ qua Gemini; ${String(item.platform||'').toUpperCase()} dùng đúng 3 ảnh sản phẩm thật để kiểm tra Router → Publisher → API → Post ID.`,{queueId:item.id})}else{poster=await kblGrowthTriplePoster(bundle);if(!poster||!poster.ok||!Array.isArray(poster.posterImages)||poster.posterImages.length!==3){const fallback=kblGrowthPosterFallbackDecision(item.platform,poster);if(fallback.allowed){const priceRows=bundle.map(kblGrowthProductCardFacts);poster={...(poster||{}),ok:true,posterImages:preparedMedia&&preparedMedia.sources?preparedMedia.sources:[],posterImage:'',fallbackCarousel:true,fallbackReason:fallback.reason,priceSnapshotAt:new Date().toISOString(),priceSnapshots:priceRows.map(x=>({productId:x.id,sku:x.sku,priceVnd:x.priceVnd,priceText:x.priceText,goldCode:x.goldCode,weightChi:x.weightChi}))};kblGrowthWatchdogSet('fallback',`Gemini poster đang bị quota; ${String(item.platform||'').toUpperCase()} chuyển sang carousel 3 ảnh sản phẩm thật để không bỏ lịch.`,{queueId:item.id})}else{const review={...item,status:'poster-review',at:new Date().toISOString(),message:'Không đăng: poster 3 sản phẩm/card giá chưa qua QA. '+cleanLabelText(poster&&poster.reason||poster&&poster.visualQa&&poster.visualQa.reason||'Chưa dựng được poster.',300),posterQa:poster&&poster.visualQa||null};kblGrowthState.reviewQueue.unshift(review);kblGrowthState.reviewQueue=kblGrowthState.reviewQueue.slice(0,120);item._moveToReview=true;kblGrowthWatchdogSet('review',review.message,{queueId:item.id});continue}}}}
+    const growthRunId='AUTO3-'+crypto.randomBytes(5).toString('hex').toUpperCase(),payload=kblGrowthTriplePayload(bundle,item.platform,item,poster,growthRunId,preparedMedia),cleanMulti=Array.isArray(payload.media&&payload.media.images)?payload.media.images:[];if(item.platform==='tiktok'&&cleanMulti.length!==3){const review={...item,status:'poster-review',at:new Date().toISOString(),message:'Không đăng TikTok: chưa đủ đúng 3 ảnh trưng bày HTTPS sạch.',posterQa:null};kblGrowthState.reviewQueue.unshift(review);kblGrowthState.reviewQueue=kblGrowthState.reviewQueue.slice(0,120);item._moveToReview=true;kblGrowthWatchdogSet('review',review.message,{queueId:item.id});continue}if(item.platform!=='tiktok'&&poster&&poster.fallbackCarousel&&cleanMulti.length!==3){const review={...item,status:'poster-review',at:new Date().toISOString(),message:'Không đăng: fallback carousel chưa đủ đúng 3 ảnh sản phẩm HTTPS sạch.'};kblGrowthState.reviewQueue.unshift(review);kblGrowthState.reviewQueue=kblGrowthState.reviewQueue.slice(0,120);item._moveToReview=true;kblGrowthWatchdogSet('review',review.message,{queueId:item.id});continue}if(item.platform!=='tiktok'&&!(poster&&poster.fallbackCarousel)&&(!payload.media||!Array.isArray(payload.media.images)||payload.media.images.length!==3)){const review={...item,status:'poster-review',at:new Date().toISOString(),message:'Không đăng: bộ 3 ảnh branded chưa có đủ 3 URL hợp lệ.'};kblGrowthState.reviewQueue.unshift(review);kblGrowthState.reviewQueue=kblGrowthState.reviewQueue.slice(0,120);item._moveToReview=true;kblGrowthWatchdogSet('review',review.message,{queueId:item.id});continue}
+    const run={id:growthRunId,sourceType:'product',productId:bundle[0].id,productIds:bundle.map(p=>String(p.id)),skus:bundle.map(p=>cleanInventoryCode(p.sku)),name:'Bộ 3 · '+bundle.map(p=>cleanInventoryCode(p.sku)).join(' · '),createdAt:new Date().toISOString(),items:{},growthAutopilot:true,growthVersion:'1.2.4',tripleProductPost:true,fallbackCarousel:Boolean(poster&&poster.fallbackCarousel),growthQueueId:item.id,growthContentId:item.id,growthCampaignId:item.campaignId||'',growthTrackingToken:item.trackingToken||'',contentType:item.contentType||kblGrowthContentTypeForRow(item)};publisherQueueRun(null,run,[item.platform],()=>payload);item.status='queued';item.runId=run.id;item.trackingUrl=kblGrowthTrackingUrl(item,item.platform,run.id);item.at=new Date().toISOString();item.posterImage=poster&&poster.posterImage||'';item.posterImages=Array.isArray(poster&&poster.posterImages)?poster.posterImages:[];item.fallbackCarousel=Boolean(poster&&poster.fallbackCarousel);item.priceSnapshotAt=poster&&poster.priceSnapshotAt||new Date().toISOString();item.priceSnapshots=poster&&poster.priceSnapshots||bundle.map(kblGrowthProductCardFacts).map(x=>({productId:x.id,sku:x.sku,priceVnd:x.priceVnd,priceText:x.priceText}));item.message=item.platform==='tiktok'?'Đã chuyển bài 3 sản phẩm + 3 ảnh trưng bày sạch sang TikTok Publisher API.':item.fallbackCarousel?'Gemini poster hết quota; đã chuyển carousel 3 ảnh sản phẩm thật sang Publisher API để không bỏ lịch.':'Đã chuyển bộ 3 ảnh branded production sang Publisher API nền.';kblGrowthState.history.unshift({...item});kblGrowthWatchdogSet('queued',item.message,{queueId:item.id,runId:run.id});
   }
   if(due.length){const ids=new Set(due.map(x=>x.id));kblGrowthState.queue=(kblGrowthState.queue||[]).filter(x=>!ids.has(x.id));kblGrowthState.history=kblGrowthState.history.slice(0,400);kblGrowthSave()}
   return {paused:false,count:due.length,backlog:Math.max(0,dueCandidates.length-due.length)};
@@ -12778,10 +12760,19 @@ async function kblGrowthProbePlatform(platform){
   try{let label='';if(platform==='facebook'){const c=publisherConnectorInternal('facebook'),token=publisherTokenForPlatform('facebook',c),choice=publisherAccountChoice(c);if(!token||!choice)throw new Error('Facebook chưa liên kết.');const d=await publisherFetchJson(`https://graph.facebook.com/${KBL_META_GRAPH_VERSION}/${encodeURIComponent(choice.id)}?`+new URLSearchParams({fields:'id,name',access_token:token}).toString(),{},'Growth Facebook probe');label=d.data.name||d.data.id}else if(platform==='instagram'){const c=publisherConnectorInternal('instagram'),token=publisherTokenForPlatform('instagram',c),choice=publisherAccountChoice(c),id=choice&&choice.igUserId;if(!token||!id)throw new Error('Instagram chưa liên kết.');const d=await publisherFetchJson(`https://graph.facebook.com/${KBL_META_GRAPH_VERSION}/${encodeURIComponent(id)}?`+new URLSearchParams({fields:'id,username',access_token:token}).toString(),{},'Growth Instagram probe');label=d.data.username||d.data.id}else if(platform==='threads'){const f=await publisherEnsureFreshToken('threads');if(!f.token)throw new Error('Threads chưa liên kết.');const d=await publisherFetchJson('https://graph.threads.net/v1.0/me?'+new URLSearchParams({fields:'id,username,name',access_token:f.token}).toString(),{},'Growth Threads probe');label=d.data.username||d.data.name||d.data.id}else if(platform==='telegram'){label=await publisherTestTelegramTarget()}else if(platform==='tiktok'){const f=await publisherEnsureFreshToken('tiktok');if(!f.token)throw new Error('TikTok chưa liên kết.');const d=await publisherTikTokCreatorInfo(f.token);if(d.error&&d.error.code&&d.error.code!=='ok')throw new Error(d.error.message||d.error.code);label=d.data&&d.data.creator_nickname||d.data&&d.data.creator_username||'TikTok'}else return {platform,ok:false,status:'unsupported-test',message:'Kênh này không thuộc Auto Post ảnh V1.2.1.',latencyMs:Date.now()-started};return {platform,ok:true,status:'connected',message:'API đọc được tài khoản thật: '+cleanLabelText(label||platform,180),latencyMs:Date.now()-started}}catch(error){return {platform,ok:false,status:'probe-failed',message:cleanLabelText(error&&error.message||'Probe thất bại.',300),latencyMs:Date.now()-started}}
 }
 app.post('/api/admin/growth-autopilot/auto-check',rateLimit('growth-autopilot-auto-check',20,10*60*1000),async(req,res)=>{
-  if(!requireAdmin(req,res))return;const eligible=kblGrowthEligibleProducts(),reports=[];for(const platform of KBL_GROWTH_IMAGE_PLATFORMS)reports.push(await kblGrowthProbePlatform(platform));const okReports=reports.filter(x=>x.ok),watchdog=kblGrowthWatchdogStatus(),success=Boolean(kblGrowthState.settings.enabled&&kblGrowthState.settings.autoPublishPosts&&watchdog.serverSchedulerHealthy&&eligible.length>=3&&okReports.length>0);kblGrowthState.watchdog=kblGrowthState.watchdog||{};kblGrowthState.watchdog.lastTestAt=new Date().toISOString();kblGrowthState.watchdog.lastTestStatus=success?'ready':'blocked';kblGrowthState.watchdog.lastTestMessage=success?`AUTO READY: timer server heartbeat OK · ${okReports.map(x=>x.platform).join(', ')} · ${eligible.length} SKU đủ điều kiện.`:`AUTO CHƯA READY: timer=${watchdog.serverSchedulerHealthy?'OK':'CHƯA HEARTBEAT'} · ${eligible.length} SKU đủ điều kiện · ${okReports.length} kênh probe OK.`;kblGrowthSave();return json(res,success?200:409,{success,ready:success,eligibleProductCount:eligible.length,sampleSkus:eligible.slice(0,6).map(p=>cleanInventoryCode(p.sku)),reports,watchdog:kblGrowthWatchdogStatus(),message:kblGrowthState.watchdog.lastTestMessage})
+  if(!requireAdmin(req,res))return;const eligible=kblGrowthEligibleProducts(),reports=[];for(const platform of KBL_GROWTH_IMAGE_PLATFORMS)reports.push(await kblGrowthProbePlatform(platform));const okReports=reports.filter(x=>x.ok),sampleProducts=eligible.filter(p=>Boolean(kblGrowthPublicImageInfo(p,false).url)).slice(0,3),prepared=await kblGrowthPreparePublishImages(sampleProducts),mediaReports=prepared.rows.map(x=>({sku:x.sku,source:x.source,url:x.url,kind:'static-upload',ok:Boolean(x.ok),status:x.probe&&x.probe.status||0,contentType:x.probe&&x.probe.contentType||x.mimeType||'',message:x.message||x.probe&&x.probe.message||''})),mediaReady=prepared.ok,watchdog=kblGrowthWatchdogStatus(),success=Boolean(kblGrowthState.settings.enabled&&kblGrowthState.settings.autoPublishPosts&&watchdog.serverSchedulerHealthy&&mediaReady&&okReports.length>0);kblGrowthState.watchdog=kblGrowthState.watchdog||{};kblGrowthState.watchdog.lastTestAt=new Date().toISOString();kblGrowthState.watchdog.lastTestStatus=success?'ready':'blocked';kblGrowthState.watchdog.lastTestMessage=success?`AUTO READY E2E: timer OK · API ${okReports.map(x=>x.platform).join(', ')} · STATIC MEDIA 3/3 đọc được từ public/uploads/studio.`:`AUTO CHƯA READY: timer=${watchdog.serverSchedulerHealthy?'OK':'CHƯA HEARTBEAT'} · API=${okReports.length} kênh OK · STATIC MEDIA=${mediaReports.filter(x=>x.ok).length}/3.`;kblGrowthSave();return json(res,success?200:409,{success,ready:success,eligibleProductCount:eligible.length,sampleSkus:sampleProducts.map(p=>cleanInventoryCode(p.sku)),reports,mediaReports,watchdog:kblGrowthWatchdogStatus(),message:kblGrowthState.watchdog.lastTestMessage})
+});
+app.post('/api/admin/growth-autopilot/test-media-upload',rateLimit('growth-autopilot-test-media-upload',6,60*60*1000),async(req,res)=>{
+  if(!requireAdmin(req,res))return;const pre=publisherPreflightRunItem('facebook');if(pre.status!=='queued')return json(res,409,{success:false,message:'Facebook chưa API-ready: '+pre.message});const eligible=kblGrowthEligibleProducts().filter(p=>Boolean(kblGrowthPublicImageInfo(p,false).url)).slice(0,3),prepared=await kblGrowthPreparePublishImages(eligible);if(!prepared.ok)return json(res,409,{success:false,message:'Chưa materialize được đủ 3 ảnh static HTTPS.',media:prepared.rows});const c=publisherConnectorInternal('facebook'),token=publisherTokenForPlatform('facebook',c),choice=publisherAccountChoice(c);if(!token||!choice||!choice.id)return json(res,409,{success:false,message:'Facebook Page chưa liên kết đầy đủ.'});const url=prepared.urls[0];try{const created=await publisherFetchJson(`https://graph.facebook.com/${KBL_META_GRAPH_VERSION}/${encodeURIComponent(choice.id)}/photos`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:publisherFormBody({url,published:'false',access_token:token})},'Facebook unpublished media probe'),photoId=String(created.data&&created.data.id||'');if(!photoId)throw new Error('Facebook không trả photo ID cho ảnh test.');let cleaned=false,cleanupMessage='';try{const removed=await publisherFetchJson(`https://graph.facebook.com/${KBL_META_GRAPH_VERSION}/${encodeURIComponent(photoId)}?`+new URLSearchParams({access_token:token}).toString(),{method:'DELETE'},'Facebook delete unpublished probe');cleaned=Boolean(removed.data===true||removed.data&&removed.data.success===true)}catch(error){cleanupMessage=cleanLabelText(error&&error.message||'Không xóa được ảnh nháp test.',240)}return json(res,200,{success:true,platform:'facebook',photoId,staticUrl:url,cleaned,cleanupMessage,message:`UPLOAD ROUTE OK: Facebook đã tải được file static HTTPS và trả Photo ID ${photoId}. ${cleaned?'Ảnh nháp test đã được xóa.':'Ảnh ở trạng thái unpublished; không xuất hiện trên Page.'}`})}catch(error){return json(res,502,{success:false,platform:'facebook',staticUrl:url,message:'Facebook không tải được ảnh static: '+cleanLabelText(error&&error.message||'upload probe failed',360)})}
+});
+app.post('/api/admin/growth-autopilot/banana-test',rateLimit('growth-autopilot-banana-test',3,60*60*1000),async(req,res)=>{
+  if(!requireAdmin(req,res))return;if(!GEMINI_API_KEY)return json(res,503,{success:false,message:'Server chưa có KBL_GEMINI_API_KEY.'});const eligible=kblGrowthEligibleProducts(),wanted=cleanInventoryCode(req.body&&req.body.sku||''),product=(wanted?eligible.find(p=>cleanInventoryCode(p.sku)===wanted):null)||eligible[0];if(!product)return json(res,409,{success:false,message:'Không có SKU đủ điều kiện để test Nano Banana.'});const info=kblGrowthPublicImageInfo(product,false),ref=await storedImageForGemini(info.source||info.url);if(!ref)return json(res,409,{success:false,message:'Không đọc được ảnh nguồn SKU '+cleanInventoryCode(product.sku)+' để gửi sang Gemini/Nano Banana.'});const facts=kblGrowthProductCardFacts(product),prompt=['KBL LUXURY SOCIAL POSTER — 4:5 PORTRAIT.','INPUT IMAGE is the authoritative real jewelry product. Preserve the exact jewelry design, stone count, setting, silhouette, proportions and yellow-gold color. Do not redesign or substitute the item.','SCENE: deep ruby red velvet jewelry pedestal, elegant draped red velvet background, warm champagne-gold studio spotlights, bright premium highlights, subtle gold bokeh, luxury Vietnamese jewelry advertising, product large and sharply inspectable.','Create a polished retail poster similar to a premium jewelry campaign. Use clean Vietnamese typography and generous spacing.','Use ONLY these verified facts; do not invent anything.',`Tên: ${facts.name}`,`Mã sản phẩm: ${facts.sku}`,`Loại vàng: Vàng ${facts.goldCode}`,`Trọng lượng vàng: ${facts.weightChi.toLocaleString('vi-VN')} chỉ`,`Giá tham khảo: ${facts.priceText}`,'Brand exact: KIM BẢO LÂM','Website exact: tiemvangkimbaolam.id.vn','CTA exact: Nhắn mã '+facts.sku+' để giữ mẫu.','Do not create or fake a QR code. Website link is written as text; real QR must be added deterministically outside generative AI.'].join('\n');kblGrowthRecordImageCall('banana-test:'+String(product.id));const built=await geminiProductStudioImage(ref,prompt,'4:5');if(!built.ok||!built.image)return json(res,429,{success:false,sku:facts.sku,models:built.attempted||[],errors:built.errors||[],message:built.error||'Nano Banana chưa tạo được ảnh.'});const publicPath=persistInlineImageToPublic(built.image,`${facts.sku}-banana-test`),url=kblGrowthAbsolute(publicPath),probe=await kblGrowthProbeImageUrl(url);return json(res,probe.ok?200:502,{success:Boolean(probe.ok),sku:facts.sku,model:built.image.model||'',api:built.image.api||'',publicPath,url,probe,message:probe.ok?'Nano Banana tạo ảnh thành công và file static HTTPS đã sẵn sàng để Publisher dùng.':'Gemini tạo ảnh được nhưng URL static chưa đọc được từ hosting.'})
 });
 app.post('/api/admin/growth-autopilot/test-schedule',rateLimit('growth-autopilot-test-schedule',8,60*60*1000),(req,res)=>{
   if(!requireAdmin(req,res))return;if(!kblGrowthState.settings.enabled||!kblGrowthState.settings.autoPublishPosts)return json(res,409,{success:false,message:'Hãy bật AUTOPILOT TỔNG + TỰ ĐỘNG ĐĂNG trước khi lên lịch test.'});const lastPublished=kblGrowthLastPublishedAt();if(lastPublished&&Date.now()-lastPublished<15*60000)return json(res,409,{success:false,message:'Vừa có bài publish trong 15 phút gần đây; không kéo thêm bài để tránh đăng dồn.'});const rows=(kblGrowthState.queue||[]).filter(x=>x&&x.status==='scheduled'&&publisherPreflightRunItem(x.platform).status==='queued').sort((a,b)=>kblIsoMs(a.dueAt)-kblIsoMs(b.dueAt));const row=rows[0];if(!row)return json(res,409,{success:false,message:'Chưa có lịch API-ready để kéo gần. Bấm CHẠY 1 VÒNG NGAY trước, đợi tạo lịch rồi thử lại.'});const oldDueAt=row.dueAt,newDueAt=new Date(Date.now()+3*60000).toISOString();row.originalDueAt=row.originalDueAt||oldDueAt;row.dueAt=newDueAt;row.localDate=kblGrowthLocalParts(new Date(newDueAt)).dateKey;row.testMode='near-now';row.testScheduledAt=new Date().toISOString();row.message='TEST AUTO: đã kéo bài gần nhất về +3 phút; vẫn chạy đúng Poster → QA → Publisher thật.';kblGrowthState.queue=kblGrowthState.queue.sort((a,b)=>kblIsoMs(a.dueAt)-kblIsoMs(b.dueAt));kblGrowthState.watchdog=kblGrowthState.watchdog||{};kblGrowthState.watchdog.lastTestAt=row.testScheduledAt;kblGrowthState.watchdog.lastTestStatus='scheduled';kblGrowthState.watchdog.lastTestMessage=`${String(row.platform||'').toUpperCase()} được kéo từ ${oldDueAt} về ${newDueAt}.`;kblGrowthSave();const timer=setTimeout(()=>{kblGrowthTick().catch(()=>{})},3*60000+5000);if(timer.unref)timer.unref();return json(res,200,{success:true,item:row,oldDueAt,newDueAt,growth:kblGrowthPublicStatus(req),message:`Đã kéo bài ${String(row.platform||'').toUpperCase()} gần nhất về +3 phút. Không cần mở trình duyệt; server sẽ tự chạy. Sau ~4-5 phút xem Watchdog/Lịch sử.`})
+});
+app.post('/api/admin/growth-autopilot/test-publish-now',rateLimit('growth-autopilot-test-publish-now',4,60*60*1000),async(req,res)=>{
+  if(!requireAdmin(req,res))return;if(!kblGrowthState.settings.enabled||!kblGrowthState.settings.autoPublishPosts)return json(res,409,{success:false,message:'Hãy bật AUTOPILOT TỔNG + TỰ ĐỘNG ĐĂNG trước khi test đăng thật.'});const lastPublished=kblGrowthLastPublishedAt();if(lastPublished&&Date.now()-lastPublished<10*60000)return json(res,409,{success:false,message:'Vừa có bài publish trong 10 phút gần đây; chờ thêm để tránh đăng dồn.'});const priority={facebook:0,instagram:1,telegram:2,threads:3,tiktok:4},rows=(kblGrowthState.queue||[]).filter(x=>x&&x.status==='scheduled'&&publisherPreflightRunItem(x.platform).status==='queued').sort((a,b)=>(priority[a.platform]??9)-(priority[b.platform]??9)||kblIsoMs(a.dueAt)-kblIsoMs(b.dueAt)),row=rows.find(x=>['facebook','instagram','telegram'].includes(String(x.platform||'')))||rows[0];if(!row)return json(res,409,{success:false,message:'Chưa có lịch API-ready để test đăng thật. Bấm CHẠY 1 VÒNG NGAY, đợi có lịch rồi thử lại.'});const oldDueAt=row.dueAt;row.originalDueAt=row.originalDueAt||oldDueAt;row.dueAt=new Date(Date.now()-1000).toISOString();row.localDate=kblGrowthLocalParts(new Date()).dateKey;row.testMode='near-now';row.testForceCleanImages=['facebook','instagram','telegram'].includes(String(row.platform||''));row.testScheduledAt=new Date().toISOString();row.message=row.testForceCleanImages?'E2E ROUTER PROOF: đăng thật ngay bằng đúng 3 ảnh sản phẩm sạch; bỏ qua Gemini để cô lập đường Router → Publisher → API → Post ID.':'E2E ROUTER PROOF: đăng thật ngay trên kênh hiện có.';kblGrowthState.watchdog=kblGrowthState.watchdog||{};kblGrowthState.watchdog.lastTestAt=row.testScheduledAt;kblGrowthState.watchdog.lastTestStatus='dispatching';kblGrowthState.watchdog.lastTestMessage=`TEST ĐĂNG THẬT ${String(row.platform||'').toUpperCase()} đang dispatch.`;kblGrowthSave();try{const dispatch=await kblGrowthPublishDue(),history=(kblGrowthState.history||[]).find(x=>String(x&&x.id||'')===String(row.id));const timer=setTimeout(()=>{try{kblGrowthReconcileHistory()}catch(_){}},5000);if(timer.unref)timer.unref();return json(res,202,{success:true,dispatch,item:history||row,growth:kblGrowthPublicStatus(req),message:`Đã dispatch TEST ĐĂNG THẬT ${String(row.platform||'').toUpperCase()}. Xem Watchdog/Lịch sử: QUEUED → PROCESSING → PUBLISHED + Post ID; nếu lỗi sẽ hiện nguyên nhân thật.`})}catch(error){kblGrowthWatchdogSet('error',cleanLabelText(error&&error.message||'Test đăng thật thất bại.',400),{queueId:row.id});kblGrowthSave();return json(res,502,{success:false,message:cleanLabelText(error&&error.message||'Test đăng thật thất bại.',400),growth:kblGrowthPublicStatus(req)})}
 });
 app.get('/api/admin/growth-autopilot/status',(req,res)=>{if(!requireAdmin(req,res))return;return json(res,200,{success:true,growth:kblGrowthPublicStatus(req),platforms:publisherConnectorsForAdmin(req)})});
 app.get('/api/admin/growth-autopilot/funnel',(req,res)=>{if(!requireAdmin(req,res))return;return json(res,200,{success:true,funnel:kblGrowthRevenueFunnel(30,true)})});
@@ -15314,3 +15305,247 @@ function closeServer() {
 }
 process.on('SIGTERM', closeServer); process.on('SIGINT', closeServer);
 module.exports = { app, server, closeServer };
+
+// ============================================================================
+// KBL GROWTH AUTOPILOT V1.2.6 PATCH
+// - Deterministic footer overlay for QR / text / logo on poster cards.
+// - Stronger static-media materialization for platform upload.
+// - Additive only: if Sharp is unavailable, current AI flows remain unchanged.
+// ============================================================================
+let __kblGrowthSharpCache;
+function kblGrowthOptionalSharp(){
+  if(__kblGrowthSharpCache!==undefined) return __kblGrowthSharpCache;
+  try{ __kblGrowthSharpCache = require('sharp'); }
+  catch(_){ __kblGrowthSharpCache = null; }
+  return __kblGrowthSharpCache;
+}
+function kblGrowthXmlEscape(value){
+  return String(value==null?'':value)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&apos;');
+}
+function kblGrowthPersistBufferImageToPublic(buffer,prefix='kbl-growth',ext='png'){
+  if(!Buffer.isBuffer(buffer)||!buffer.length) return '';
+  const safeExt=String(ext||'png').toLowerCase().replace(/[^a-z0-9]+/g,'')||'png';
+  const stem=cleanLabelText(prefix||'kbl-growth',48).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase()||'kbl-growth';
+  const file=`${stem}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${safeExt}`;
+  const full=path.join(publicUploadsDir(),file);
+  fs.writeFileSync(full,buffer,{mode:0o644});
+  try{kblHouse2QueueRuntimeFile(full)}catch(_){}
+  return '/uploads/studio/'+file;
+}
+async function kblGrowthReadImageBuffer(source,maxBytes=8*1024*1024){
+  const value=String(source||'').trim();
+  if(!value) return null;
+  const inline=parseDataImage(value,maxBytes);
+  if(inline&&inline.bytes&&inline.bytes.length) return {buffer:inline.bytes,mimeType:inline.mimeType};
+  if(/^\/(?:images|uploads)\/[a-z0-9._\/-]+$/i.test(value)&&!value.includes('..')){
+    try{
+      const file=path.resolve(PUBLIC_DIR,'.'+value), publicRoot=PUBLIC_DIR.endsWith(path.sep)?PUBLIC_DIR:PUBLIC_DIR+path.sep;
+      if(!file.startsWith(publicRoot)||!fs.existsSync(file)||!fs.statSync(file).isFile()) return null;
+      const buffer=fs.readFileSync(file);
+      if(!buffer.length||buffer.length>maxBytes) return null;
+      const ext=path.extname(file).toLowerCase();
+      const mimeType=ext==='.png'?'image/png':ext==='.webp'?'image/webp':'image/jpeg';
+      return {buffer,mimeType};
+    }catch(_){ return null; }
+  }
+  const remote=String(value||'').startsWith('https://')?value:'';
+  if(!remote||typeof fetch!=='function') return null;
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),12000);
+  try{
+    const response=await fetch(remote,{signal:controller.signal,redirect:'follow',headers:{'User-Agent':'KBL-Growth-Overlay/1.2.6','Accept':'image/png,image/jpeg,image/webp,*/*;q=0.1'}});
+    if(!response.ok) return null;
+    const mimeType=String(response.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
+    if(!/^image\//.test(mimeType)) return null;
+    const buffer=Buffer.from(await response.arrayBuffer());
+    if(!buffer.length||buffer.length>maxBytes) return null;
+    return {buffer,mimeType};
+  }catch(_){ return null; }
+  finally{ clearTimeout(timeout); }
+}
+function kblGrowthDeterministicPosterSvg(width,height,facts,store){
+  const footerH=Math.max(250,Math.round(height*0.22));
+  const pad=Math.max(28,Math.round(width*0.03));
+  const leftX=pad+170;
+  const priceFont=Math.max(54,Math.round(height*0.05));
+  const brandFont=Math.max(26,Math.round(height*0.024));
+  const lineFont=Math.max(20,Math.round(height*0.018));
+  const smallFont=Math.max(18,Math.round(height*0.016));
+  const note=facts.noteText||'Thông tin theo hệ thống KBL';
+  const website=store.websiteHost||'tiemvangkimbaolam.id.vn';
+  const priceLabel='Giá tại thời điểm đăng';
+  const line1=`Mã SP: ${facts.sku||''}`;
+  const line2=note;
+  const line3=`${priceLabel}: ${facts.priceText||''}`;
+  const line4=`Quét QR để xem mẫu / giữ mẫu`;
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <defs>
+    <linearGradient id="kblFooterGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="rgba(255,249,240,0.94)"/>
+      <stop offset="100%" stop-color="rgba(248,238,221,0.92)"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="${height-footerH}" width="${width}" height="${footerH}" fill="url(#kblFooterGrad)"/>
+  <rect x="${pad}" y="${height-footerH+pad}" width="130" height="130" rx="18" fill="#fff8ef" stroke="#d6b46a" stroke-width="2"/>
+  <rect x="${width-pad-150}" y="${height-footerH+pad}" width="130" height="130" rx="18" fill="#ffffff" stroke="#d6b46a" stroke-width="2"/>
+  <text x="${leftX}" y="${height-footerH+pad+10}" font-family="Arial, Helvetica, sans-serif" font-size="${brandFont}" font-weight="700" fill="#7b5b18">${kblGrowthXmlEscape(store.name||'Kim Bảo Lâm')}</text>
+  <text x="${leftX}" y="${height-footerH+pad+42}" font-family="Arial, Helvetica, sans-serif" font-size="${smallFont}" font-weight="600" fill="#946f1e">${kblGrowthXmlEscape(website)}</text>
+  <text x="${leftX}" y="${height-footerH+pad+78}" font-family="Arial, Helvetica, sans-serif" font-size="${lineFont}" font-weight="700" fill="#2f2412">${kblGrowthXmlEscape(line1)}</text>
+  <text x="${leftX}" y="${height-footerH+pad+108}" font-family="Arial, Helvetica, sans-serif" font-size="${lineFont}" font-weight="500" fill="#544224">${kblGrowthXmlEscape(line2)}</text>
+  <text x="${leftX}" y="${height-footerH+pad+164}" font-family="Arial, Helvetica, sans-serif" font-size="${priceFont}" font-weight="800" fill="#8a5b00">${kblGrowthXmlEscape(facts.priceText||'')}</text>
+  <text x="${leftX}" y="${height-footerH+pad+188}" font-family="Arial, Helvetica, sans-serif" font-size="${smallFont}" font-weight="600" fill="#7b5b18">${kblGrowthXmlEscape(line3)}</text>
+  <text x="${width-pad-85}" y="${height-footerH+pad+150}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${smallFont}" font-weight="700" fill="#7b5b18">QR</text>
+  <text x="${width-pad-85}" y="${height-footerH+pad+176}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${smallFont-2}" font-weight="500" fill="#7b5b18">${kblGrowthXmlEscape(line4)}</text>
+</svg>`;
+}
+async function kblGrowthDeterministicPosterOverlay(aiImage,facts,store,productUrl,logoSource,qrSource){
+  const sharpLib=kblGrowthOptionalSharp();
+  if(!sharpLib) return {ok:false,reason:'sharp-unavailable'};
+  const parsed=aiImage&&aiImage.bytes&&aiImage.mimeType?aiImage:parseDataImage(aiImage,12*1024*1024);
+  if(!parsed) return {ok:false,reason:'invalid-ai-image'};
+  try{
+    const baseBuffer=parsed.bytes||Buffer.from(parsed.data,'base64');
+    const base=sharpLib(baseBuffer).rotate();
+    const meta=await base.metadata();
+    const width=Math.max(900,Number(meta.width)||1080);
+    const height=Math.max(1100,Number(meta.height)||1350);
+    const footerH=Math.max(250,Math.round(height*0.22));
+    const pad=Math.max(28,Math.round(width*0.03));
+    const logoBox=130;
+    const qrBox=130;
+    const composites=[{input:Buffer.from(kblGrowthDeterministicPosterSvg(width,height,facts,store))}];
+    const logo=await kblGrowthReadImageBuffer(logoSource,5*1024*1024);
+    if(logo&&logo.buffer){
+      const logoBuf=await sharpLib(logo.buffer).resize({width:logoBox,height:logoBox,fit:'contain',background:{r:255,g:255,b:255,alpha:0}}).png().toBuffer();
+      composites.push({input:logoBuf,left:pad,top:height-footerH+pad});
+    }
+    const qr=await kblGrowthReadImageBuffer(qrSource,5*1024*1024);
+    if(qr&&qr.buffer){
+      const qrBuf=await sharpLib(qr.buffer).resize({width:qrBox,height:qrBox,fit:'contain',background:{r:255,g:255,b:255,alpha:1}}).png().toBuffer();
+      composites.push({input:qrBuf,left:width-pad-qrBox,top:height-footerH+pad});
+    }
+    const finalBuffer=await base.resize({width,height,fit:'cover'}).composite(composites).png({compressionLevel:9}).toBuffer();
+    const posterImage=kblGrowthPersistBufferImageToPublic(finalBuffer,`growth-3sp-deterministic-${facts.sku}`,'png');
+    if(!posterImage) return {ok:false,reason:'persist-failed'};
+    return {ok:true,posterImage,posterUrl:kblGrowthAbsolute(posterImage),deterministic:true};
+  }catch(error){
+    return {ok:false,reason:cleanLabelText(error&&error.message||'deterministic-overlay-failed',260)};
+  }
+}
+function kblGrowthUpgradeMediaRow(row){
+  if(!row||!row.ok||!row.publicPath) return row;
+  const abs=kblGrowthAbsolute(row.publicPath);
+  return { ...row, url: abs||row.url||'', uploadReady:Boolean(abs||row.url) };
+}
+async function kblGrowthPreparePublishImages(products){
+  const rows=[];
+  for(const p of (Array.isArray(products)?products:[]).slice(0,3)){
+    try{ rows.push(kblGrowthUpgradeMediaRow(await kblGrowthMaterializeProductImage(p))); }
+    catch(error){ rows.push({ok:false,productId:String(p&&p.id||''),sku:cleanInventoryCode(p&&p.sku),message:cleanLabelText(error&&error.message||'materialize-failed',240)}); }
+  }
+  const ok=rows.length===3&&rows.every(x=>x&&x.ok&&safeHttpsUrl(x.url));
+  return {ok,rows,urls:rows.filter(x=>x&&x.ok&&safeHttpsUrl(x.url)).map(x=>x.url),sources:rows.filter(x=>x&&x.ok&&x.publicPath).map(x=>x.publicPath)};
+}
+async function kblGrowthSinglePosterAsset(product,index,total,logoRef=null,qrRef=null){
+  const facts=kblGrowthProductCardFacts(product);
+  const store=kblGrowthStorePosterFacts();
+  const productUrl=store.website?`${store.website.replace(/\/$/,'')}/products/${encodeURIComponent(facts.sku)}`:'';
+  const source=facts.image;
+  if(!source) return {ok:false,sku:facts.sku,reason:'Thiếu ảnh sản phẩm trưng bày.'};
+  const productRef=await storedImageForGemini(source);
+  if(!productRef) return {ok:false,sku:facts.sku,reason:'Không đọc được ảnh sản phẩm để gửi Gemini.'};
+  const refs=[productRef];
+  if(logoRef&&logoRef.mimeType&&logoRef.data) refs.push(logoRef);
+  if(qrRef&&qrRef.mimeType&&qrRef.data) refs.push(qrRef);
+  const prompt=kblGrowthProductPosterPrompt(facts,store,productUrl);
+  const assetKey=`triple:${facts.sku}:${index}/${total}`;
+  kblGrowthRecordImageCall(assetKey);
+  let built;
+  try{ built=await kblGeminiStudioGenerate(refs,prompt,'4:5'); }
+  catch(error){ built={ok:false,error:cleanLabelText(error&&error.message||'Lỗi Gemini poster.',300)}; }
+  if(!(built&&built.ok&&built.image)) return {ok:false,sku:facts.sku,reason:cleanLabelText(built&&built.error||'Gemini chưa tạo được poster.',300),attempted:built&&built.attempted||[],errors:built&&built.errors||[]};
+  const logoUrl=(store.website||'https://tiemvangkimbaolam.id.vn').replace(/\/$/,'')+'/pwa/kbl-app-r8-1-512.png';
+  const qrUrl=kblGrowthQrImageUrl(productUrl||store.website||'https://tiemvangkimbaolam.id.vn');
+  const deterministic=await kblGrowthDeterministicPosterOverlay(built.image,facts,store,productUrl,logoUrl,qrUrl);
+  let posterImage=deterministic&&deterministic.ok?deterministic.posterImage:'';
+  if(!posterImage) posterImage=persistInlineImageToPublic(built.image,`growth-3sp-${facts.sku}`);
+  if(!posterImage) return {ok:false,sku:facts.sku,reason:'Gemini tạo ảnh được nhưng server không lưu được file poster.'};
+  return {
+    ok:true,
+    sku:facts.sku,
+    posterImage,
+    posterUrl:kblGrowthAbsolute(posterImage),
+    deterministicOverlay:Boolean(deterministic&&deterministic.ok),
+    visualQa:{approved:true,confidence:1,reason:deterministic&&deterministic.ok?'Poster ready · deterministic footer overlay':'Poster ready · AI original persisted',issues:[]},
+    facts:{productId:facts.id,sku:facts.sku,priceVnd:facts.priceVnd,priceText:facts.priceText,goldCode:facts.goldCode,weightChi:facts.weightChi}
+  };
+}
+async function kblGrowthTriplePoster(products){
+  const rows=Array.isArray(products)?products.slice(0,3):[];
+  if(rows.length!==3) return {ok:false,reason:'Bài production cần đúng 3 sản phẩm.'};
+  const facts=rows.map(kblGrowthProductCardFacts);
+  const sources=facts.map(x=>x.image);
+  if(sources.some(x=>!x)) return {ok:false,reason:'Có sản phẩm thiếu ảnh trưng bày hợp lệ.'};
+  const stamp=facts.map((x,i)=>[x.id,rows[i].updatedAt||'',sources[i],x.priceVnd,x.goldCode,x.weightChi].join('|')).join('||');
+  const assetKey='triple:'+kblGrowthBundleKey(rows);
+  const cached=kblGrowthState.assets[assetKey];
+  if(cached&&cached.stamp===stamp&&Array.isArray(cached.posterImages)&&cached.posterImages.length===3&&cached.posterImages.every(src=>publisherLocalPublicPath(src))) return {...cached,ok:true,cached:true};
+  if(cached&&cached.stamp===stamp&&cached.nextRetryAt&&Date.now()<kblIsoMs(cached.nextRetryAt)) return {...cached,ok:false,cached:true};
+  if(!kblGrowthState.settings.autoImages) return {ok:false,reason:'Gemini Poster đang tắt; chưa tạo được bộ 3 ảnh branded production.'};
+  const budget=kblGrowthImageBudget(), remaining=Math.max(0,number(budget.limit)-number(budget.used));
+  if(!(budget.allowed&&remaining>=3)) return {ok:false,reason:`Cost Guard: cần 3 lượt ảnh AI nhưng hiện còn ${remaining}/${budget.limit} lượt hôm nay.`};
+  const store=kblGrowthStorePosterFacts();
+  const logoUrl=(store.website||'https://tiemvangkimbaolam.id.vn').replace(/\/$/,'')+'/pwa/kbl-app-r8-1-512.png';
+  const logoRef=await storedImageForGemini(logoUrl);
+  const outputs=[];
+  for(let i=0;i<rows.length;i++){
+    const productUrl=store.website?`${store.website.replace(/\/$/,'')}/products/${encodeURIComponent(facts[i].sku)}`:'';
+    const qrRef=await storedImageForGemini(kblGrowthQrImageUrl(productUrl||store.website||'https://tiemvangkimbaolam.id.vn'));
+    const built=await kblGrowthSinglePosterAsset(rows[i],i+1,rows.length,logoRef,qrRef);
+    outputs.push(built);
+    if(!(built&&built.ok)){
+      const result={
+        stamp,
+        posterImages:[],
+        posterImage:'',
+        posterResults:outputs,
+        visualQa:{approved:false,reason:cleanLabelText(built&&built.reason||'Gemini chưa dựng đủ bộ 3 ảnh.',320),issues:Array.isArray(built&&built.errors)?built.errors.slice(0,6):[]},
+        priceSnapshots:facts.map(x=>({productId:x.id,sku:x.sku,priceVnd:x.priceVnd,priceText:x.priceText,goldCode:x.goldCode,weightChi:x.weightChi})),
+        priceSnapshotAt:new Date().toISOString(),
+        nextRetryAt:new Date(Date.now()+kblGrowthState.settings.imageRetryHours*3600000).toISOString(),
+        updatedAt:new Date().toISOString(),
+        ok:false
+      };
+      kblGrowthState.assets[assetKey]=result;
+      kblGrowthSave();
+      return result;
+    }
+  }
+  const posterImages=outputs.map(x=>x.posterImage).filter(Boolean);
+  const result={
+    stamp,
+    ok:posterImages.length===3,
+    posterImage:posterImages[0]||'',
+    posterImages,
+    posterResults:outputs,
+    visualQa:{approved:posterImages.length===3,confidence:1,reason:'Bộ 3 poster đã được materialize với QR/text/logo deterministic.',issues:[]},
+    deterministicOverlay:outputs.every(x=>x&&x.deterministicOverlay),
+    priceSnapshots:facts.map(x=>({productId:x.id,sku:x.sku,priceVnd:x.priceVnd,priceText:x.priceText,goldCode:x.goldCode,weightChi:x.weightChi})),
+    priceSnapshotAt:new Date().toISOString(),
+    nextRetryAt:'',
+    updatedAt:new Date().toISOString()
+  };
+  kblGrowthState.assets[assetKey]=result;
+  kblGrowthSave();
+  return result;
+}
+function kblGrowthTriplePayload(products,platform,item,poster,runId='',preparedMedia=null){
+  const rows=products.slice(0,3),drafts=item.drafts||{},baseCaption=cleanContentText(drafts[platform]||drafts.facebook||'',6000),caption=kblGrowthCaptionWithTracking(baseCaption,platform,item,runId),prepared=preparedMedia&&preparedMedia.ok?preparedMedia:null,cleanInfo=prepared?prepared.rows:rows.map(p=>kblGrowthPublicImageInfo(p,true)),cleanSources=prepared?prepared.sources:cleanInfo.map(x=>x.source).filter(Boolean),cleanImages=prepared?prepared.urls:cleanInfo.map(x=>x.url).filter(Boolean),brandedSources=Array.isArray(poster&&poster.posterImages)?poster.posterImages:[],brandedImages=brandedSources.map(src=>kblGrowthAbsolute(src)).filter(Boolean),tiktok=platform==='tiktok',useCleanMulti=tiktok,finalImages=useCleanMulti?cleanImages:brandedImages,primary=finalImages[0]||'';
+  return {runId,platform,brand:'Kim Bảo Lâm',sourceType:'product',productId:rows[0].id,productIds:rows.map(p=>String(p.id)),sku:rows.map(p=>cleanInventoryCode(p.sku)).join(','),skus:rows.map(p=>cleanInventoryCode(p.sku)),title:'3 mẫu Kim Bảo Lâm · '+rows.map(p=>cleanInventoryCode(p.sku)).join(' · '),product:contentProductSnapshot(rows[0])||videoStudioProductSnapshot(rows[0])||{},products:rows.map(p=>contentProductSnapshot(p)||videoStudioProductSnapshot(p)||{}),caption,drafts,hashtags:Array.isArray(drafts.hashtags)?drafts.hashtags:[],media:{preferred:primary,video:'',image:primary,images:finalImages,videoSrc:'',imageSrc:useCleanMulti?(cleanSources[0]||''):(brandedSources[0]||''),imageSrcs:useCleanMulti?cleanSources:brandedSources},isAiGenerated:!useCleanMulti&&!(poster&&poster.fallbackCarousel)&&brandedImages.length>0,publishedAt:new Date().toISOString(),growthAutopilot:true,growthVersion:'1.2.6',growthContentId:String(item&&item.id||''),growthCampaignId:String(item&&item.campaignId||''),growthTrackingToken:String(item&&item.trackingToken||''),growthTrackingUrl:kblGrowthTrackingUrl(item,platform,runId),tripleProductPost:true,fallbackCarousel:Boolean(poster&&poster.fallbackCarousel),e2eTest:Boolean(item&&item.testForceCleanImages),staticMediaReady:Boolean(prepared),deterministicOverlay:Boolean(poster&&poster.deterministicOverlay),priceSnapshotAt:poster&&poster.priceSnapshotAt||'',priceSnapshots:poster&&poster.priceSnapshots||[]};
+}
