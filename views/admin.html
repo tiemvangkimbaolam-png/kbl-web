@@ -391,7 +391,7 @@
         <div class="sales-studio-shell-panel active" data-sales-studio-panel="video"><div id="sales-studio-root"></div></div>
         <div class="sales-studio-shell-panel" data-sales-studio-panel="image">
           <div class="sales-image-live-head">
-            <div><div class="cc-kicker">V1.3.1 · SALES STUDIO IMAGE AUTO PIPELINE</div><h3>🖼️ Hình ảnh &amp; nội dung · xem dây chuyền tự động</h3><p class="muted">Hệ thống tự quét cơ hội → khóa 3 SKU → AI duyệt ý tưởng → tạo trước 3 ảnh → AI Art Director duyệt → Fact/QR/HTTPS QA → READY → đến giờ tự đăng. Màn hình này chủ yếu để theo dõi, không cần bấm từng bước.</p></div>
+            <div><div class="cc-kicker">V1.3.2 · SALES STUDIO IMAGE LIVE BOOT FIX</div><h3>🖼️ Hình ảnh &amp; nội dung · xem dây chuyền tự động</h3><p class="muted">Hệ thống tự quét cơ hội → khóa 3 SKU → AI duyệt ý tưởng → tạo trước 3 ảnh → AI Art Director duyệt → Fact/QR/HTTPS QA → READY → đến giờ tự đăng. Màn hình này chủ yếu để theo dõi, không cần bấm từng bước.</p></div>
             <div class="sales-image-live-actions"><span class="sales-image-live-badge" id="sales-image-auto-badge">ĐANG TẢI</span><button class="btn-soft" id="sales-image-refresh" type="button">↻ LÀM MỚI</button></div>
           </div>
           <div class="sales-image-metrics" id="sales-image-metrics"><div class="sales-image-metric"><b>—</b><span>Campaign đang chạy</span></div><div class="sales-image-metric"><b>—</b><span>READY</span></div><div class="sales-image-metric"><b>—</b><span>Kênh API-ready</span></div><div class="sales-image-metric"><b>—</b><span>Scheduler</span></div></div>
@@ -540,11 +540,14 @@
             panels.forEach(p=>p.classList.toggle('active',p.dataset.salesStudioPanel===name));
             try{localStorage.setItem('kbl_sales_studio_tab',name)}catch(_){ }
           };
-          buttons.forEach(b=>b.addEventListener('click',()=>{open(b.dataset.salesStudioTab);if(b.dataset.salesStudioTab==='image'&&typeof loadGrowthAutopilot==='function'&&document.getElementById('token')?.value.trim())loadGrowthAutopilot()}));
+          const loadImagePipeline=()=>{if(typeof loadGrowthAutopilot!=='function')return;const token=document.getElementById('token')?.value.trim()||'';if(!token)return;window.setTimeout(()=>loadGrowthAutopilot(),0)};
+          buttons.forEach(b=>b.addEventListener('click',()=>{open(b.dataset.salesStudioTab);if(b.dataset.salesStudioTab==='image')loadImagePipeline()}));
           let saved='video';
           try{saved=localStorage.getItem('kbl_sales_studio_tab')||'video'}catch(_){ }
           if(!buttons.some(b=>b.dataset.salesStudioTab===saved))saved='video';
           open(saved);
+          if(saved==='image')loadImagePipeline();
+          window.KBLSalesStudioImageBoot=loadImagePipeline;
         }
         const mount=document.getElementById('sales-studio-image-workflow-mount');
         const card=document.getElementById('growth-autopilot-card');
@@ -742,6 +745,10 @@ const kblAdminSpeed = (() => {
       if(ADMIN_SUBTABS[chosen])selectAdminSubtab(chosen,adminSubtabState[chosen]||ADMIN_SUBTABS[chosen][0][0]);else renderAdminSubnav(chosen);
       try{sessionStorage.setItem('kbl_admin_view',chosen)}catch(_){}
       if(window.KBLCompactAdmin)window.KBLCompactAdmin.onView(chosen);
+      if(chosen==='autonomous'){
+        const imagePanel=document.querySelector('[data-sales-studio-panel="image"]');
+        if(imagePanel&&imagePanel.classList.contains('active')&&typeof window.KBLSalesStudioImageBoot==='function')window.KBLSalesStudioImageBoot();
+      }
       if(scrollTop)window.scrollTo({top:0,behavior:'smooth'});
     }
     function initAdminNavigation(){
@@ -1771,7 +1778,25 @@ const kblAdminSpeed = (() => {
       const q=$('growth-queue');if(q){const rows=Array.isArray(g.queue)?g.queue:[];q.innerHTML=rows.length?rows.slice(0,10).map(x=>'<div class="analytics-row"><b>'+safe(String(x.platform||'').toUpperCase())+' · '+safe(Array.isArray(x.skus)&&x.skus.length?x.skus.join(' · '):(x.sku||x.name||''))+(x.testMode==='near-now'?' · TEST +3P':'')+'</b><small>'+safe(dateTime(x.dueAt))+' · '+safe(x.status||'scheduled')+(x.message?'<br>'+safe(x.message):'')+'</small></div>').join(''):'<div class="empty">Chưa có lịch. Bấm CHẠY 1 VÒNG hoặc bật Autopilot.</div>'}
       const h=$('growth-handoffs');if(h){const rows=Array.isArray(g.handoffs)?g.handoffs:[];h.innerHTML=rows.length?rows.slice(0,10).map(x=>'<div class="analytics-row"><b>'+safe(String(x.platform||'').toUpperCase())+' · '+safe(x.meta?.author||'Khách')+'</b><small>'+safe(x.message||'')+'<br>⚠ '+safe(x.reason||'')+'</small><button class="btn-soft" type="button" data-growth-resolve="'+safe(x.id)+'">ĐÃ XỬ LÝ</button></div>').join(''):'<div class="empty">Không có hội thoại cần bàn giao.</div>';h.querySelectorAll('[data-growth-resolve]').forEach(b=>b.onclick=()=>resolveGrowthHandoff(b.dataset.growthResolve))}
       const last=[g.lastPlanAt?'Plan '+dateTime(g.lastPlanAt):'',g.lastAnalyticsAt?'Analytics '+dateTime(g.lastAnalyticsAt):'',g.lastReplyAt?'CSKH '+dateTime(g.lastReplyAt):''].filter(Boolean).join(' · ');growthStatusText((s.enabled?'Autopilot hoạt động · Sales Studio Image Pipeline đang theo dõi CƠ HỘI→IDEA REVIEW→3 ẢNH→ART REVIEW→QA→READY→PUBLISHER→POST ID. ':'Autopilot đang OFF để tránh tự đăng trước khi ông bật. ')+(last||'Chưa chạy vòng nào.')+(g.lastError?' · Lỗi gần nhất: '+g.lastError:''),!g.lastError);renderSalesStudioImagePipeline(g)}
-    async function loadGrowthAutopilot(){try{const r=await fetch('/api/admin/growth-autopilot/status',{headers:headers(false),cache:'no-store'}),d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||'Không tải được Growth Autopilot');growthRuntime.data=d.growth||{};growthRuntime.platforms=d.platforms||{};renderGrowthAutopilot();return d.growth}catch(e){growthStatusText(e.message||'Không tải được Growth Autopilot',false);return null}}
+    let kblGrowthStatusLoadPromise=null;
+    async function loadGrowthAutopilot(){
+      if(kblGrowthStatusLoadPromise)return kblGrowthStatusLoadPromise;
+      const badge=$('sales-image-auto-badge'),current=$('sales-image-current');
+      if(badge){badge.className='sales-image-live-badge';badge.textContent='ĐANG ĐỒNG BỘ'}
+      kblGrowthStatusLoadPromise=(async()=>{try{
+        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);
+        let r,d;try{r=await fetch('/api/admin/growth-autopilot/status',{headers:headers(false),cache:'no-store',signal:controller.signal});d=await r.json()}finally{clearTimeout(timer)}
+        if(!r.ok||!d.success)throw new Error(d.message||('HTTP '+r.status+' · Không tải được Growth Autopilot'));
+        growthRuntime.data=d.growth||{};growthRuntime.platforms=d.platforms||{};renderGrowthAutopilot();return d.growth;
+      }catch(e){
+        const message=e&&e.name==='AbortError'?'API Growth Autopilot phản hồi quá 18 giây. Kiểm tra Primary Node/Plesk.':(e.message||'Không tải được Growth Autopilot');
+        growthStatusText(message,false);
+        if(badge){badge.className='sales-image-live-badge bad';badge.textContent='LỖI API'}
+        if(current)current.innerHTML='<div class="sales-image-progress-card"><div class="sales-image-progress-head"><div><h4>Không đọc được dây chuyền tự động</h4><div class="sales-image-card-meta">'+safe(message)+'</div></div><span class="sales-image-pill bad">CẦN KIỂM TRA</span></div><div class="sales-image-pills"><span class="sales-image-pill warn">Bấm ↻ LÀM MỚI sau khi backend sẵn sàng</span></div></div>';
+        return null;
+      }finally{kblGrowthStatusLoadPromise=null}})();
+      return kblGrowthStatusLoadPromise;
+    }
     async function saveGrowthAutopilot(){const payload={enabled:$('growth-enabled').checked,autoMarket:$('growth-auto-market').checked,autoImages:$('growth-auto-images').checked,autoReplyComments:$('growth-auto-comments').checked,autoReplyInbox:$('growth-auto-inbox').checked,maxPostsPerDay:Number($('growth-max-posts').value||3),minGapMinutes:Number($('growth-min-gap').value||90),recentSkuCooldownDays:Number($('growth-sku-cooldown').value||7)};growthStatusText('Đang lưu cấu hình…');try{const r=await fetch('/api/admin/growth-autopilot/settings',{method:'POST',headers:headers(true),body:JSON.stringify(payload)}),d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||'Không lưu được');growthRuntime.data=d.growth;renderGrowthAutopilot()}catch(e){growthStatusText(e.message,false)}}
     async function setGrowthAutoPublish(enabled){const on=Boolean(enabled),onBtn=$('growth-auto-publish-on'),offBtn=$('growth-auto-publish-off');if(onBtn)onBtn.disabled=true;if(offBtn)offBtn.disabled=true;growthStatusText(on?'Đang bật tự động đăng bài + ảnh…':'Đang tắt tự động đăng bài…');try{const r=await fetch('/api/admin/growth-autopilot/auto-publish',{method:'POST',headers:headers(true),body:JSON.stringify({enabled:on})}),d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||'Không đổi được chế độ Auto Publish');growthRuntime.data=d.growth||{};renderGrowthAutopilot();growthStatusText(d.message||'Đã cập nhật Auto Publish.')}catch(e){growthStatusText(e.message,false);await loadGrowthAutopilot()}finally{const s=growthRuntime.data&&growthRuntime.data.settings||{},active=Boolean(s.enabled&&s.autoPublishPosts);if(onBtn)onBtn.disabled=active;if(offBtn)offBtn.disabled=!Boolean(s.autoPublishPosts)}}
     async function runGrowthNow(){const b=$('growth-run-now');if(b)b.disabled=true;growthStatusText('Sales Studio đang quét cơ hội → chọn 3 SKU → AI duyệt ý tưởng → viết nội dung → tạo trước 3 ảnh → AI Art Director duyệt → READY TO POST…');try{const r=await fetch('/api/admin/growth-autopilot/run-now',{method:'POST',headers:headers(true),body:'{}'}),d=await r.json();if(!r.ok||!d.success)throw new Error(d.message||'Không chạy được');growthStatusText(d.message||'Đã chạy nền.');setTimeout(loadGrowthAutopilot,6000);setTimeout(loadGrowthAutopilot,18000)}catch(e){growthStatusText(e.message,false)}finally{if(b)b.disabled=false}}
@@ -2148,7 +2173,11 @@ const kblAdminSpeed = (() => {
           msg((dashboard?'Đã tải Tổng quan. ':'')+'❌ Kho chưa tải xong: '+kblMediaError(stock.error)+' Danh sách đang có được giữ nguyên.',false);
         }
         // Start optional groups only after core work; do not duplicate a running batch.
-        if(stock.ok||dashboard)kblLoadOtherGroups();
+        if(stock.ok||dashboard){
+          kblLoadOtherGroups();
+          const salesSection=$('sales-studio-section'),imagePanel=document.querySelector('[data-sales-studio-panel="image"]');
+          if(salesSection&&!salesSection.hidden&&imagePanel&&imagePanel.classList.contains('active'))loadGrowthAutopilot();
+        }
         return stock.ok;
       }).catch(error=>{msg('❌ '+kblMediaError(error),false);return false;}).finally(()=>{
         clearTimeout(timer);button.disabled=false;button.textContent=oldText;button.removeAttribute('aria-busy');kblAdminLoadPromise=null;
@@ -2443,7 +2472,13 @@ const kblAdminSpeed = (() => {
     if ($('token')?.value.trim()) { loadShop(); loadV5(); }
     $('sales-image-refresh')?.addEventListener('click',()=>loadGrowthAutopilot());
     let kblSalesImagePollBusy=false;
-    const kblSalesImageLivePoll=window.setInterval(async()=>{const section=$('sales-studio-section'),panel=document.querySelector('[data-sales-studio-panel="image"]');if(document.visibilityState!=='visible'||!section||section.hidden||!panel||!panel.classList.contains('active')||!$('token')?.value.trim()||kblSalesImagePollBusy)return;kblSalesImagePollBusy=true;try{await loadGrowthAutopilot()}finally{kblSalesImagePollBusy=false}},10000);
+    const kblSalesImagePanelVisible=()=>{const section=$('sales-studio-section'),panel=document.querySelector('[data-sales-studio-panel="image"]');return Boolean(document.visibilityState==='visible'&&section&&!section.hidden&&panel&&panel.classList.contains('active')&&$('token')?.value.trim())};
+    const kblSalesImageLivePoll=window.setInterval(async()=>{if(!kblSalesImagePanelVisible()||kblSalesImagePollBusy)return;kblSalesImagePollBusy=true;try{await loadGrowthAutopilot()}finally{kblSalesImagePollBusy=false}},10000);
+    $('token')?.addEventListener('change',()=>{if(kblSalesImagePanelVisible())loadGrowthAutopilot()});
+    $('token')?.addEventListener('input',()=>{if(kblSalesImagePanelVisible())window.clearTimeout(window.__kblSalesImageTokenTimer),window.__kblSalesImageTokenTimer=window.setTimeout(()=>loadGrowthAutopilot(),350)});
+    window.addEventListener('focus',()=>{if(kblSalesImagePanelVisible())loadGrowthAutopilot()});
+    document.addEventListener('visibilitychange',()=>{if(kblSalesImagePanelVisible())loadGrowthAutopilot()});
+    window.setTimeout(()=>{if(kblSalesImagePanelVisible())loadGrowthAutopilot()},600);
     // V6.7.0E4: AI Market chạy nền; Admin chỉ poll nhẹ để ý tưởng đã qua Truth Guard tự xuất hiện trong Đề xuất ưu tiên.
     const kblSilentMarketUiPoll=window.setInterval(()=>{if(document.visibilityState==='visible'&&$('token')?.value.trim()){loadAiDirector();loadAiMaster();}},60000);
 // KBL COMPACT UI 20260914. No API calls; original controls are moved, never cloned.
