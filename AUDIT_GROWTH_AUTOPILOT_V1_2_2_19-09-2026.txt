@@ -1,0 +1,36 @@
+KBL GROWTH AUTOPILOT V1.2.2 · QUOTA-PROOF
+Date: 19/09/2026
+
+MUC TIEU
+- Khong de Gemini Image HTTP 429 lam bai FB/Instagram/Telegram bi mat khoi lich.
+- Neu poster AI bi quota/Cost Guard/khong co quyen model anh, tu dong fallback sang carousel/album DUNG 3 anh san pham that.
+- Caption fallback khong chen gia cu; price snapshot van duoc ghi de attribution/hoc.
+- TikTok van giu 3 anh sach; Threads van giu QA poster hien tai, khong gia lap ho tro carousel khi chua duoc audit.
+- Them size vao verifiedFacts de tranh false-block khi caption co size that tu POS/san pham.
+
+THAY DOI CHINH
+1. Facebook: ho tro native multi-photo post qua unpublished photos + attached_media.
+2. Instagram: ho tro native carousel 3 anh, child containers -> parent CAROUSEL -> background publish/reconcile nhu cu.
+3. Telegram: ho tro sendMediaGroup 3 anh.
+4. Growth publish: Gemini poster loi 429/quota/Cost Guard tren FB/IG/Telegram => fallback 3 anh that, khong dua vao Review chi vi quota.
+5. Watchdog ghi ro fallback va Publisher van phai tra ID/trang thai that.
+6. verifiedFacts bo sung size/sizeLabel.
+
+AN TOAN
+- Khong xoa route cu.
+- Khong sua POS, gia, kho, House2, OAuth config.
+- Khong fake PUBLISHED.
+- Threads neu Gemini poster loi van Review (chua mo fallback carousel trong ban nay).
+- TikTok van theo 3 anh sach va audit/quyen TikTok hien co.
+
+KIEM TRA
+- app.js: node --check PASS.
+- views/admin.html inline JS: node --check PASS.
+- V1.2.1 Watchdog + TEST +3 phut giu nguyen.
+
+TEST DE XAC NHAN
+1. Restart Node sau deploy.
+2. Doi 60-90 giay, bam KIEM TRA AUTO => AUTO READY.
+3. Bam TEST BAI GAN NHAT +3 PHUT. Neu bai gan nhat la Facebook, sau ~4-5 phut Watchdog/Lich su phai co Publisher run.
+4. Neu Gemini Image van HTTP 429, Watchdog phai bao fallback va Facebook dang album 3 anh that thay vi poster-review.
+5. Chi coi thanh cong khi co Post ID/URL that va Revenue Loop tang DANG.
