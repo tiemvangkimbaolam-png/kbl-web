@@ -37,9 +37,7 @@ Thumbs.db
 *.tar
 *.tar.gz
 
-# KBL V1.3.8: vendored Sharp is required by deterministic poster composer on GitHub/Plesk.
-# The generic node_modules/ rule above must not drop this native runtime.
-!vendor/
-!vendor/sharp/
+# KBL V1.3.7 R1 hotfix: keep the vendored Sharp runtime in GitHub/Plesk.
+# The generic node_modules rule above would otherwise remove the native composer binary.
 !vendor/sharp/node_modules/
 !vendor/sharp/node_modules/**

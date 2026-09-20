@@ -1,0 +1,19 @@
+KBL V1.3.7 R1 · BASELINE LOCK + SHARP DEPLOY FIX
+Ngày: 20-09-2026
+
+Mục tiêu của hotfix này:
+- Lấy CHÍNH XÁC bản V1.3.7 STARTUP RECOVERY do chủ tiệm cung cấp làm baseline.
+- KHÔNG sửa app.js.
+- KHÔNG sửa views/admin.html.
+- KHÔNG sửa Home, giá vàng thế giới, VI/EN, sticky danh mục sản phẩm, POS, AI, Publisher hay Sales Studio logic.
+- Chỉ sửa .gitignore để GitHub Desktop/Plesk thực sự nhận và deploy vendor/sharp/node_modules, bao gồm native Sharp + libvips.
+
+Lý do:
+- V1.3.7 đã có code fallback require('./vendor/sharp').
+- Nhưng .gitignore có node_modules/ nên Git bỏ qua vendor/sharp/node_modules/*.
+- Khi deploy qua GitHub, server thiếu sharp-linux-x64.node/libvips, dẫn tới Composer báo "Chưa có bộ ghép ảnh Sharp".
+
+Sau khi copy/paste vào repo:
+- GitHub Desktop PHẢI thấy thêm file dưới vendor/sharp/node_modules/.
+- Commit toàn bộ các file đó.
+- Không cần thay đổi package.json/package-lock.json.
