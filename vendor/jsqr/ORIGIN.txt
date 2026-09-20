@@ -1,0 +1,5 @@
+jsQR 1.4.0
+Upstream: https://github.com/cozmo/jsQR
+Source: npm jsqr@1.4.0 dist/jsQR.js (unmodified)
+License: Apache-2.0; see LICENSE.
+Bundled to support hosting updates without npm install.

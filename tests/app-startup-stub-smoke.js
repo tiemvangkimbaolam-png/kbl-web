@@ -43,7 +43,7 @@ function makeRes(){return {statusCode:200,body:null,headers:{},status(c){this.st
     await next();
     assert.strictEqual(res.statusCode,200);
     assert(res.body&&res.body.success===true,'Growth status did not return success');
-    assert(res.body.growth&&res.body.growth.version==='1.3.6-preparation-recovery','Unexpected Growth version');
+    assert(res.body.growth&&res.body.growth.version==='1.3.7-startup-recovery','Unexpected Growth version');
     assert(res.body.growth.composer&&res.body.growth.composer.ready===true,'Vendored deterministic composer not READY in runtime status');
     assert(/sharp/i.test(String(res.body.growth.composer.diagnostic||'')),'Composer diagnostic missing');
     loaded.closeServer();

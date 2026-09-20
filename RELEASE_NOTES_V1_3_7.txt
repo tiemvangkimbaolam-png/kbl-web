@@ -1,0 +1,16 @@
+KBL V1.3.7 — STARTUP RECOVERY
+20/09/2026
+
+Sửa lỗi khởi động tái hiện khi hosting không có dependency npm jsqr mới của V1.3.6.
+Bundled vendor/jsqr/jsQR.js 1.4.0 nguyên bản và LICENSE Apache-2.0.
+Tải mô-đun poster theo nhu cầu; thiếu mô-đun hoặc QR decoder chỉ chặn tính năng ảnh.
+Admin hiển thị composer chưa sẵn sàng và lý do; không giả QR đạt.
+Giữ các sửa Home và chuẩn bị ảnh V1.3.6.
+
+PASS: real HTTP Home/Admin 200 với 3 tình huống thiếu dependency/module.
+PASS: API Admin vẫn yêu cầu xác thực; QR decoder bundled đọc đúng QR thật.
+PASS: growth runtime, UI runtime, release, security, source audit.
+
+Gói FULL, file ở ngay gốc ZIP. Đọc KHOI_PHUC_500_V1_3_7.md.
+Không đóng gói .env, dữ liệu runtime hoặc ảnh uploads.
+Chưa triển khai vào hosting; chưa có log máy chủ để xác nhận nguyên nhân live.

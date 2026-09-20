@@ -1,5 +1,7 @@
 # KBL V1.3.6 — sửa chuẩn bị ảnh và danh mục Home (20/09/2026)
 
+**Tài liệu lịch sử V1.3.6. Gói hiện tại là V1.3.7: đọc `KHOI_PHUC_500_V1_3_7.md` trước. V1.3.7 đã đóng gói bộ quét QR, không còn yêu cầu cài thêm jsqr như hướng dẫn cũ bên dưới.**
+
 Bản sửa từ bộ mã V1.3.5 ngày 19/09/2026. Đã kiểm thử cục bộ; chưa triển khai hoặc xác minh Gemini/tài khoản mạng xã hội thật trên hosting.
 
 ## Lỗi đã tìm thấy

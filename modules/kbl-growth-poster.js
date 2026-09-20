@@ -1,7 +1,21 @@
 'use strict';
 
 // One geometry contract for the text layer, logo, QR and final scan.
-const jsQR = require('jsqr');
+let qrDecoder;
+function loadQrDecoder() {
+  if(qrDecoder)return qrDecoder;
+  try { qrDecoder=require('../vendor/jsqr/jsQR.js'); }
+  catch (vendorError) {
+    try { qrDecoder=require('jsqr'); }
+    catch (_) { throw new Error('Thiếu bộ quét QR: cập nhật vendor/jsqr/jsQR.js và khởi động lại ứng dụng.'); }
+  }
+  if(typeof qrDecoder!=='function')throw new Error('Bộ quét QR không hợp lệ; cập nhật lại vendor/jsqr/jsQR.js.');
+  return qrDecoder;
+}
+function runtimeStatus() {
+  try { loadQrDecoder(); return {ready:true,diagnostic:'QR decoder jsQR 1.4.0 ready'}; }
+  catch(error) { return {ready:false,diagnostic:error.message}; }
+}
 const layout = Object.freeze({width:1080,height:1350,footerTop:880,pad:36,
   logo:{left:36,top:914,width:128,height:128},
   qr:{left:884,top:914,width:160,height:160}});
@@ -52,7 +66,7 @@ function svg(facts,store) {
 }
 async function scan(sharp,buffer,expected) {
   const raw=await sharp(buffer).ensureAlpha().raw().toBuffer({resolveWithObject:true});
-  const decoded=jsQR(new Uint8ClampedArray(raw.data),raw.info.width,raw.info.height,{inversionAttempts:'dontInvert'});
+  const decoded=loadQrDecoder()(new Uint8ClampedArray(raw.data),raw.info.width,raw.info.height,{inversionAttempts:'dontInvert'});
   const target=canonicalUrl(expected),actual=canonicalUrl(decoded&&decoded.data);
   return {approved:Boolean(target&&actual===target),expected:target,decoded:decoded&&decoded.data||'',
     message:actual===target&&target?'QR quét đúng website.':'QR không đọc được hoặc trỏ sai website.'};
@@ -73,4 +87,4 @@ async function compose({sharp,base,logo,qr,facts,store}) {
   if(!finalQr.approved)throw new Error('QR trên poster hoàn chỉnh không quét đúng website.');
   return {buffer,qrQa:finalQr,layout};
 }
-module.exports={layout,svg,scan,compose,canonicalUrl};
+module.exports={layout,svg,scan,compose,canonicalUrl,runtimeStatus};
