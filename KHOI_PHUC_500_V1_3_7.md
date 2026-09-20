@@ -1,5 +1,7 @@
 # V1.3.7 — khôi phục khởi động sau V1.3.6
 
+**Tài liệu lịch sử. Gói hiện tại là V1.3.8; đọc `00_DOC_TRUOC_V1_3_8.md` trước.**
+
 Bản sửa ngày 20/09/2026. Chưa được triển khai trực tiếp lên hosting của tiệm.
 
 ## Lỗi đã tái hiện

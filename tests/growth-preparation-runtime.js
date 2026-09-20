@@ -3,6 +3,8 @@
 // Only external image/vision providers and HTTPS media transport use fixtures.
 const fs=require('fs'),path=require('path'),os=require('os'),Module=require('module'),assert=require('assert');
 const root=path.resolve(__dirname,'..'),tmp=fs.mkdtempSync(path.join(os.tmpdir(),'kbl-prep-test-')),pub=path.join(tmp,'public'),data=path.join(tmp,'data');
+const withoutSharp=process.argv.includes('--without-sharp'),fixtureSharp=require(path.join(root,'vendor/sharp')),nativeModuleLoad=Module._load;
+if(withoutSharp)Module._load=function(request,parent,isMain){if(request==='sharp'||String(request).includes('vendor/sharp')){const error=new Error('Native Sharp unavailable on hosting fixture');error.code='ERR_DLOPEN_FAILED';throw error}return nativeModuleLoad.call(this,request,parent,isMain)};
 fs.mkdirSync(data,{recursive:true});fs.mkdirSync(path.join(pub,'images','kbl-growth'),{recursive:true});
 for(const name of ['kbl-logo-production.png','kbl-website-qr.png'])fs.copyFileSync(path.join(root,'public/images/kbl-growth',name),path.join(pub,'images/kbl-growth',name));
 fs.writeFileSync(path.join(data,'growth-autopilot-v1.json'),JSON.stringify({settings:{enabled:false,autoPublishPosts:false,autoImages:true,autoMarket:false,maxAiImagesPerDay:12}}));
@@ -26,6 +28,8 @@ module.exports.growthTest={
  seed(rows){products=rows;prices.price_sell_610=8000000;kblGrowthState.queue=['facebook','instagram'].map(platform=>({id:'fixture-'+platform,campaignId:'fixture',platform,productIds:rows.map(x=>x.id),skus:rows.map(x=>x.sku),products:rows,status:'scheduled',dueAt:new Date(Date.now()+3600000).toISOString(),qa:{approved:true},ideaReview:{approved:true}}));kblGrowthSave()},
  save:kblGrowthSave,prepare:kblGrowthPrepareCampaign,pending:kblGrowthPreparePending,public:kblGrowthPreparedPostsPublic,
  ready:kblGrowthIsReady,refresh:kblGrowthRefreshPreparedPriceLayer,qr:kblGrowthPrepQrQa,publish:kblGrowthPublishDue,
+ composer:kblGrowthPosterRuntimeStatus,
+ markSharpBlocked(){for(const row of kblGrowthState.queue){row.status='prep-blocked';row.preparationError='Chưa có bộ ghép ảnh Sharp.'}kblGrowthSave()},
  changePrice(value=9000000){prices.price_sell_610=value},
  rejectRefreshAfterSave(){const original=kblGrowthRefreshPreparedPriceLayer;kblGrowthRefreshPreparedPriceLayer=async(bundle,prep)=>{kblGrowthSave();return {...prep,ready:false,brandedReady:false,message:'Fixture changed facts'}};return ()=>{kblGrowthRefreshPreparedPriceLayer=original}},
  changePriceDuringReview(){const original=kblGrowthDesignReviewOne;let changed=false;kblGrowthDesignReviewOne=async(...args)=>{const result=await original(...args);if(!changed){changed=true;prices.price_sell_610=10000000}return result};return ()=>{kblGrowthDesignReviewOne=original}},
@@ -37,14 +41,16 @@ module.exports.growthTest={
  try{
   const m=new Module(path.join(root,'app.js'),module);m.filename=path.join(root,'app.js');m.paths=Module._nodeModulePaths(root);m._compile(source+injection,m.filename);app=m.exports;
   if(!app.server.listening)await new Promise(resolve=>app.server.once('listening',resolve));
-  const api=app.growthTest,sharp=require(path.join(root,'vendor/sharp'));
+  const api=app.growthTest,sharp=fixtureSharp;
   const base=await sharp({create:{width:1080,height:1350,channels:3,background:'#94422f'}}).png().toBuffer();
   fs.writeFileSync(path.join(pub,'images','fixture.png'),base);
   const store={name:'KBL — KIỂM THỬ',website:'https://tiemvangkimbaolam.id.vn',websiteHost:'tiemvangkimbaolam.id.vn',phone:'0000000000',address:'Địa chỉ giả lập để kiểm thử bố cục, không dùng để đăng'};
   api.install(async()=>{generationCalls++;await new Promise(r=>setTimeout(r,10));if(generationCalls===failAt)return {ok:false,error:'HTTP 429 — fixture quota'};return {ok:true,image:{mimeType:'image/png',data:base.toString('base64')}}},async()=>{visionCalls++;return {approved:true,score:95,model:'fixture-review',reason:'Fixture review'}},store);
   const rows=[1,2,3].map(i=>({id:'fixture-'+i,sku:'TEST-'+i,name:'Sản phẩm kiểm thử '+i,kind:'current',status:'available',publicationStatus:'published',goldCode:'610',weightChi:1.234,sizeLabel:'12',image:'/images/fixture.png'}));
   api.seed(rows);const old=api.state.queue[0];api.save();assert.notStrictEqual(api.state.queue[0],old,'Fixture must exercise real cloned queue state');
-  let result=await api.prepare('fixture');
+  let result;
+  if(withoutSharp){await require(path.join(root,'modules/kbl-growth-poster')).ensureComposer(null);api.markSharpBlocked();assert.equal(await api.pending(),1,'Old Sharp-blocked campaign should recover automatically');result={ok:api.state.queue[0].status==='ready'};assert.equal(api.composer().engine,'wasm-deterministic');}
+  else result=await api.prepare('fixture');
   assert(!result.ok);assert.equal(generationCalls,2);assert.equal(api.state.queue[0].status,'retry-wait');
   assert(api.state.queue[0].preparationError.includes('429'));assert(api.state.queue[0].preparedPost.posterResults[0].posterImage);
   assert(!api.public()[0].ready);assert(api.public()[0].nextPreparationAt);
@@ -82,6 +88,7 @@ module.exports.growthTest={
   const tools=require(path.join(root,'modules/kbl-growth-poster'));
   const finalPath=path.join(pub,approved.posterImages[0]);const scan=await tools.scan(sharp,fs.readFileSync(finalPath),store.website);assert(scan.approved);
   if(process.env.KBL_TEST_ARTIFACT_DIR){fs.mkdirSync(process.env.KBL_TEST_ARTIFACT_DIR,{recursive:true});fs.copyFileSync(finalPath,path.join(process.env.KBL_TEST_ARTIFACT_DIR,'poster-layout-fixture.png'));fs.writeFileSync(path.join(process.env.KBL_TEST_ARTIFACT_DIR,'state.json'),JSON.stringify({failed:failedState,ready:disk},null,2));}
-  console.log('GROWTH_PREPARATION_RUNTIME_OK: actual-save + partial-resume + concurrency + backoff + QR-final + price-refresh + HTTP-auth + strict-dispatch');
- }finally{if(app)app.closeServer();global.fetch=nativeFetch;fs.rmSync(tmp,{recursive:true,force:true});}
+  if(withoutSharp)assert((await tools.scan(null,fs.readFileSync(finalPath),store.website)).approved);
+  console.log('GROWTH_PREPARATION_RUNTIME_OK '+(withoutSharp?'WITHOUT_SHARP (auto-recovery + WASM)':'native')+': actual-save + partial-resume + concurrency + backoff + QR-final + price-refresh + HTTP-auth + strict-dispatch');
+ }finally{if(app)app.closeServer();global.fetch=nativeFetch;Module._load=nativeModuleLoad;fs.rmSync(tmp,{recursive:true,force:true});}
 })().then(()=>process.exit(0),error=>{console.error(error.stack||error);process.exit(1)});

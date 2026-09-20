@@ -24,3 +24,4 @@ jobs:
       - run: node scripts/audit-source.js
       - run: npm run test:growth
       - run: npm run test:startup
+      - run: npm run test:portable

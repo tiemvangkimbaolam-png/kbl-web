@@ -12,8 +12,9 @@
     "test:security": "node tests/security-smoke.js",
     "test:ai": "node tests/ai-adviser-smoke.js",
     "test:release": "node tests/release-smoke.js",
-    "test:growth": "node tests/growth-preparation-runtime.js && node tests/growth-prepared-ui-runtime.js && node tests/growth-media-runtime-smoke.js && node tests/sales-studio-runtime-smoke.js",
-    "test:startup": "node tests/hosting-startup-runtime.js"
+    "test:growth": "node tests/growth-preparation-runtime.js && node tests/growth-preparation-runtime.js --without-sharp && node tests/growth-prepared-ui-runtime.js && node tests/growth-media-runtime-smoke.js && node tests/sales-studio-runtime-smoke.js",
+    "test:startup": "node tests/hosting-startup-runtime.js",
+    "test:portable": "node scripts/check-poster-portable.js"
   },
   "dependencies": {
     "express": "^5.2.1"

@@ -1,0 +1,4 @@
+Unmodified @resvg/resvg-wasm@2.6.2 from npm.
+License MPL-2.0.
+Upstream and source: https://github.com/thx/resvg-js/tree/v2.6.2
+Used as a local WebAssembly renderer; no native addon.

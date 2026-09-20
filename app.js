@@ -7854,7 +7854,7 @@ app.use((req, res, next) => {
     "object-src 'none'",
     "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdnjs.cloudflare.com https://unpkg.com https://cdn.jsdelivr.net https://s3.tradingview.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
-    "frame-src https://s.tradingview.com https://www.tradingview.com",
+    "frame-src https://s.tradingview.com https://www.tradingview.com https://www.tradingview-widget.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob:",
@@ -15455,7 +15455,7 @@ function kblGrowthDeterministicPosterSvg(width,height,facts,store){
 </svg>`;
 }
 async function kblGrowthDeterministicPosterOverlay(aiImage,facts,store,productUrl,logoSource,qrSource){
-  const sharp=kblGrowthOptionalSharp();if(!sharp)return {ok:false,reason:'Thiếu bộ ghép ảnh Sharp.'};
+  const sharp=kblGrowthOptionalSharp();
   try{
     const parsed=aiImage&&aiImage.data?Buffer.from(aiImage.data,'base64'):aiImage&&aiImage.bytes?aiImage.bytes:parseDataImage(aiImage,12*1024*1024)?.bytes;
     if(!parsed)throw new Error('Không đọc được ảnh nền.');
@@ -15704,13 +15704,13 @@ const kblGrowthPosterTools={
 };
 function kblGrowthPosterRuntimeStatus(){
   const sharp=kblGrowthOptionalSharp();let qr;
-  try{const helper=kblGrowthLoadPosterTools();qr=typeof helper.runtimeStatus==='function'?helper.runtimeStatus():{ready:false,diagnostic:'Mô-đun poster chưa đồng bộ V1.3.7; cập nhật modules/kbl-growth-poster.js.'}}
+  try{const helper=kblGrowthLoadPosterTools();qr=typeof helper.runtimeStatus==='function'?helper.runtimeStatus(sharp):{ready:false,diagnostic:'Mô-đun poster chưa đồng bộ; cập nhật modules/kbl-growth-poster.js.'}}
   catch(error){qr={ready:false,diagnostic:cleanLabelText(error.message,400)}}
-  const ready=Boolean(sharp&&qr.ready);
-  return {ready,engine:ready?'sharp-deterministic':'unavailable',diagnostic:[__kblGrowthSharpDiagnostic||'',qr.diagnostic].filter(Boolean).join(' · '),logo:'/images/kbl-growth/kbl-logo-production.png',qr:'/images/kbl-growth/kbl-website-qr.png'};
+  const ready=Boolean(qr.ready);
+  return {ready,engine:ready?qr.engine||'sharp-deterministic':'unavailable',diagnostic:[qr.diagnostic,sharp?__kblGrowthSharpDiagnostic:''].filter(Boolean).join(' · '),nativeDiagnostic:__kblGrowthSharpDiagnostic||'',platform:process.platform+'-'+process.arch,nodeVersion:process.version,logo:'/images/kbl-growth/kbl-logo-production.png',qr:'/images/kbl-growth/kbl-website-qr.png'};
 }
 let kblGrowthPreparationPromise=null,kblGrowthPreparationCampaign='',kblGrowthDispatchPromise=null,kblGrowthTickRunning=false;
-const KBL_GROWTH_PREP_FIRST_VERSION='1.3.7-startup-recovery';
+const KBL_GROWTH_PREP_FIRST_VERSION='1.3.8-portable-images-world-gold';
 const KBL_GROWTH_ACTIVE_QUEUE_STATUSES=new Set(['scheduled','preparing','ready','fallback-ready','retry-wait','prep-blocked']);
 function kblGrowthPrepActive(row){return Boolean(row&&KBL_GROWTH_ACTIVE_QUEUE_STATUSES.has(String(row.status||'')))}
 function kblGrowthPrepBundleFromRow(row){const ids=[...new Set((Array.isArray(row&&row.productIds)?row.productIds:[row&&row.productId]).map(String).filter(Boolean))];return ids.map(id=>products.find(p=>String(p&&p.id)===id)).filter(Boolean)}
@@ -15721,11 +15721,11 @@ function kblGrowthPrepPricesChanged(bundle,prep){
 function kblGrowthPrepFactQa(bundle){const rows=(bundle||[]).slice(0,3).map(kblGrowthProductCardFacts),store=kblGrowthStorePosterFacts(),issues=[];if(rows.length!==3)issues.push('Không đủ đúng 3 sản phẩm.');for(const x of rows){if(!x.id||!x.sku||!x.name)issues.push('Thiếu ID/SKU/tên sản phẩm.');if(!(x.priceVnd>0))issues.push(`${x.sku||'SKU'} chưa có giá hợp lệ.`);if(!x.image)issues.push(`${x.sku||'SKU'} thiếu ảnh nguồn.`)}if(!store.website)issues.push('Thiếu website tiệm.');if(!store.phone)issues.push('Thiếu SĐT tiệm.');if(!store.address)issues.push('Thiếu địa chỉ tiệm.');return {approved:issues.length===0,issues,rows:rows.map(x=>({id:x.id,sku:x.sku,name:x.name,priceText:x.priceText,goldCode:x.goldCode,weightChi:x.weightChi,sizeLabel:x.sizeLabel})),store:{name:store.name,website:store.websiteHost,phone:store.phone,address:store.address}}}
 async function kblGrowthPrepQrQa(){
   const qr='/images/kbl-growth/kbl-website-qr.png',logo='/images/kbl-growth/kbl-logo-production.png',sharp=kblGrowthOptionalSharp();
-  if(!sharp)return {approved:false,message:'Chưa có bộ ghép ảnh Sharp.'};
   try{
+    await kblGrowthLoadPosterTools().ensureComposer(sharp);
     const source=await kblGrowthReadImageBuffer(qr),brand=await kblGrowthReadImageBuffer(logo);
     if(!source||!brand)throw new Error('Thiếu file QR/logo production.');
-    await sharp(brand.buffer).metadata();
+    if(sharp)await sharp(brand.buffer).metadata();
     const check=await kblGrowthPosterTools.scan(sharp,source.buffer,kblGrowthStorePosterFacts().website);
     return {...check,qr,logo,checkedAt:new Date().toISOString()};
   }catch(error){return {approved:false,qr,logo,message:cleanLabelText(error.message,300)}}
@@ -15756,7 +15756,7 @@ async function kblGrowthSinglePosterAsset(product,index,total,logoRef=null,qrRef
   if(!asset||asset.visualStamp!==visualStamp)asset={visualStamp,sku:facts.sku};
   const save=()=>{kblGrowthState.assets[key]=asset;kblGrowthSave()};
   try{
-    if(!kblGrowthOptionalSharp())throw new Error('Thiếu bộ ghép ảnh Sharp.');
+    await kblGrowthLoadPosterTools().ensureComposer(kblGrowthOptionalSharp());
     if(!asset.baseImage||!publisherLocalPublicPath(asset.baseImage)){
       if(kblIsoMs(asset.nextRetryAt)>Date.now())return {...asset,ok:false,reason:asset.reason};
       if(!kblGrowthState.settings.autoImages)throw new Error('Tự động tạo ảnh đang tắt.');
@@ -15821,7 +15821,8 @@ async function kblGrowthPreparePending(limit=1){
   if(kblGrowthPreparationPromise)return 0;
   const seen=new Set(),ids=[];
   for(const row of [...(kblGrowthState.queue||[])].sort((a,b)=>kblIsoMs(a.dueAt)-kblIsoMs(b.dueAt))){
-    if(!kblGrowthPrepActive(row)||row.status==='prep-blocked'||kblIsoMs(row.nextPreparationAt)>Date.now())continue;
+    const runtimeRecovered=row.status==='prep-blocked'&&/Chưa có bộ ghép ảnh Sharp|Thiếu bộ ghép ảnh Sharp|Không tải được mô-đun poster|Thiếu bộ quét QR/.test(String(row.preparationError||row.message||''))&&kblGrowthPosterRuntimeStatus().ready;
+    if(!kblGrowthPrepActive(row)||(row.status==='prep-blocked'&&!runtimeRecovered)||kblIsoMs(row.nextPreparationAt)>Date.now())continue;
     const id=String(row.campaignId||row.id||'');if(seen.has(id))continue;seen.add(id);
     if(!kblGrowthIsReady(row.preparedPost)||row.status!=='ready')ids.push(id);
     if(ids.length>=Math.max(1,limit))break;

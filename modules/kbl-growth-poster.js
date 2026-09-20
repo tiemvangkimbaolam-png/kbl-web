@@ -12,9 +12,20 @@ function loadQrDecoder() {
   if(typeof qrDecoder!=='function')throw new Error('Bộ quét QR không hợp lệ; cập nhật lại vendor/jsqr/jsQR.js.');
   return qrDecoder;
 }
-function runtimeStatus() {
-  try { loadQrDecoder(); return {ready:true,diagnostic:'QR decoder jsQR 1.4.0 ready'}; }
+let portableState={ready:false,diagnostic:'Đang kiểm tra bộ ghép ảnh WebAssembly.'},portableCheck;
+function portable(){return require('./kbl-poster-portable');}
+function runtimeStatus(sharp) {
+  try {
+    loadQrDecoder();
+    if(sharp)return {ready:true,engine:'sharp-deterministic',diagnostic:'QR decoder jsQR 1.4.0 ready'};
+    if(!portableCheck)portableCheck=portable().selfTest().then(()=>{portableState={ready:true,engine:'wasm-deterministic',diagnostic:'Bộ ghép WebAssembly + QR đã kiểm tra; không cần Sharp.'}}).catch(error=>{portableState={ready:false,diagnostic:error.message}});
+    return portableState;
+  }
   catch(error) { return {ready:false,diagnostic:error.message}; }
+}
+async function ensureComposer(sharp){
+  loadQrDecoder();
+  if(!sharp){await portable().selfTest();portableState={ready:true,engine:'wasm-deterministic',diagnostic:'Bộ ghép WebAssembly + QR đã kiểm tra; không cần Sharp.'};}
 }
 const layout = Object.freeze({width:1080,height:1350,footerTop:880,pad:36,
   logo:{left:36,top:914,width:128,height:128},
@@ -65,8 +76,8 @@ function svg(facts,store) {
   </svg>`;
 }
 async function scan(sharp,buffer,expected) {
-  const raw=await sharp(buffer).ensureAlpha().raw().toBuffer({resolveWithObject:true});
-  const decoded=loadQrDecoder()(new Uint8ClampedArray(raw.data),raw.info.width,raw.info.height,{inversionAttempts:'dontInvert'});
+  const raw=sharp?await sharp(buffer).ensureAlpha().raw().toBuffer({resolveWithObject:true}):portable().pngPixels(buffer);
+  const decoded=loadQrDecoder()(new Uint8ClampedArray(raw.data),raw.info?.width||raw.width,raw.info?.height||raw.height,{inversionAttempts:'dontInvert'});
   const target=canonicalUrl(expected),actual=canonicalUrl(decoded&&decoded.data);
   return {approved:Boolean(target&&actual===target),expected:target,decoded:decoded&&decoded.data||'',
     message:actual===target&&target?'QR quét đúng website.':'QR không đọc được hoặc trỏ sai website.'};
@@ -75,6 +86,12 @@ async function compose({sharp,base,logo,qr,facts,store}) {
   if(!logo||!qr)throw new Error('Thiếu file logo hoặc QR.');
   const sourceQr=await scan(sharp,qr,store.website);
   if(!sourceQr.approved)throw new Error(sourceQr.message);
+  if(!sharp){
+    const buffer=await portable().compose({base,logo,qr,footer:svg(facts,store)});
+    const finalQr=await scan(null,buffer,store.website);
+    if(!finalQr.approved)throw new Error('QR trên poster hoàn chỉnh không quét đúng website.');
+    return {buffer,qrQa:finalQr,layout,engine:'wasm-deterministic'};
+  }
   const logoBuffer=await sharp(logo).resize({width:128,height:128,fit:'contain',background:'#fff8ed'}).png().toBuffer();
   const qrBuffer=await sharp(qr).resize({width:144,height:144,fit:'contain',kernel:'nearest',background:'#fff'})
     .extend({top:8,bottom:8,left:8,right:8,background:'#fff'}).png().toBuffer();
@@ -87,4 +104,4 @@ async function compose({sharp,base,logo,qr,facts,store}) {
   if(!finalQr.approved)throw new Error('QR trên poster hoàn chỉnh không quét đúng website.');
   return {buffer,qrQa:finalQr,layout};
 }
-module.exports={layout,svg,scan,compose,canonicalUrl,runtimeStatus};
+module.exports={layout,svg,scan,compose,canonicalUrl,runtimeStatus,ensureComposer};
