@@ -1,0 +1,30 @@
+KBL V1.3.8 MINIMAL REGRESSION FIX — 20-09-2026
+
+NGUYÊN TẮC
+- Bắt đầu từ đúng file V1.3.7 Startup Recovery người dùng gửi ngày 20-09-2026.
+- Chỉ sửa pipeline Sales Studio Hình ảnh & Nội dung + cách Git mang theo Sharp runtime.
+- Không sửa Home/giá vàng thế giới/khung danh mục sticky/VI-EN/Cloudflare/POS/Video/Try-on.
+
+FIXED
+- Khôi phục Availability-First: 3 ảnh sản phẩm thật được chuẩn bị trước và trở thành READY an toàn trước khi chờ Gemini.
+- Composer Sharp deterministic được thử ngay để tạo 3 poster thật có logo + QR quét thật + text/facts; AI luxury enhancement chạy nền.
+- Khi Gemini/Art Director lỗi hoặc 429, bộ deterministic đã READY được giữ nguyên, không bị hạ mất poster.
+- Scheduler chuẩn bị tối đa 4 campaign trước khi dispatch, sau đó tới giờ chỉ dùng media đã chuẩn bị.
+- Tự phục hồi các campaign cũ đang kẹt status retry-wait / prep-blocked của V1.3.7.
+- Sửa lỗi stale-reference do kblGrowthSave() normalize/clone queue: mọi cập nhật campaign sau save/async đều tìm lại row hiện tại trước khi ghi.
+- .gitignore được mở đúng ngoại lệ vendor/sharp/node_modules/** để GitHub Desktop thực sự commit binary Sharp/libvips lên Plesk.
+- Giữ lazy poster/jsQR loader V1.3.7 để tooling ảnh lỗi không được phép làm crash app startup.
+- UI dùng cleanUrls làm thumbnail dự phòng thay vì hiện ô trống khi AI branded đang nâng cấp.
+- Final QR được kiểm trên chính poster deterministic/branded; price/size đổi thì template deterministic render lại mà không gọi Gemini.
+
+PROTECTED / BYTE-IDENTICAL SO VỚI FILE V1.3.7 NGƯỜI DÙNG GỬI
+- views/home.html
+- public/kbl-market-world-v1.js
+- public/kbl-international-v4.js
+- public/kbl-international-v4.css
+- public/kbl-home-polish-v1.js
+- public/kbl-home-polish-v1.css
+
+BẢO TOÀN DỮ LIỆU DEPLOY
+- Không xóa .env, data/, public/uploads/ trên server.
+- ZIP release không đóng gói data/ hay public/uploads/ runtime.

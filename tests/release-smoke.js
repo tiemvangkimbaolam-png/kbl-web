@@ -18,15 +18,22 @@ const a=JSON.stringify(pkg.dependencies||{}),b=JSON.stringify(lock.packages?.[''
 if(a!==b)throw new Error('package.json/package-lock dependency mismatch');
 const sharp=require(path.join(root,'vendor','sharp'));
 if(!sharp||!sharp.versions?.sharp)throw new Error('Vendored Sharp did not load');
-const app=fs.readFileSync(path.join(root,'app.js'),'utf8'),admin=fs.readFileSync(path.join(root,'views','admin.html'),'utf8');
+const gitignore=fs.readFileSync(path.join(root,'.gitignore'),'utf8');
+if(!gitignore.includes('!vendor/sharp/node_modules/**'))throw new Error('Vendored Sharp runtime is still at risk of being ignored by Git');
+const nativeSharpFiles=[];
+(function walk(dir){for(const ent of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,ent.name);if(ent.isDirectory())walk(p);else if(/sharp-.*\.(?:node|so(?:\.\d+)*)$/i.test(ent.name))nativeSharpFiles.push(p)}})(path.join(root,'vendor','sharp','node_modules'));
+if(!nativeSharpFiles.length)throw new Error('Vendored Sharp native binary missing');
+const app=fs.readFileSync(path.join(root,'app.js'),'utf8'),admin=fs.readFileSync(path.join(root,'views','admin.html'),'utf8'),home=fs.readFileSync(path.join(root,'views','home.html'),'utf8');
+for(const token of ['id="kbl-home-world-gold"','/api/market/world-gold','.catalog-controls','position: sticky','initCatalogControls'])if(!home.includes(token))throw new Error('Protected Home regression: '+token);
+if(!app.includes('/api/market/world-gold'))throw new Error('Protected World Gold API route/reference missing');
 for(const token of [
-  "KBL_GROWTH_PREP_FIRST_VERSION='1.3.7-startup-recovery'",
+  "KBL_GROWTH_PREP_FIRST_VERSION='1.3.8-minimal-regression-fix'",
   "path.join(__dirname,'vendor','sharp')",
   '/api/admin/growth-autopilot/status','/api/admin/growth-autopilot/run-now',
   '/api/admin/growth-autopilot/settings','/api/admin/growth-autopilot/auto-publish',
   'kblGrowthIdeaReview','kblGrowthDesignReviewBundle','kblGrowthPrepareCampaign','kblGrowthPublishDue'
 ]) if(!app.includes(token))throw new Error('Missing release contract: '+token);
-for(const token of ['V1.3.7 · SALES STUDIO STARTUP RECOVERY','sales-studio-image-workflow-mount','sales-image-auto-badge','sales-image-metrics'])if(!admin.includes(token))throw new Error('Missing Sales Studio UI contract: '+token);
+for(const token of ['V1.3.8 · SALES STUDIO MINIMAL REGRESSION FIX','sales-studio-image-workflow-mount','sales-image-auto-badge','sales-image-metrics'])if(!admin.includes(token))throw new Error('Missing Sales Studio UI contract: '+token);
 const serverFiles=['app.js',...fs.readdirSync(path.join(root,'modules')).filter(x=>x.endsWith('.js')).map(x=>'modules/'+x),...fs.readdirSync(path.join(root,'scripts')).filter(x=>x.endsWith('.js')).map(x=>'scripts/'+x)];
 const missing=[];
 for(const rel of serverFiles){const f=path.join(root,rel),s=fs.readFileSync(f,'utf8');for(const m of s.matchAll(/require\(['"](\.\.?\/[^'"]+)['"]\)/g)){if(m[1]==='./vendor/sharp')continue;const base=path.resolve(path.dirname(f),m[1]),c=[base,base+'.js',base+'.json',path.join(base,'index.js')];if(!c.some(fs.existsSync))missing.push(rel+' -> '+m[1]);}}
