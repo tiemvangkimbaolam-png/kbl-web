@@ -58,7 +58,7 @@ function localizeKnownEnglishUI(){
     'Mua vào':'Buy','Bán ra':'Sell','Loại vàng':'Gold type','Tuổi / hàm lượng':'Purity','Đơn vị':'Unit','Biến động':'Change',
     'Hôm nay':'Today','Hôm qua':'Yesterday','7 ngày gần nhất':'Last 7 days','Ngày xem':'View date',
     'Đang đồng bộ từ POS':'Syncing from POS','↻ Làm mới':'↻ Refresh','Đang tải lịch sử từ POS…':'Loading history from POS…',
-    'BỘ SƯU TẬP KIM BẢO LÂM':'KIM BAO LAM COLLECTION','Nổi bật':'Featured','Nhẫn':'Rings','Dây':'Chains','Mặt dây':'Pendants',
+    'BỘ SƯU TẬP KIM BẢO LÂM':'KIM BAO LAM COLLECTION','Nổi bật':'Featured','Tất cả':'All','Nhẫn':'Rings','Dây':'Chains','Mặt dây':'Pendants',
     'Bông tai':'Earrings','Lắc tay':'Bracelets','Vòng':'Bangles','Sản phẩm 9999 / 980':'9999 / 980 jewelry',
     'Xem tất cả sản phẩm':'View all jewelry','Sản phẩm có sẵn tại tiệm':'Available in store',
     'Mẫu đang có trong kho để ông xem trước và liên hệ giữ hàng.':'Current in-store jewelry available to view and reserve.',
@@ -147,7 +147,8 @@ function localizeKnownEnglishUI(){
   setText('#products .section-heading h2','Featured jewelry');
   const sub=$('#products .section-subtitle');if(sub)sub.textContent='Current jewelry selected from live KBL inventory. Product names and descriptions in English are generated from verified Vietnamese source data.';
   const allLink=$('#products .section-heading .text-link');if(allLink)allLink.innerHTML='View all jewelry <span>→</span>';
-  setAllText('.filter-tabs .filter-tab',['Featured','Rings','Chains','Pendants','Earrings','Bracelets','Bangles','9999 / 980 jewelry']);
+  const catalogLabels={featured:'Featured',all:'All',ring:'Rings',necklace:'Chains',pendant:'Pendants',earring:'Earrings',bracelet:'Bracelets',bangle:'Bangles','gold-group':'9999 / 980 jewelry'};
+  $$('.filter-tabs .filter-tab').forEach(button=>{const label=catalogLabels[button.dataset.filter];if(label&&button.textContent!==label)button.textContent=label});
   const search=$('#product-search');if(search)search.placeholder='Search jewelry…';
   setText('#available-products-title','Available in store');
   const avp=$('#available-products-title')?.parentElement?.querySelector('p');if(avp)avp.textContent='Current in-store jewelry available to view and reserve.';

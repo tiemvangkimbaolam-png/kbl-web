@@ -1346,6 +1346,25 @@ button {
   border-bottom: 1px solid var(--line);
 }
 
+@media (min-width: 981px) {
+  .catalog-controls {
+    position: sticky;
+    top: var(--catalog-header-height, 78px);
+    z-index: 19;
+    margin-top: 36px;
+    padding: 12px 0;
+    background: #fff;
+    box-shadow: 0 8px 14px -14px rgba(20, 36, 56, .35);
+  }
+  .catalog-controls .catalog-toolbar {
+    margin-top: 0;
+    margin-bottom: 0 !important;
+  }
+  #products {
+    scroll-margin-top: calc(var(--catalog-header-height, 78px) + 16px);
+  }
+}
+
 .filter-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -4861,12 +4880,14 @@ body.kbl-intro-running #kbl-pwa-reload{display:none!important}
               <h2>Sản phẩm nổi bật</h2>
               <p class="section-subtitle">Những mẫu được Kim Bảo Lâm chọn để giới thiệu nổi bật. Chọn từng danh mục để xem toàn bộ sản phẩm.</p>
             </div>
-            <a class="text-link" href="#contact">Xem tất cả sản phẩm <span>→</span></a>
+            <a class="text-link" id="catalog-show-all" href="#products">Xem tất cả sản phẩm <span>→</span></a>
           </div>
 
+          <div class="catalog-controls">
           <div class="catalog-toolbar">
             <div class="filter-tabs" role="tablist" aria-label="Lọc sản phẩm">
               <button class="filter-tab active" type="button" data-filter="featured">Nổi bật</button>
+              <button class="filter-tab" type="button" data-filter="all">Tất cả</button>
               <button class="filter-tab" type="button" data-filter="ring">Nhẫn</button>
               <button class="filter-tab" type="button" data-filter="necklace">Dây</button>
               <button class="filter-tab" type="button" data-filter="pendant">Mặt dây</button>
@@ -4881,6 +4902,7 @@ body.kbl-intro-running #kbl-pwa-reload{display:none!important}
             </label>
           </div>
           <div class="catalog-subfilters" id="catalog-subfilters" role="tablist" aria-label="Lọc chi tiết sản phẩm"></div>
+          </div>
 
           <div class="product-lanes">
             <section class="product-lane product-lane--available" aria-labelledby="available-products-title">
@@ -7603,9 +7625,44 @@ function initRingSizeCalculator() {
   });
 }
 
+function initCatalogControls() {
+  const header = document.getElementById('site-header');
+  const updateHeaderHeight = () => {
+    document.documentElement.style.setProperty('--catalog-header-height', `${Math.ceil(header?.getBoundingClientRect().height || 78)}px`);
+  };
+  updateHeaderHeight();
+  if (header && typeof ResizeObserver !== 'undefined') new ResizeObserver(updateHeaderHeight).observe(header);
+  window.addEventListener('resize', updateHeaderHeight, { passive: true });
+
+  const buttons = Array.from(document.querySelectorAll('.filter-tab'));
+  const selectFilter = (filter) => {
+    state.filter = filter;
+    state.subFilter = '';
+    state.gold980Type = '';
+    buttons.forEach((button) => {
+      const selected = button.dataset.filter === filter;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-selected', String(selected));
+    });
+    renderProductSubfilters();
+    renderProducts();
+  };
+  buttons.forEach((button) => {
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-selected', String(button.dataset.filter === state.filter));
+    button.addEventListener('click', () => selectFilter(button.dataset.filter));
+  });
+  document.getElementById('catalog-show-all')?.addEventListener('click', () => {
+    state.search = '';
+    elements.productSearch.value = '';
+    selectFilter('all');
+  });
+}
+
 function init() {
   // Bộ đổi Ni được gắn trước các module khác để không bị ảnh hưởng nếu phần giá/sản phẩm lỗi.
   initRingSizeCalculator();
+  initCatalogControls();
   renderPrices();
   renderDetailedPrices();
   loadLivePrices();
@@ -7639,17 +7696,6 @@ function init() {
   document.querySelectorAll("[data-open-world-gold]").forEach((link) => {
     link.addEventListener("click", () => {
       window.setTimeout(() => document.querySelector('.market-tab[data-market="reference"]')?.click(), 80);
-    });
-  });
-
-  document.querySelectorAll(".filter-tab").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.filter = button.dataset.filter;
-      state.subFilter = '';
-      state.gold980Type = '';
-      document.querySelectorAll(".filter-tab").forEach((item) => item.classList.toggle("active", item === button));
-      renderProductSubfilters();
-      renderProducts();
     });
   });
 
@@ -8171,7 +8217,7 @@ init();
 </script>
   <script src="/kbl-market-world-v1.js?v=20260905-445" defer></script>
   <script src="/kbl-home-polish-v1.js?v=20260905-445" defer></script>
-  <script src="/kbl-international-v4.js?v=20260905-445" defer></script>
+  <script src="/kbl-international-v4.js?v=20260920-136" defer></script>
 
 <script id="kbl-home-world-gold-loader-20260912">
 (() => {

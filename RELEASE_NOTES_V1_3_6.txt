@@ -1,0 +1,26 @@
+KBL V1.3.6 — PREPARATION RECOVERY + HOME CATALOG
+20/09/2026
+
+Trạng thái bàn giao: SOURCE ĐÃ SỬA VÀ KIỂM THỬ CỤC BỘ. CHƯA DEPLOY LIVE.
+Đọc HUONG_DAN_CAP_NHAT_V1_3_6.md trước khi cập nhật hosting.
+
+PASS:
+- Ghi READY qua kblGrowthSave/normalizeState thật và đọc lại JSON đã lưu.
+- Lỗi quota giả lập ở ảnh 2; giữ ảnh 1; tiếp tục ảnh còn thiếu; không tạo lại toàn bộ.
+- Hai lời gọi đồng thời dùng cùng một tác vụ; hai dispatch đồng thời chỉ enqueue một lần.
+- Backoff; không biến clean-fallback thành poster đã duyệt.
+- QR nguồn và QR trong PNG hoàn chỉnh trỏ đúng website.
+- Cập nhật giá, ghép/duyệt lại mà không gọi AI tạo ảnh lại.
+- Giá đổi giữa lúc duyệt ảnh: không đánh dấu READY; duyệt không đạt sau normalize/save vẫn lưu retry-wait.
+- HTTP route chuẩn bị: thiếu xác thực -> 401; không có campaign -> 404; có campaign -> 202.
+- Giao diện hiển thị ảnh một phần, lỗi/giờ thử lại, phân biệt chờ với không đạt và escape dữ liệu.
+- Syntax, source audit, static UI, security smoke và các regression tests V1.3.5.
+- Home DOM: Tất cả, Nhẫn, 9999/980, tìm kiếm, Xem tất cả và nhãn tiếng Anh theo đúng danh mục.
+
+HOME:
+- Thêm Tất cả; Xem tất cả không còn dẫn xuống liên hệ.
+- Ghim chung danh mục/tìm kiếm/bộ lọc phụ dưới menu desktop trong vùng sản phẩm.
+- Chưa xác minh trực quan bản sửa trên hosting; xem checklist trong hướng dẫn cập nhật.
+
+Provider AI/vision, media HTTPS và Publisher dùng fixtures trong kiểm thử tích hợp.
+Không có API key, đơn hàng, dữ liệu POS, ảnh uploads runtime hoặc token thật trong gói bàn giao.
