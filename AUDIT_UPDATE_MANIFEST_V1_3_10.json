@@ -1,0 +1,158 @@
+{
+  "release": "1.3.10-ai-routing-audit",
+  "base": "Cumulative update from original kbl-weba.7z V1.3.8 or delivered V1.3.9",
+  "deployed": false,
+  "preserve": [
+    ".env",
+    "data/",
+    "public/uploads/",
+    "hosting configuration",
+    "Cloudflare DNS/routes/bindings/origin"
+  ],
+  "files": [
+    {
+      "path": ".gitignore",
+      "knownBeforeSha256": [
+        "72a04bd40948cfaf7320a99d813a594bdfdcae5c9e437a52a2f7cfb0204ef018"
+      ],
+      "afterSha256": "46560d227ba1291b6fc64ab0f9505f64c10005ee2aefc2d2fdb8bdf7b6a15ef2"
+    },
+    {
+      "path": "package.json",
+      "knownBeforeSha256": [
+        "a09880d21bbf3210d76e95b77267c9ee3636fbe9efeb05c2dfcfc76b73eedfdc"
+      ],
+      "afterSha256": "3d614332d1546cf5670d7e2cc1a470ad59ea9ed515902c8d2624f33a542c6a06"
+    },
+    {
+      "path": "app.js",
+      "knownBeforeSha256": [
+        "d61e6af51b45e2a5e2e61506db123de0dd7a493eaa947d96dc037152ef500a88",
+        "cb7755b36dcab84e6503f97ea6e01f61ecf67a19b75cc5573a36fbc135d3f4fa"
+      ],
+      "afterSha256": "6d48dd27b8eb5475536d246fd84361984d5e6e0a435656bb242a9f8203a290a0"
+    },
+    {
+      "path": "modules/kbl-studio-ai.js",
+      "knownBeforeSha256": [
+        "0766f27bd813b613125aacfd9dbd0d7af36cd5d0691a8913aea5c75ce6f08ac0"
+      ],
+      "afterSha256": "a2266177e178676443eb4c9af829282f1a18c058b9f8faa609ebcd7b69f6506c"
+    },
+    {
+      "path": "cloudflare-backup/src/index.js",
+      "knownBeforeSha256": [
+        "2b22cec07222910bd483ae4dae5b127b7fc709dcc40bfe34382441513b7ea362"
+      ],
+      "afterSha256": "d301cf1004b7d13e3a86fa3b278125f531f4930ac42a9d493be56aec6b08b115"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "knownBeforeSha256": [
+        "b0453a78c1a862d61c3bc94e6085e72323d574f254e7dc5f1dc5a7fb7948819d"
+      ],
+      "afterSha256": "8fbea716c4561370e94e1cb354a2bff13cf1eb7dd9d60a8da3885d2cc26e755e"
+    },
+    {
+      "path": "views/admin.html",
+      "knownBeforeSha256": [
+        "3a82bee8dda3a9343503ecf167b00da3284b93d166bbfdc81717bf3ef32c1f03",
+        "ad22b2423a4351ed2e53e405a261c2426341187aec607f98eebe0bab5c38ea57"
+      ],
+      "afterSha256": "ad22b2423a4351ed2e53e405a261c2426341187aec607f98eebe0bab5c38ea57"
+    },
+    {
+      "path": "tests/ai-adviser-smoke.js",
+      "knownBeforeSha256": [
+        "ece4fbd0eb45ecf48353047b52c8cfb1f5d48baca57e654363dd4f32978c9d7b"
+      ],
+      "afterSha256": "193d09266eda9a07fa11020ed7ca8382d01045904460e666eb366ea8a401c176"
+    },
+    {
+      "path": "tests/ai-routing-runtime.js",
+      "knownBeforeSha256": [],
+      "afterSha256": "e15c04d8e6525020a202029958ff6ba082ee9618642fbe5f94591a1707d8fd64"
+    },
+    {
+      "path": "tests/edge-ai-routing-runtime.js",
+      "knownBeforeSha256": [],
+      "afterSha256": "d033b0ae1f595d0c86c49e7d89748816990f6882b67adbcddb25f1e698a00b1f"
+    },
+    {
+      "path": "tests/site-routes-runtime.js",
+      "knownBeforeSha256": [],
+      "afterSha256": "f189d2964c91803f7a04a30dbd9e32592326b314c3d91e9c386446b670f19599"
+    },
+    {
+      "path": "tests/growth-pipeline-static-smoke.js",
+      "knownBeforeSha256": [],
+      "afterSha256": "ece4fbd0eb45ecf48353047b52c8cfb1f5d48baca57e654363dd4f32978c9d7b"
+    },
+    {
+      "path": "tests/growth-preparation-runtime.js",
+      "knownBeforeSha256": [
+        "20836d5075e6a0350f315f26eeb4039b787d0a4ae1050bfbe90655a6a18e4f27",
+        "0abe875eda01c8f0ac86876432cf6b63dd20a6efa5b4c3642ca37af98febb172"
+      ],
+      "afterSha256": "0abe875eda01c8f0ac86876432cf6b63dd20a6efa5b4c3642ca37af98febb172"
+    },
+    {
+      "path": "tests/growth-prepared-ui-runtime.js",
+      "knownBeforeSha256": [
+        "f1728dbf2ee8a2a656befe9bb8bf151b8426fa93e1af2116202b6d44082e7d42",
+        "b4c7dbd9eda44379e4bab1341896ab9a2d4a9b7a20ff0d10d3b0e642331e46e4"
+      ],
+      "afterSha256": "b4c7dbd9eda44379e4bab1341896ab9a2d4a9b7a20ff0d10d3b0e642331e46e4"
+    },
+    {
+      "path": "tests/app-startup-stub-smoke.js",
+      "knownBeforeSha256": [
+        "da4f0a50e6ccffa239dfaff7f2141c741f17c525fef906aa6f2b31cafed8e205",
+        "1c457ebdd647a4a7137af0fc976e7094b1daf9787e3a52467381a77278da3397"
+      ],
+      "afterSha256": "1c457ebdd647a4a7137af0fc976e7094b1daf9787e3a52467381a77278da3397"
+    },
+    {
+      "path": "tests/release-smoke.js",
+      "knownBeforeSha256": [
+        "938e0a35b4061418d4c0e725c8d1303bb9644a2b1e2ce93da33ce3bee65431fe",
+        "46c04ea5c15945f8f273695675a7bab9a9828dd1a1fe58465e13f6501303e703"
+      ],
+      "afterSha256": "46c04ea5c15945f8f273695675a7bab9a9828dd1a1fe58465e13f6501303e703"
+    },
+    {
+      "path": "00_AUDIT_WEBSITE_V1_3_10.md",
+      "knownBeforeSha256": [],
+      "afterSha256": "9fd19a054da1e1f40e20079dc31e65274cbffb0592c531dfdc703e761e6d9103"
+    },
+    {
+      "path": "AUDIT_SCOPE_V1_3_10.json",
+      "knownBeforeSha256": [],
+      "afterSha256": "be9e252b452528dcc66b9162306356c253207ce8647bbfdc05384cccdd184186"
+    },
+    {
+      "path": "AUDIT_ROUTES_V1_3_10.json",
+      "knownBeforeSha256": [],
+      "afterSha256": "0dce5d6381e1704d6f6a0fe510c4e51075d1f92b7dd6a8385c98827d37285d92"
+    }
+  ],
+  "remove": [
+    {
+      "path": "public/app.js",
+      "reason": "Unused server source copied into browser assets; root app.js remains",
+      "knownBeforeSha256": [
+        "a46fe5bbf4cc6911a443f13d7d8f51f3b4b78c0edcf634c9db5ecf9bc7acd68b"
+      ]
+    }
+  ],
+  "deploymentTargets": {
+    "node": [
+      "app.js",
+      "modules/kbl-studio-ai.js",
+      "views/admin.html"
+    ],
+    "cloudflareWorker": [
+      "cloudflare-backup/src/index.js"
+    ]
+  }
+}

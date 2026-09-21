@@ -2,7 +2,9 @@
 const C = require('./kbl-studio-core');
 const str={type:'string'},number={type:'number'},boolean={type:'boolean'};
 const array=items=>({type:'array',items});
-const object=properties=>({type:'object',properties,required:Object.keys(properties)});
+// Gemini's adapter removes this keyword; OpenAI strict fallback requires it
+// on every nested object, including scene/cue/box definitions.
+const object=properties=>({type:'object',additionalProperties:false,properties,required:Object.keys(properties)});
 const box=object({x:number,y:number,w:number,h:number});
 const IDEAS=object({ideas:array(object({angle:str,pattern:str,objective:str,title:str,hook:str,concept:str,why:str,cta:str,seriesKey:str,nextTease:str,recommended:boolean}))});
 const PACK=object({presenter:object({id:str,appearance:str,outfit:str,accessories:str,style:str}),global:object({showroom:str,camera:str,lighting:str,grading:str,voice:str,pace:str,music:str,sfx:str}),scenes:array(object({entryPose:str,exitPose:str,dialogue:str,action:str,camera:str,lighting:str,gaze:str,gesture:str,transition:str,expression:str,cues:array(object({sku:str,at:number,length:number,position:str,gesture:str,gaze:str}))}))});

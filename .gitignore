@@ -36,3 +36,6 @@ Thumbs.db
 *.rar
 *.tar
 *.tar.gz
+
+# Server source is never a public browser asset
+/public/app.js

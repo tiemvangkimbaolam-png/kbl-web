@@ -1,0 +1,33 @@
+{
+  "comparedWith": "Delivered Sales Studio V1.3.9 from kbl-weba.7z",
+  "originalSourceFiles": 386,
+  "excludedGeneratedFiles": [
+    "public/uploads/studio/kbl-website-qr.png",
+    "public/uploads/studio/kbl-logo-production.png"
+  ],
+  "unchangedFiles": 378,
+  "changedFiles": [
+    ".gitignore",
+    "package.json",
+    "app.js",
+    "modules/kbl-studio-ai.js",
+    "tests/ai-adviser-smoke.js",
+    "cloudflare-backup/src/index.js",
+    ".github/workflows/ci.yml"
+  ],
+  "removedFiles": [
+    "public/app.js"
+  ],
+  "appChangedTopLevelNodes": [
+    "geminiResponseText",
+    "kblPromptDeepSeekAutoRefresh",
+    "route:/api/health",
+    "route:/api/admin/prompt-ai/gemini-refresh",
+    "route:/api/admin/prompt-ai/deepseek-refresh",
+    "route:/api/admin/ai-master/model-refresh"
+  ],
+  "allOtherServerAstUnchanged": true,
+  "homeAndAdminByteIdentical": true,
+  "commerceAndPosFormulasUnchanged": true,
+  "notes": "Original git changes preserved except unused public/app.js removed; Node root app remains. New tests and report listed separately."
+}
