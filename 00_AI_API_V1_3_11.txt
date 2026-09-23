@@ -1,0 +1,35 @@
+KBL V1.3.11 — Sửa API AI và chẩn đoán trên hosting
+
+Bản này dựa trên V1.3.10 đang chạy tại tiemvangkimbaolam.id.vn.
+Chưa triển khai lên hosting; chưa xác minh bằng API key production.
+
+Cập nhật:
+1. Sao lưu các file sắp ghi đè. Giải nén gói PATCH vào đúng thư mục kbl-web đang chạy.
+2. Restart ứng dụng Node trong hosting. Không cần thêm dependency.
+3. Deploy lại Cloudflare Worker từ cloudflare-backup theo quy trình hiện có, giữ nguyên bindings, secrets, DNS và origin. Worker mới bổ sung thời gian chờ cho endpoint chẩn đoán.
+4. Mở Admin > Tổng quan > Kết nối API của các AI, nhập mã Admin như trước và bấm KIỂM TRA AI VĂN BẢN.
+5. Thử lại tư vấn, Prompt AI và Sales Studio rồi bấm XEM LỖI GẦN NHẤT. Bảng hiển thị provider/model, luồng, HTTP, lỗi và gợi ý xử lý. Không gửi API key qua chat.
+
+Nếu cập nhật đúng: /api/health có aiRoutingRelease = 1.3.11-ai-api-recovery.
+Gói không chứa .env, dữ liệu khách/POS, public/uploads hay cấu hình hosting.
+Không ghi đè các thư mục/biến môi trường này khi triển khai bản đầy đủ.
+
+Đã sửa:
+- GenerateContent tạo ảnh dùng imageConfig cho aspectRatio/imageSize; thử trang sức chuyển fallback sang v1beta đồng nhất với Studio.
+- Gom lời gọi AI vào transport quan sát lỗi thật: HTTP, auth/quota/billing/model, network, timeout, JSON sai, nội dung rỗng, phản hồi bị chặn/hết token. Nhật ký giới hạn 120 sự kiện trong bộ nhớ, riêng Admin, che key, không lưu payload hội thoại/ảnh.
+- Phản hồi văn bản chỉ có thinking và MAX_TOKENS được thử lại tối đa một lần trong timeout cũ; tăng giới hạn tối đa 4096 token. Không phát lại yêu cầu ảnh/video hay lỗi HTTP.
+- Tư vấn tổng quát không có AI/câu trả lời dự phòng thực trả 503 rõ ràng, không ngụy trang thành câu trả lời thành công. Lọc kho/chính sách theo dữ liệu tại chỗ vẫn hoạt động.
+- Prompt Final giữ lý do lỗi của cả DeepSeek và Gemini dự phòng.
+- Admin có kiểm tra văn bản/JSON/function-call; hạn chế kiểm tra một lần/phút và gộp yêu cầu đồng thời. Tối đa 8 request ngắn kể cả thử lại, có tính phí API thông thường, không trừ lượt Prompt AI khách.
+
+Giới hạn quan trọng:
+- Có key không chứng minh API hoạt động. Phép thử văn bản không chứng minh ảnh/video, Google Search grounding hay toàn bộ yêu cầu nghiệp vụ đạt.
+- Không thay key, billing, quota hoặc quyền project bằng bản vá mã nguồn. Nếu bảng hiện AUTH/PERMISSION/BILLING/QUOTA phải sửa tương ứng ở tài khoản API/hosting.
+- Chưa xác định được nguyên nhân production duy nhất vì chưa có lỗi trả về từ provider trong hosting. Bản này sửa lỗi request đã xác định và cung cấp lỗi cần thiết để xử lý tiếp.
+- Trạng thái chẩn đoán mất khi Node restart; không ghi vào dữ liệu nghiệp vụ.
+
+Kiểm thử: test:ai, test:routes, test:ui, test:security, test:growth (native và không Sharp/WASM), check và test:release đều đạt. Provider trong test được mô phỏng; không tuyên bố đã thử API production. Kiểm tra thêm nút Admin bằng jsdom đạt. Có 386/394 file nền V1.3.10 giữ nguyên byte; không xóa file. Home và các module thương mại/POS giữ nguyên.
+
+Tài liệu đối chiếu hợp đồng API ảnh:
+https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta
+Schema ImageConfig.aspectRatio/imageSize nhận chuỗi tỷ lệ/kích thước. ImageResponseFormat trong responseFormat dùng enum khác.

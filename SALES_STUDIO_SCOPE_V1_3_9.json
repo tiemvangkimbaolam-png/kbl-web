@@ -1,0 +1,41 @@
+{
+  "source": "kbl-weba.7z",
+  "scope": "Sales Studio · Hình ảnh & nội dung tự động",
+  "changedFiles": [
+    "app.js",
+    "views/admin.html",
+    "tests/release-smoke.js",
+    "tests/growth-prepared-ui-runtime.js",
+    "tests/growth-preparation-runtime.js",
+    "tests/app-startup-stub-smoke.js"
+  ],
+  "unchangedFiles": 379,
+  "serverOutsideSalesUnchanged": true,
+  "adminOutsideSalesImageUnchanged": true,
+  "hashes": {
+    "app.js": {
+      "before": "d61e6af51b45e2a5e2e61506db123de0dd7a493eaa947d96dc037152ef500a88",
+      "after": "cb7755b36dcab84e6503f97ea6e01f61ecf67a19b75cc5573a36fbc135d3f4fa"
+    },
+    "views/admin.html": {
+      "before": "3a82bee8dda3a9343503ecf167b00da3284b93d166bbfdc81717bf3ef32c1f03",
+      "after": "ad22b2423a4351ed2e53e405a261c2426341187aec607f98eebe0bab5c38ea57"
+    },
+    "tests/release-smoke.js": {
+      "before": "938e0a35b4061418d4c0e725c8d1303bb9644a2b1e2ce93da33ce3bee65431fe",
+      "after": "46c04ea5c15945f8f273695675a7bab9a9828dd1a1fe58465e13f6501303e703"
+    },
+    "tests/growth-prepared-ui-runtime.js": {
+      "before": "f1728dbf2ee8a2a656befe9bb8bf151b8426fa93e1af2116202b6d44082e7d42",
+      "after": "b4c7dbd9eda44379e4bab1341896ab9a2d4a9b7a20ff0d10d3b0e642331e46e4"
+    },
+    "tests/growth-preparation-runtime.js": {
+      "before": "20836d5075e6a0350f315f26eeb4039b787d0a4ae1050bfbe90655a6a18e4f27",
+      "after": "0abe875eda01c8f0ac86876432cf6b63dd20a6efa5b4c3642ca37af98febb172"
+    },
+    "tests/app-startup-stub-smoke.js": {
+      "before": "da4f0a50e6ccffa239dfaff7f2141c741f17c525fef906aa6f2b31cafed8e205",
+      "after": "1c457ebdd647a4a7137af0fc976e7094b1daf9787e3a52467381a77278da3397"
+    }
+  }
+}

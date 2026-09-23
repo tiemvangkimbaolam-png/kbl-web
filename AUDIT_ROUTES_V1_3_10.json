@@ -1,0 +1,325 @@
+{
+  "registeredRoutes": 423,
+  "checkedReadRoutes": [
+    {
+      "path": "/api/house2-sync/manifest",
+      "status": 401
+    },
+    {
+      "path": "/api/house2-sync/file",
+      "status": 401
+    },
+    {
+      "path": "/api/admin/sales-studio/status",
+      "status": 200
+    },
+    {
+      "path": "/api/video-studio/worker/studio-next",
+      "status": 401
+    },
+    {
+      "path": "/api/health",
+      "status": 200
+    },
+    {
+      "path": "/api/prices",
+      "status": 200
+    },
+    {
+      "path": "/api/cloud-price/status",
+      "status": 200
+    },
+    {
+      "path": "/api/prices/history",
+      "status": 200
+    },
+    {
+      "path": "/api/customer/me",
+      "status": 200
+    },
+    {
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "path": "/api/prompt-ai/me",
+      "status": 200
+    },
+    {
+      "path": "/api/prompt-ai/orders",
+      "status": 401
+    },
+    {
+      "path": "/api/my/crm",
+      "status": 401
+    },
+    {
+      "path": "/api/my/loyalty",
+      "status": 401
+    },
+    {
+      "path": "/api/my/pawns",
+      "status": 401
+    },
+    {
+      "path": "/api/lookup",
+      "status": 404
+    },
+    {
+      "path": "/api/pawn/remote",
+      "status": 404
+    },
+    {
+      "path": "/api/products",
+      "status": 200
+    },
+    {
+      "path": "/api/tryon/premium/status",
+      "status": 200
+    },
+    {
+      "path": "/api/shop",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/prompt-ai/overview",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/dashboard",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/ai-knowledge",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/products",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/orders",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/customers",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/product-metrics",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/tryon/accounts",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/n10/settings",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/loyalty/report",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/content/veo/status",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/publisher/connectors",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/publisher/app-config",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/publisher/runs",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/publisher/status",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/publisher/video-jobs",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/live/queue",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/content-history",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/ai-director/status",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/ai-master/status",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/lead-revenue/status",
+      "status": 200
+    },
+    {
+      "path": "/api/social/webhook/meta",
+      "status": 403
+    },
+    {
+      "path": "/api/admin/growth-autopilot/status",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/growth-autopilot/funnel",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/content-analytics",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/video-studio/status",
+      "status": 200
+    },
+    {
+      "path": "/api/video-studio/worker/ping",
+      "status": 401
+    },
+    {
+      "path": "/api/video-studio/worker/next",
+      "status": 401
+    },
+    {
+      "path": "/api/admin/local-ai/status",
+      "status": 200
+    },
+    {
+      "path": "/api/local-ai/worker/ping",
+      "status": 401
+    },
+    {
+      "path": "/api/local-ai/worker/next",
+      "status": 401
+    },
+    {
+      "path": "/api/admin/shop",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/transaction-sync/health",
+      "status": 200
+    },
+    {
+      "path": "/api/international/customer-message-subtitles.vtt",
+      "status": 404
+    },
+    {
+      "path": "/api/international/config",
+      "status": 200
+    },
+    {
+      "path": "/api/international/fx",
+      "status": 503
+    },
+    {
+      "path": "/api/international/catalog",
+      "status": 200
+    },
+    {
+      "path": "/api/international/paypal/sandbox-test-return",
+      "status": 400
+    },
+    {
+      "path": "/api/international/paypal/sandbox-test-cancel",
+      "status": 200
+    },
+    {
+      "path": "/api/international/paypal/return",
+      "status": 200
+    },
+    {
+      "path": "/api/international/paypal/cancel",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/international/settings",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/international/profit-readiness",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/international/orders",
+      "status": 200
+    },
+    {
+      "path": "/api/sync/international-orders",
+      "status": 401
+    },
+    {
+      "path": "/api/public/kbl-intents",
+      "status": 200
+    },
+    {
+      "path": "/api/public/kbl-knowledge",
+      "status": 200
+    },
+    {
+      "path": "/api/public/kbl-entity",
+      "status": 200
+    },
+    {
+      "path": "/api/public/kbl-evidence-hub",
+      "status": 200
+    },
+    {
+      "path": "/api/public/kbl-disambiguation",
+      "status": 200
+    },
+    {
+      "path": "/api/public/kbl-claims",
+      "status": 200
+    },
+    {
+      "path": "/api/public/kbl-knowledge/products",
+      "status": 200
+    },
+    {
+      "path": "/api/public/ai-discovery/status",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/global-ai/status",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/ai-presence/promax/status",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/global-discovery/status",
+      "status": 200
+    },
+    {
+      "path": "/api/market/world-gold",
+      "status": 200
+    },
+    {
+      "path": "/api/v5/status",
+      "status": 200
+    },
+    {
+      "path": "/api/admin/v5/overview",
+      "status": 200
+    }
+  ],
+  "workerHandshakes": 5,
+  "publicPages": 8,
+  "blockedSourcePaths": 3,
+  "externalServices": "simulated unavailable"
+}

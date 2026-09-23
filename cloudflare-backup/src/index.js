@@ -3,14 +3,34 @@ var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
 // src/index.js
-var VERSION = "1.2.2-house2-public-failover-primary-control-plane";
+var VERSION = "1.2.2-house2-public-failover-primary-control-plane-ai-api-recovery";
 var PUBLIC_SITE_ORIGIN = "https://tiemvangkimbaolam.id.vn";
 var PRIMARY_PROXY_TIMEOUT_MS = 5e3;
 var PRIMARY_PAGE_PROXY_TIMEOUT_MS = 15e3;
 var PRIMARY_AI_PROXY_TIMEOUT_MS = 240e3;
+function isPrimaryAiResponsePath(pathname) {
+  const path = String(pathname || "");
+  return path.startsWith("/api/prompt-ai/") || path === "/api/admin/content/name-suggestions" || path.startsWith("/api/adviser/") || path.startsWith("/api/tryon/ai") || path.startsWith("/api/admin/content/studio-run") || path.startsWith("/api/admin/content/generate") || path.startsWith("/api/admin/content/video-caption");
+}
 function primaryProxyTimeoutFor(pathname) {
   const path = String(pathname || "");
-  if (path.startsWith("/api/prompt-ai/") || path === "/api/admin/content/name-suggestions" || path.startsWith("/api/adviser/") || path.startsWith("/api/tryon/ai") || path.startsWith("/api/admin/content/studio-run") || path.startsWith("/api/admin/content/generate") || path.startsWith("/api/admin/content/video-caption")) return PRIMARY_AI_PROXY_TIMEOUT_MS;
+  if (isPrimaryAiResponsePath(path)) return PRIMARY_AI_PROXY_TIMEOUT_MS;
+  // These handlers await provider/model/media I/O before returning. Preserve the
+  // hidden origin and primary-only rules; only extend their response deadline.
+  const slowPaths = [
+    "/api/admin/ai-api/probe", "/api/admin/ai-master/model-refresh", "/api/admin/prompt-ai/overview",
+    "/api/admin/prompt-ai/gemini-refresh", "/api/admin/prompt-ai/deepseek-refresh",
+    "/api/admin/growth-autopilot/banana-test", "/api/admin/growth-autopilot/auto-check",
+    "/api/admin/growth-autopilot/test-media-upload", "/api/admin/growth-autopilot/test-publish-now",
+    "/api/admin/publisher/build", "/api/admin/publisher/media-check",
+    "/api/admin/content-analytics/sync", "/api/admin/global-discovery/probe",
+    "/api/admin/global-discovery/indexnow", "/api/admin/global-ai/status",
+    "/api/international/translate-batch", "/api/international/catalog",
+    "/api/international/customer-message-subtitles/ensure", "/api/public/kbl-knowledge"
+  ];
+  if (slowPaths.includes(path) || /^\/api\/admin\/content\/veo\/(?:start|job\/[^/]+)$/.test(path)
+    || /^\/api\/admin\/publisher\/(?:video-job\/[^/]+\/captions|long-video\/[^/]+\/analyze|test\/[^/]+|oauth\/callback\/[^/]+|run\/[^/]+\/refresh|telegram\/[^/]+|retry\/[^/]+)$/.test(path)
+    || /^\/api\/admin\/global-discovery\/probe\/[^/]+$/.test(path)) return PRIMARY_AI_PROXY_TIMEOUT_MS;
   return PRIMARY_PROXY_TIMEOUT_MS;
 }
 __name(primaryProxyTimeoutFor, "primaryProxyTimeoutFor");
@@ -2035,7 +2055,7 @@ async function proxyPrimaryOrFallback(request, env) {
   try {
     const response = await fetchPrimaryThroughHiddenOrigin(request, env);
     const answeredByKblNode = String(response.headers.get("x-kbl-origin-app") || "").toLowerCase() === "kbl-node";
-    const aiEndpoint = primaryProxyTimeoutFor(url.pathname) === PRIMARY_AI_PROXY_TIMEOUT_MS;
+    const aiEndpoint = isPrimaryAiResponsePath(url.pathname);
     const passThroughAppError = answeredByKblNode && aiEndpoint && response.status >= 500;
     if (response.status < 500 || passThroughAppError) {
       const headers = new Headers(response.headers);
