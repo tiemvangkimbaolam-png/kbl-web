@@ -38,7 +38,7 @@ module.exports.growthTest={
  changePrice(value=9000000){prices.price_sell_610=value},
  rejectRefreshAfterSave(){const original=kblGrowthRefreshPreparedPriceLayer;kblGrowthRefreshPreparedPriceLayer=async(bundle,prep)=>{kblGrowthSave();return {...prep,ready:false,brandedReady:false,message:'Fixture changed facts'}};return ()=>{kblGrowthRefreshPreparedPriceLayer=original}},
  changePriceDuringReview(){const original=kblGrowthDesignReviewOne;let changed=false;kblGrowthDesignReviewOne=async(...args)=>{const result=await original(...args);if(!changed){changed=true;prices.price_sell_610=10000000}return result};return ()=>{kblGrowthDesignReviewOne=original}},
- install(generator,review,store){kblGeminiStudioGenerate=generator;kblGrowthDesignReviewOne=review;kblGrowthStorePosterFacts=()=>store},
+ install(generator,review,store){kblGeminiStudioGenerate=generator;kblGrowthDesignReviewOne=review;kblGrowthStorePosterFacts=()=>store;kblPromptDeepSeekFinalize=async ({mode,brief})=>({prompt:'DEEPSEEK_FIXTURE_PROMPT '+brief.intent,model:'deepseek-fixture'})},
  forceDue(){for(const r of kblGrowthState.queue)r.dueAt=new Date(Date.now()-1000).toISOString();kblGrowthState.settings.enabled=true;kblGrowthState.settings.autoPublishPosts=true;kblGrowthSave()},
  stubDispatch(callback){publisherPreflightRunItem=()=>({status:'queued'});publisherQueueRun=(req,run,platforms,payload)=>{callback(payload());};kblGrowthLastDispatchAt=()=>0;}
 };`;
@@ -56,7 +56,7 @@ module.exports.growthTest={
   let result;
   if(withoutSharp){await require(path.join(root,'modules/kbl-growth-poster')).ensureComposer(null);api.markSharpBlocked();assert.equal(await api.pending(),1,'Old Sharp-blocked campaign should recover automatically');result={ok:api.state.queue[0].status==='ready'};assert.equal(api.composer().engine,'wasm-deterministic');}
   else result=await api.prepare('fixture');
-  assert(!result.ok);assert.equal(generationCalls,2);assert.equal(api.state.queue[0].status,'retry-wait');
+  assert(!result.ok);assert.equal(generationCalls,2);assert(generatedPrompts.every(p=>p.includes('DEEPSEEK_FIXTURE_PROMPT')&&p.includes('Do NOT render readable text')),'DeepSeek prompt and verified safe-area rule must reach Gemini');assert.equal(api.state.queue[0].status,'retry-wait');
   assert(api.state.queue[0].preparationError.includes('429'));assert(api.state.queue[0].preparedPost.posterResults[0].posterImage);
   assert(!api.public()[0].ready);assert(api.public()[0].nextPreparationAt);
   assert.equal(await api.pending(),0,'Backoff must skip this campaign');

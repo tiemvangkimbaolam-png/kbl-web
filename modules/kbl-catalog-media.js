@@ -14,11 +14,14 @@ function create({ getProducts, publicationStatusFor, safeImageSource }) {
     const old = entries.get(field);
     if (old && old.source === source && old.id === String(product.id)) return old;
     const safe = safeImageSource(source);
-    const entry = { source, id: String(product.id), safe, url: safe };
-    if (safe.startsWith('data:image/')) {
-      const comma = safe.indexOf(',');
-      entry.encoded = safe.slice(comma + 1);
-      const rawMime = safe.slice(5, safe.indexOf(';'));
+    const inline = source.match(/^data:image\/(png|jpe?g|webp);base64,([a-z0-9+/=\s]+)$/i);
+    const largeInline = !safe && inline && inline[2].length <= 16 * 1024 * 1024 ? source : '';
+    const accepted = safe || largeInline;
+    const entry = { source, id: String(product.id), safe: accepted, url: accepted };
+    if (accepted.startsWith('data:image/')) {
+      const comma = accepted.indexOf(',');
+      entry.encoded = accepted.slice(comma + 1).replace(/\s+/g, '');
+      const rawMime = accepted.slice(5, accepted.indexOf(';'));
       entry.mime = rawMime === 'image/jpg' ? 'image/jpeg' : rawMime;
       const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[entry.mime];
       if (ext) {
@@ -26,6 +29,7 @@ function create({ getProducts, publicationStatusFor, safeImageSource }) {
         entry.etag = '"' + hash + '"';
         entry.version = hash;
         entry.size = Buffer.from(entry.encoded, 'base64').length;
+        if (!entry.size || entry.size > 12 * 1024 * 1024) { entries.set(field, { source, id: String(product.id), safe: '', url: '' }); return entries.get(field); }
         const key = Buffer.from(entry.id, 'utf8').toString('base64url');
         // Extensionless API URLs also work when the host serves /uploads/*.jpg
         // directly from disk before forwarding other requests to Node.
