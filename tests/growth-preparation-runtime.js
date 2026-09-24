@@ -102,6 +102,13 @@ module.exports.growthTest={
   for(const r of api.state.queue){r.preparedPost=approved;r.status='ready';}api.save();
   const dispatchResults=await Promise.all([api.publish(),api.publish()]);assert.equal(dispatches,1,'Concurrent dispatch calls must share one run');
   assert(dispatchResults.every(x=>x.count===1));
+  // A scheduler restart after a long outage must send old campaigns to Review.
+  api.seed(rows);api.resetImages();api.state.settings.enabled=true;api.state.settings.autoPublishPosts=true;
+  for(const row of api.state.queue){row.status='ready';row.preparedPost=approved;row.dueAt=new Date(Date.now()-25*3600000).toISOString();}api.save();
+  const staleIds=api.state.queue.map(row=>row.id),dispatchesBeforeStale=dispatches;
+  const staleResult=await api.publish();
+  assert.equal(staleResult.count,0);assert.equal(dispatches,dispatchesBeforeStale);
+  assert(staleIds.every(id=>!api.state.queue.some(row=>row.id===id)&&api.state.reviewQueue.some(row=>row.id===id&&row.message.includes('quá 24 giờ'))));
   // Verify the final poster bytes, not merely the original QR asset.
   const tools=require(path.join(root,'modules/kbl-growth-poster'));
   const finalPath=path.join(pub,approved.posterImages[0]);const scan=await tools.scan(sharp,fs.readFileSync(finalPath),store.website);assert(scan.approved);
@@ -127,6 +134,14 @@ module.exports.growthTest={
   api.seed(rows);api.resetImages();reviewHook=()=>api.replaceProduct('fixture-1',{name:'Updated product name'});
   await api.prepare('fixture');assert.equal(api.state.queue[0].status,'retry-wait');assert(!api.ready(api.state.queue[0].preparedPost));
   // Daily local budget is different from provider quota. An admin retry cannot spend above it.
+  api.seed(rows);api.resetImages();
+  const beforeBilling=generationCalls;
+  api.install(async()=>{generationCalls++;return {ok:false,error:'Gemini HTTP 402: prepayment credits depleted'}},async()=>({approved:true,model:'fixture-review'}),store);
+  await api.prepare('fixture');
+  assert.equal(generationCalls,beforeBilling+1,'A billing failure must stop after the first poster');
+  assert.equal(api.state.care.imageCalls.length,0,'HTTP 402 must not consume the daily image budget');
+  assert.match(api.state.queue[0].preparationError,/HTTP 402/);
+  assert(Date.parse(api.state.queue[0].nextPreparationAt)-Date.now()>50*60000,'Billing backoff must prevent retry storms');
   api.seed(rows);api.resetImages();api.state.settings.maxAiImagesPerDay=0;api.save();const beforeBudget=generationCalls;
   await api.prepare('fixture','admin-retry');assert.equal(generationCalls,beforeBudget);
   const retryAt=api.state.queue[0].nextPreparationAt;assert(retryAt&&Date.parse(retryAt)>Date.now()&&Date.parse(retryAt)-Date.now()<=86400000);

@@ -8,6 +8,9 @@ process.env.KBL_GEMINI_AUTO_ENABLED='0';
 process.env.KBL_PUBLIC_BASE_URL='https://tiemvangkimbaolam.id.vn';
 process.env.KBL_ADMIN_TOKEN='A'.repeat(32);
 process.env.PORT='0';
+process.env.KBL_GEMINI_API_KEY='';process.env.GEMINI_API_KEY='';
+process.env.KBL_DEEPSEEK_API_KEY='';process.env.DEEPSEEK_API_KEY='';
+process.env.KBL_OPENAI_API_KEY='';process.env.OPENAI_API_KEY='';
 
 const routes=[];
 function makeApp(){
@@ -46,6 +49,12 @@ function makeRes(){return {statusCode:200,body:null,headers:{},status(c){this.st
     assert(res.body.growth&&res.body.growth.version==='1.3.9-sales-studio-recovery','Unexpected Growth version');
     assert(res.body.growth.composer&&res.body.growth.composer.ready===true,'Vendored deterministic composer not READY in runtime status');
     assert(/sharp/i.test(String(res.body.growth.composer.diagnostic||'')),'Composer diagnostic missing');
+    const probe=routes.find(r=>r.method==='POST'&&r.path==='/api/admin/ai-api/probe');
+    assert(probe&&probe.handlers.length,'AI diagnostic route was not registered');
+    const probeRes=makeRes(),probeReq={...makeReq(),method:'POST',url:probe.path,originalUrl:probe.path,body:{}};
+    await probe.handlers[probe.handlers.length-1](probeReq,probeRes);
+    assert.strictEqual(probeRes.statusCode,200,'Provider failure must remain a JSON diagnostic, not a proxy HTML 502');
+    assert(probeRes.body&&probeRes.body.success===false&&probeRes.body.diagnostics.lastRun,'Missing provider diagnostics after failed probe');
     loaded.closeServer();
     console.log('APP_STARTUP_STATUS_RUNTIME_SMOKE_OK routes='+routes.length+' composer='+res.body.growth.composer.diagnostic);
   }catch(e){console.error(e&&e.stack||e);process.exitCode=1;try{loaded&&loaded.closeServer&&loaded.closeServer();}catch(_){} }

@@ -5824,7 +5824,7 @@ async function kblGeminiStudioGenerate(referenceImages, prompt, aspectRatio='4:5
         const response=await kblAiFetch('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',headers:{'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({model,input:[{type:'text',text:String(prompt||'')},...refs.map(ref=>({type:'image',mime_type:ref.mimeType,data:ref.data}))],response_format:photoStudioResponseFormat(model,aspectRatio)})}, "kblGeminiStudioGenerate");
         const {payload,raw}=await readGeminiJsonResponse(response);
         if(response.ok){const image=geminiInteractionImage(payload);if(image)return {ok:true,image:{...image,model,api:'interactions'},attempted,errors};errors.push(`${photoModelLabel(model)} interactions: thành công nhưng không có ảnh.`)}
-        else {const detail=geminiApiErrorDetail(payload,raw);if(response.status===429){const retryAfterSec=Number(response.headers&&response.headers.get?response.headers.get('retry-after'):0),retryMs=Number.isFinite(retryAfterSec)&&retryAfterSec>0?retryAfterSec*1000:0;photoModelCooldowns.set(model,Date.now()+Math.min(60*60*1000,Math.max(AI_PHOTO_QUOTA_COOLDOWN_MS,retryMs)))}errors.push(conciseGeminiImageError(model,response.status,detail))}
+        else {const detail=geminiApiErrorDetail(payload,raw);if(response.status===402)return {ok:false,attempted,errors,error:conciseGeminiImageError(model,402,detail)};if(response.status===429){const retryAfterSec=Number(response.headers&&response.headers.get?response.headers.get('retry-after'):0),retryMs=Number.isFinite(retryAfterSec)&&retryAfterSec>0?retryAfterSec*1000:0;photoModelCooldowns.set(model,Date.now()+Math.min(60*60*1000,Math.max(AI_PHOTO_QUOTA_COOLDOWN_MS,retryMs)))}errors.push(conciseGeminiImageError(model,response.status,detail))}
       }catch(error){errors.push(`${photoModelLabel(model)} interactions: ${error?.name==='AbortError'?'quá thời gian xử lý':String(error?.message||error).slice(0,180)}`)}finally{clearTimeout(timeout)}
     }
     // Fallback chính thức generateContent: giúp project/model nào chưa nhận Interactions vẫn tạo được ảnh.
@@ -5835,7 +5835,7 @@ async function kblGeminiStudioGenerate(referenceImages, prompt, aspectRatio='4:5
         const response=await kblAiFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({contents:[{role:'user',parts:[{text:String(prompt||'')},...refs.map(ref=>({inline_data:{mime_type:ref.mimeType,data:ref.data}}))]}],generationConfig})}, "kblGeminiStudioGenerate");
         const {payload,raw}=await readGeminiJsonResponse(response);
         if(response.ok){const image=geminiGenerateContentImage(payload);if(image)return {ok:true,image:{...image,model,api:'generateContent'},attempted,errors};errors.push(`${photoModelLabel(model)} generateContent: thành công nhưng không có ảnh.`)}
-        else {const detail=geminiApiErrorDetail(payload,raw);if(response.status===429){const retryAfterSec=Number(response.headers&&response.headers.get?response.headers.get('retry-after'):0),retryMs=Number.isFinite(retryAfterSec)&&retryAfterSec>0?retryAfterSec*1000:0;photoModelCooldowns.set(model,Date.now()+Math.min(60*60*1000,Math.max(AI_PHOTO_QUOTA_COOLDOWN_MS,retryMs)))}errors.push(conciseGeminiImageError(model,response.status,detail))}
+        else {const detail=geminiApiErrorDetail(payload,raw);if(response.status===402)return {ok:false,attempted,errors,error:conciseGeminiImageError(model,402,detail)};if(response.status===429){const retryAfterSec=Number(response.headers&&response.headers.get?response.headers.get('retry-after'):0),retryMs=Number.isFinite(retryAfterSec)&&retryAfterSec>0?retryAfterSec*1000:0;photoModelCooldowns.set(model,Date.now()+Math.min(60*60*1000,Math.max(AI_PHOTO_QUOTA_COOLDOWN_MS,retryMs)))}errors.push(conciseGeminiImageError(model,response.status,detail))}
       }catch(error){errors.push(`${photoModelLabel(model)} generateContent: ${error?.name==='AbortError'?'quá thời gian xử lý':String(error?.message||error).slice(0,180)}`)}finally{clearTimeout(timeout)}
     }
   }
@@ -6143,8 +6143,15 @@ const KBL_AI_V6_POLICY_TOPIC_RULES = [
 ];
 function kblAiV6PolicyTopic(value) {
   const raw=plainVietnamese(value);
+  // A cleaning service question concerns jewellery care, not the customer-support channel.
+  if (kblAiV6CleaningServiceQuestion(value)) return 'warranty';
   for (const [topic,re] of KBL_AI_V6_POLICY_TOPIC_RULES) if (re.test(raw)) return topic;
   return '';
+}
+function kblAiV6CleaningServiceQuestion(value) {
+  const raw=plainVietnamese(value);
+  return /\b(lam sach|ve sinh|danh bong)\b/.test(raw)
+    && /\b(tiem|cua hang|ben minh|dich vu|co ho tro|co lam|nhan lam|mang theo)\b/.test(raw);
 }
 function kblAiV6PolicyInfoQuestion(value, topic='') {
   if (!topic) return false;
@@ -6177,6 +6184,10 @@ function kblAiV6PolicyLookup(message, topic='', limit=4) {
 }
 function kblAiV6PolicyReply(message, topic='') {
   const raw=plainVietnamese(message);
+  if (kblAiV6CleaningServiceQuestion(message)) return {
+    reply:'Em chưa thấy chính sách công bố xác nhận tiệm có nhận làm sạch hoặc đánh bóng trang sức, hay yêu cầu giấy tờ riêng cho dịch vụ này. Anh/chị vui lòng liên hệ tiệm trước khi đến; nếu có hóa đơn hoặc giấy đảm bảo vàng thì mang cùng sản phẩm để tiệm đối chiếu.',
+    hits:[]
+  };
   const hits=kblAiV6PolicyLookup(message,topic,4);
   if (!hits.length) return {reply:'Em chưa tìm thấy nội dung đủ rõ trong bộ chính sách Kim Bảo Lâm đang công bố để khẳng định việc này. Em không đoán; trường hợp này cần tiệm xác nhận trực tiếp.',hits:[]};
   if (topic==='payment' && /\b(quet the|the tin dung|tra gop)\b/.test(raw)) {
@@ -10458,7 +10469,8 @@ app.get('/api/admin/ai-api/status', (req,res)=>{
 app.post('/api/admin/ai-api/probe', async(req,res)=>{
   if(!requireAdmin(req,res))return;
   const result=await kblAiDiagnostics.run();
-  return json(res,result.ok?200:502,{success:result.ok,result,diagnostics:kblAiDiagnostics.snapshot()});
+  // The diagnostic completed; keep a provider failure in JSON instead of proxy-replaced HTTP 502 HTML.
+  return json(res,200,{success:result.ok,result,diagnostics:kblAiDiagnostics.snapshot()});
 });
 
 app.get('/api/admin/dashboard', async (req, res) => {
@@ -10972,7 +10984,11 @@ function publisherConnectorsForAdmin(req){
 }
 function publisherMediaForProduct(product){
   const manifest=product&&product.contentManifest&&typeof product.contentManifest==='object'?product.contentManifest:{},media=manifest.media&&typeof manifest.media==='object'?manifest.media:{};
-  const video=safeStudioVideoSource(media.approvedVideo||product.approvedStudioVideo||''),publishedImage=publicationStatusFor(product)==='published'?safeImageSource(product&&product.image):'',image=safeImageSource(media.displayImage||product.displayImage||publishedImage||'');return {preferred:video||image||'',video,image};
+  const video=safeStudioVideoSource(media.approvedVideo||product.approvedStudioVideo||'');
+  const published=publicationStatusFor(product)==='published';
+  const image=[media.displayImage,product.displayImage,published&&product.image].map(safeImageSource).find(Boolean)
+    ||(published?kblCatalogMedia.imageFor(product,'image',true):'');
+  return {preferred:video||image||'',video,image};
 }
 function publisherProductReady(product){
   if(!product||String(product.status||'available')!=='available'||publicationStatusFor(product)!=='published')return false;
@@ -12404,7 +12420,7 @@ function kblGrowthPruneCostCalls(){const cutoff=Date.now()-8*86400000;kblGrowthS
 function kblGrowthReplyBudget(platform){kblGrowthPruneCostCalls();const s=kblGrowthState.settings,total=kblGrowthTodayCalls(kblGrowthState.care.aiCalls),perPlatform=kblGrowthTodayCalls(kblGrowthState.care.aiCalls,platform);if(kblGrowthReplyCycleCount>=s.maxRepliesPerCycle)return {allowed:false,reason:'cycle-cap',total,perPlatform};if(total>=s.maxAutoRepliesPerDay)return {allowed:false,reason:'daily-cap',total,perPlatform};if(perPlatform>=s.maxAutoRepliesPerPlatformPerDay)return {allowed:false,reason:'platform-daily-cap',total,perPlatform};return {allowed:true,total,perPlatform}}
 function kblGrowthRecordAiReplyCall(platform){kblGrowthReplyCycleCount++;kblGrowthState.care.aiCalls.unshift({at:new Date().toISOString(),platform:String(platform||'')});kblGrowthPruneCostCalls()}
 function kblGrowthImageBudget(){kblGrowthPruneCostCalls();const used=kblGrowthTodayCalls(kblGrowthState.care.imageCalls),limit=kblGrowthState.settings.maxAiImagesPerDay;return {allowed:limit>0&&used<limit,used,limit}}
-function kblGrowthRecordImageCall(productId){kblGrowthState.care.imageCalls.unshift({at:new Date().toISOString(),productId:String(productId||'')});kblGrowthPruneCostCalls()}
+function kblGrowthRecordImageCall(productId){const call={at:new Date().toISOString(),productId:String(productId||'')};kblGrowthState.care.imageCalls.unshift(call);kblGrowthPruneCostCalls();return call}
 function kblGrowthCostStatus(){kblGrowthPruneCostCalls();const s=kblGrowthState.settings,replyToday=kblGrowthTodayCalls(kblGrowthState.care.aiCalls),imageToday=kblGrowthTodayCalls(kblGrowthState.care.imageCalls);const repliesByPlatform={};for(const p of PUBLISHER_PLATFORMS)repliesByPlatform[p]=kblGrowthTodayCalls(kblGrowthState.care.aiCalls,p);return {replyToday,replyDailyLimit:s.maxAutoRepliesPerDay,replyPerPlatformLimit:s.maxAutoRepliesPerPlatformPerDay,replyPerCycleLimit:s.maxRepliesPerCycle,repliesByPlatform,imageToday,imageDailyLimit:s.maxAiImagesPerDay,imageRetryHours:s.imageRetryHours,videoAutomatic:false}}
 async function kblGrowthVisualQa(referenceImage,candidateImage,product){
   if(!GEMINI_API_KEY||typeof fetch!=='function'||!referenceImage||!candidateImage)return {approved:false,confidence:0,reason:'Vision QA không sẵn sàng.',issues:['vision-qa-unavailable']};
@@ -15811,7 +15827,6 @@ async function kblGrowthSinglePosterAsset(product,index,total,logoRef=null,qrRef
       const cleanAsset=kblGrowthState.assets['publish-static:'+facts.id];
       const sourceRef=await kblGrowthImageReference(cleanAsset?.publicPath||facts.image);
       if(!sourceRef)throw new Error('Không đọc được ảnh trưng bày của '+facts.sku+'.');
-      kblGrowthRecordImageCall('prep:'+facts.sku);kblGrowthSave();
       const correction=asset.lastRejection?'\nART DIRECTOR CORRECTION FOR THIS SKU: '+cleanContentText(asset.lastRejection,700)+'\nCorrect these issues while preserving the exact reference product and the empty footer safe area.':'';
       if(!asset.visualPrompt){
         const profile={industry:'Trang sức vàng',brand:'Kim Bảo Lâm',products:facts.name,language:'English',creativeMode:'can-bang',rules:'Giữ nguyên chính xác sản phẩm tham chiếu. Không tạo chữ, giá, logo hoặc QR trong ảnh AI; server ghép thông tin và QR sau.',adMode:'never'};
@@ -15820,7 +15835,13 @@ async function kblGrowthSinglePosterAsset(product,index,total,logoRef=null,qrRef
         asset.visualPrompt=String(directed.prompt||'').slice(0,12000);asset.promptModel=directed.model;save();
       }
       const visualPrompt=[asset.visualPrompt,kblGrowthVisualOnlyPosterPrompt(facts),correction].filter(Boolean).join('\n\n');
+      const imageCall=kblGrowthRecordImageCall('prep:'+facts.sku);kblGrowthSave();
       const built=await kblGeminiStudioGenerate([sourceRef],visualPrompt,'4:5');
+      // An unfunded HTTP 402 cannot produce an image and should not use the local daily budget.
+      if(!built?.ok&&/\bHTTP\s*402\b/i.test(String(built?.error||''))){
+        kblGrowthState.care.imageCalls=kblGrowthState.care.imageCalls.filter(row=>row!==imageCall);
+        kblGrowthSave();
+      }
       if(!built?.ok||!built.image)throw new Error(built?.error||'Gemini chưa trả ảnh.');
       asset.baseImage=persistInlineImageToPublic(built.image,'growth-base-'+facts.sku);
       if(!asset.baseImage)throw new Error('Không lưu được ảnh AI vào thư mục media.');
@@ -15837,8 +15858,8 @@ async function kblGrowthSinglePosterAsset(product,index,total,logoRef=null,qrRef
     const probe=await kblGrowthProbeImageUrl(asset.posterUrl);
     asset={...asset,ok:Boolean(probe.ok),probe,reason:probe.ok?'':probe.message,nextRetryAt:probe.ok?'':new Date(Date.now()+120000).toISOString(),updatedAt:new Date().toISOString()};save();return {...asset};
   }catch(error){
-    const reason=cleanLabelText(error.message||'Tạo ảnh thất bại.',600),quota=/429|quota|Cost Guard/i.test(reason);
-    asset={...asset,ok:false,reason,nextRetryAt:new Date(Date.now()+(quota?Math.max(1,number(kblGrowthState.settings.imageRetryHours,24))*3600000:120000)).toISOString()};save();return {...asset};
+    const reason=cleanLabelText(error.message||'Tạo ảnh thất bại.',600),billing=/\bHTTP\s*402\b/i.test(reason),quota=/429|quota|Cost Guard/i.test(reason);
+    asset={...asset,ok:false,reason,nextRetryAt:new Date(Date.now()+(billing?3600000:quota?Math.max(1,number(kblGrowthState.settings.imageRetryHours,24))*3600000:120000)).toISOString()};save();return {...asset};
   }
 }
 async function kblGrowthRefreshPreparedPriceLayer(bundle,prep){
@@ -15935,7 +15956,17 @@ async function kblGrowthPlanNow(origin='scheduler'){
 
 function kblGrowthWatchdogStatus(){const now=Date.now(),w=kblGrowthState&&kblGrowthState.watchdog&&typeof kblGrowthState.watchdog==='object'?kblGrowthState.watchdog:{},tickMs=kblIsoMs(w.lastTickAt),tickAgeSeconds=tickMs?Math.max(0,Math.round((now-tickMs)/1000)):null,queue=Array.isArray(kblGrowthState&&kblGrowthState.queue)?kblGrowthState.queue.filter(kblGrowthPrepActive).sort((a,b)=>kblIsoMs(a.dueAt)-kblIsoMs(b.dueAt)):[],overdue=queue.filter(x=>kblIsoMs(x.dueAt)&&kblIsoMs(x.dueAt)<now-10*60000),readyPlatforms=[];for(const platform of KBL_GROWTH_IMAGE_PLATFORMS){try{const p=publisherPreflightRunItem(platform);readyPlatforms.push({platform,status:p.status,message:p.message,ready:p.status==='queued'})}catch(error){readyPlatforms.push({platform,status:'error',message:cleanLabelText(error&&error.message||'preflight-error',220),ready:false})}}const readyCount=readyPlatforms.filter(x=>x.ready).length,preparedCampaigns=kblGrowthPreparedPostsPublic(),readyPrepared=preparedCampaigns.filter(x=>x.ready).length;let cleanImageProductCount=0;try{for(const p of kblGrowthEligibleProducts()){try{if(kblGrowthPublicImageInfo(p,false).url)cleanImageProductCount++}catch(_){}}}catch(_){}const settings=kblGrowthState&&kblGrowthState.settings||KBL_GROWTH_DEFAULT_STATE.settings;return {serverSchedulerHealthy:tickAgeSeconds!==null&&tickAgeSeconds<=150,tickAgeSeconds,lastTickAt:w.lastTickAt||'',lastPublishCheckAt:w.lastPublishCheckAt||'',lastPublishStatus:w.lastPublishStatus||'idle',lastPublishMessage:w.lastPublishMessage||'',lastPublishQueueId:w.lastPublishQueueId||'',lastPublishRunId:w.lastPublishRunId||'',lastTestAt:w.lastTestAt||'',lastTestStatus:w.lastTestStatus||'',lastTestMessage:w.lastTestMessage||'',enabled:Boolean(settings.enabled),autoPublishPosts:Boolean(settings.autoPublishPosts),readyCount,readyPlatforms,cleanImageProductCount,preparedCampaignCount:preparedCampaigns.length,readyPreparedCount:readyPrepared,nextDue:queue[0]||null,overdueCount:overdue.length,overdue:overdue.slice(0,5),reviewCount:Array.isArray(kblGrowthState&&kblGrowthState.reviewQueue)?kblGrowthState.reviewQueue.length:0,recentHistory:Array.isArray(kblGrowthState&&kblGrowthState.history)?kblGrowthState.history.slice(0,12):[],fullyReady:Boolean(settings.enabled&&settings.autoPublishPosts&&readyCount>0&&cleanImageProductCount>=3&&tickAgeSeconds!==null&&tickAgeSeconds<=150)}}
 
-async function kblGrowthDispatchReadyDue(){if(!kblGrowthState.settings.autoPublishPosts){kblGrowthWatchdogSet('paused','Auto Publish đang tắt.');kblGrowthSave();return {paused:true,count:0}}const now=Date.now();let dueCandidates=(kblGrowthState.queue||[]).filter(x=>x&&String(x.status||'')==='ready'&&kblGrowthIsReady(x.preparedPost)&&kblIsoMs(x.dueAt)<=now).sort((a,b)=>Boolean(b.testMode)-Boolean(a.testMode)||kblIsoMs(a.dueAt)-kblIsoMs(b.dueAt));if(!dueCandidates.length){kblGrowthWatchdogSet('waiting','Scheduler chạy; chưa có bài READY tới giờ.');kblGrowthSave();return {paused:false,count:0,backlog:0}}const testCandidate=dueCandidates.find(x=>x.testMode==='near-now'),globalGap=Math.max(30,number(kblGrowthState.settings.minGapMinutes,90))*60000,lastAny=kblGrowthLastDispatchAt();if(!testCandidate&&lastAny&&now-lastAny<globalGap){kblGrowthWatchdogSet('gap-wait',`Có bài READY tới giờ nhưng giữ khoảng cách ${Math.round(globalGap/60000)} phút.`);kblGrowthSave();return {paused:false,waitingForGap:true,count:0,backlog:dueCandidates.length}}let item=testCandidate||dueCandidates.find(x=>{const last=kblGrowthLastDispatchAt(x.platform),sameGap=Math.max(120,number(kblGrowthState.settings.samePlatformGapMinutes,360))*60000;return !last||now-last>=sameGap});if(!item){kblGrowthWatchdogSet('gap-wait','Bài READY tới giờ nhưng cùng nền tảng vẫn trong thời gian giãn cách.');kblGrowthSave();return {paused:false,waitingForGap:true,count:0,backlog:dueCandidates.length}}const bundle=kblGrowthPrepBundleFromRow(item);if(bundle.length!==3||bundle.some(p=>!publisherProductReady(p))){const review={...item,status:'stock-review',at:new Date().toISOString(),message:'Không đăng: một SKU không còn đủ điều kiện publish ở phút cuối.'};kblGrowthState.reviewQueue.unshift(review);kblGrowthState.queue=(kblGrowthState.queue||[]).filter(x=>x.id!==item.id);kblGrowthSave();return {paused:false,count:0,review:true}}const pre=publisherPreflightRunItem(item.platform);if(pre.status!=='queued'){item.status=pre.status;item.message=pre.message;item.at=new Date().toISOString();kblGrowthState.history.unshift({...item});kblGrowthState.queue=(kblGrowthState.queue||[]).filter(x=>x.id!==item.id);kblGrowthSave();return {paused:false,count:0,blocked:true}}let prep=await kblGrowthRefreshPreparedPriceLayer(bundle,item.preparedPost||{});prep=await kblGrowthRevalidatePreparedMedia(prep,item.platform);item=(kblGrowthState.queue||[]).find(row=>row.id===item.id);if(!item||item.status!=='ready')return {paused:false,count:0,notReady:true};if(!kblGrowthState.settings.enabled||!kblGrowthState.settings.autoPublishPosts)return {paused:true,count:0};
+function kblGrowthExpireStaleSchedules(now=Date.now()){
+  const expired=(kblGrowthState.queue||[]).filter(row=>row&&kblGrowthPrepActive(row)&&!row.testMode&&kblIsoMs(row.dueAt)>0&&now-kblIsoMs(row.dueAt)>24*60*60*1000);
+  if(!expired.length)return 0;
+  const ids=new Set(expired.map(row=>row.id)),at=new Date(now).toISOString();
+  for(const row of expired)kblGrowthState.reviewQueue.unshift({...row,status:'review',at,message:'Lịch đã quá 24 giờ; cần lập lịch mới với giá và media hiện tại.'});
+  kblGrowthState.reviewQueue=kblGrowthState.reviewQueue.slice(0,120);
+  kblGrowthState.queue=kblGrowthState.queue.filter(row=>!ids.has(row.id));
+  kblGrowthSave();
+  return expired.length;
+}
+async function kblGrowthDispatchReadyDue(){if(!kblGrowthState.settings.autoPublishPosts){kblGrowthWatchdogSet('paused','Auto Publish đang tắt.');kblGrowthSave();return {paused:true,count:0}}const now=Date.now();kblGrowthExpireStaleSchedules(now);let dueCandidates=(kblGrowthState.queue||[]).filter(x=>x&&String(x.status||'')==='ready'&&kblGrowthIsReady(x.preparedPost)&&kblIsoMs(x.dueAt)<=now).sort((a,b)=>Boolean(b.testMode)-Boolean(a.testMode)||kblIsoMs(a.dueAt)-kblIsoMs(b.dueAt));if(!dueCandidates.length){kblGrowthWatchdogSet('waiting','Scheduler chạy; chưa có bài READY tới giờ.');kblGrowthSave();return {paused:false,count:0,backlog:0}}const testCandidate=dueCandidates.find(x=>x.testMode==='near-now'),globalGap=Math.max(30,number(kblGrowthState.settings.minGapMinutes,90))*60000,lastAny=kblGrowthLastDispatchAt();if(!testCandidate&&lastAny&&now-lastAny<globalGap){kblGrowthWatchdogSet('gap-wait',`Có bài READY tới giờ nhưng giữ khoảng cách ${Math.round(globalGap/60000)} phút.`);kblGrowthSave();return {paused:false,waitingForGap:true,count:0,backlog:dueCandidates.length}}let item=testCandidate||dueCandidates.find(x=>{const last=kblGrowthLastDispatchAt(x.platform),sameGap=Math.max(120,number(kblGrowthState.settings.samePlatformGapMinutes,360))*60000;return !last||now-last>=sameGap});if(!item){kblGrowthWatchdogSet('gap-wait','Bài READY tới giờ nhưng cùng nền tảng vẫn trong thời gian giãn cách.');kblGrowthSave();return {paused:false,waitingForGap:true,count:0,backlog:dueCandidates.length}}const bundle=kblGrowthPrepBundleFromRow(item);if(bundle.length!==3||bundle.some(p=>!publisherProductReady(p))){const review={...item,status:'stock-review',at:new Date().toISOString(),message:'Không đăng: một SKU không còn đủ điều kiện publish ở phút cuối.'};kblGrowthState.reviewQueue.unshift(review);kblGrowthState.queue=(kblGrowthState.queue||[]).filter(x=>x.id!==item.id);kblGrowthSave();return {paused:false,count:0,review:true}}const pre=publisherPreflightRunItem(item.platform);if(pre.status!=='queued'){item.status=pre.status;item.message=pre.message;item.at=new Date().toISOString();kblGrowthState.history.unshift({...item});kblGrowthState.queue=(kblGrowthState.queue||[]).filter(x=>x.id!==item.id);kblGrowthSave();return {paused:false,count:0,blocked:true}}let prep=await kblGrowthRefreshPreparedPriceLayer(bundle,item.preparedPost||{});prep=await kblGrowthRevalidatePreparedMedia(prep,item.platform);item=(kblGrowthState.queue||[]).find(row=>row.id===item.id);if(!item||item.status!=='ready')return {paused:false,count:0,notReady:true};if(!kblGrowthState.settings.enabled||!kblGrowthState.settings.autoPublishPosts)return {paused:true,count:0};
 const currentBundle=kblGrowthPrepBundleFromRow(item);
 if(currentBundle.length!==3||currentBundle.some(p=>!publisherProductReady(p))||prep.factsStamp!==kblGrowthFactsStamp(currentBundle))prep={...prep,ready:false,brandedReady:false,message:'Sản phẩm/giá thay đổi trong lúc kiểm tra trước đăng; cần duyệt lại.'};
 item.preparedPost=prep;if(!kblGrowthIsReady(prep)){item.status='retry-wait';item.nextPreparationAt=new Date(Date.now()+120000).toISOString();item.message=prep.message||'Bộ ảnh cần được duyệt lại.';kblGrowthWatchdogSet('not-ready','Đến giờ nhưng bộ media không còn READY 3/3.',{queueId:item.id});kblGrowthSave();return {paused:false,count:0,notReady:true}}const poster=item.platform==='tiktok'?null:{ok:true,posterImages:prep.brandedReady?prep.posterImages:prep.cleanImages,posterImage:prep.brandedReady?(prep.posterImages[0]||''):'',fallbackCarousel:!prep.brandedReady,priceSnapshotAt:new Date().toISOString(),priceSnapshots:prep.priceSnapshots||kblGrowthPrepPriceSnapshots(bundle),deterministicOverlay:Boolean(prep.brandedReady)},preparedMedia={ok:true,rows:prep.cleanRows||[],urls:prep.cleanUrls||[],sources:prep.cleanImages||[]},growthRunId='AUTO3-'+crypto.randomBytes(5).toString('hex').toUpperCase(),payload=kblGrowthTriplePayload(bundle,item.platform,item,poster,growthRunId,preparedMedia),finalImages=Array.isArray(payload.media&&payload.media.images)?payload.media.images:[];if(finalImages.length!==3){kblGrowthWatchdogSet('not-ready','Publisher payload không còn đủ 3 ảnh READY.',{queueId:item.id});kblGrowthSave();return {paused:false,count:0,notReady:true}}const run={id:growthRunId,sourceType:'product',productId:bundle[0].id,productIds:bundle.map(p=>String(p.id)),skus:bundle.map(p=>cleanInventoryCode(p.sku)),name:'Bộ 3 · '+bundle.map(p=>cleanInventoryCode(p.sku)).join(' · '),createdAt:new Date().toISOString(),items:{},growthAutopilot:true,growthVersion:KBL_GROWTH_PREP_FIRST_VERSION,tripleProductPost:true,fallbackCarousel:!prep.brandedReady,growthQueueId:item.id,growthContentId:item.id,growthCampaignId:item.campaignId||'',growthTrackingToken:item.trackingToken||'',contentType:item.contentType||kblGrowthContentTypeForRow(item)};publisherQueueRun(null,run,[item.platform],()=>payload);item.status='queued';item.runId=run.id;item.trackingUrl=kblGrowthTrackingUrl(item,item.platform,run.id);item.at=new Date().toISOString();item.posterImages=prep.brandedReady?prep.posterImages:prep.cleanImages;item.fallbackCarousel=!prep.brandedReady;item.priceSnapshotAt=new Date().toISOString();item.priceSnapshots=prep.priceSnapshots||kblGrowthPrepPriceSnapshots(bundle);item.message=prep.brandedReady?'Đến giờ: dùng bộ 3 poster READY đã duyệt, chỉ dispatch Publisher API.':'Đến giờ: dùng SAFE FALLBACK 3 ảnh thật đã chuẩn bị, chỉ dispatch Publisher API.';kblGrowthState.history.unshift({...item});kblGrowthState.queue=(kblGrowthState.queue||[]).filter(x=>x.id!==item.id);kblGrowthState.history=kblGrowthState.history.slice(0,400);kblGrowthWatchdogSet('queued',item.message,{queueId:item.id,runId:run.id});kblGrowthSave();return {paused:false,count:1,backlog:Math.max(0,dueCandidates.length-1)}}
