@@ -51,6 +51,12 @@ assert.strictEqual(ctx.kblGrowthPublicBaseUrl(),'https://publisher.example.com')
   const large={id:'large-photo',image:'data:image/png;base64,'+Buffer.alloc(2200000,83).toString('base64')};
   const compact=catalog.imageFor(large,'image',true);
   assert(compact.startsWith('/api/catalog-media/'),'Photos larger than the legacy 2MB inline cap must use an image route');
+  ctx.kblCatalogMedia=catalog;ctx.publicationStatusFor=()=> 'published';ctx.safeStudioVideoSource=()=>'';
+  ctx.safeImageSource=v=>{const s=String(v||'');return s.startsWith('data:')&&s.length>2800000?'':s};
+  large.sku='KBL-K0099';large.status='available';
+  vm.runInContext(app.slice(app.indexOf('function publisherMediaForProduct('),app.indexOf('function publisherAbsoluteUrl(',app.indexOf('function publisherMediaForProduct('))),ctx);
+  assert.strictEqual(ctx.publisherMediaForProduct(large).image,compact,'Publisher must use the public catalogue image for a large approved photo');
+  assert.strictEqual(ctx.publisherProductReady(large),true,'A published SKU with a catalogue image must be eligible for preparation');
   const sharp=require(path.join(root,'vendor','sharp'));
   if(!sharp||!sharp.versions||!sharp.versions.sharp)throw new Error('Vendored Sharp unavailable');
   const probe=await sharp({create:{width:24,height:30,channels:4,background:{r:255,g:255,b:255,alpha:1}}}).png().toBuffer();

@@ -1934,7 +1934,18 @@ async function retryGrowthPreparation(campaignId,button){
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),probe?90000:12000);
       try{
         const response=await fetch('/api/admin/ai-api/'+(probe?'probe':'status'),{method:probe?'POST':'GET',headers:headers(probe),cache:'no-store',signal:controller.signal,...(probe?{body:'{}'}:{})});
-        const data=await response.json();
+        const raw=await response.text();let data;
+        try{data=JSON.parse(raw)}catch(_){
+          // An older hosting proxy may replace a failed provider's HTTP 502 with HTML.
+          // The server saves the result; retrieve it through the status endpoint.
+          if(!probe)throw new Error('Máy chủ trả nội dung không phải JSON (HTTP '+response.status+').');
+          const latest=await fetch('/api/admin/ai-api/status',{method:'GET',headers:headers(false),cache:'no-store',signal:controller.signal});
+          data=await latest.json();
+          if(!data.diagnostics)throw new Error('Máy chủ trả nội dung không phải JSON (HTTP '+response.status+').');
+          renderAiApiDiagnostics(data.diagnostics);
+          if(summary)summary.textContent+=' · Đã lấy kết quả phép thử từ trạng thái đã lưu.';
+          return;
+        }
         if(!data.diagnostics)throw new Error(data.message||'Không đọc được chẩn đoán (HTTP '+response.status+').');
         renderAiApiDiagnostics(data.diagnostics);
       }catch(error){if(summary)summary.textContent='Không tải được chẩn đoán: '+(error.name==='AbortError'?'quá thời gian chờ; bấm xem lỗi gần nhất để lấy kết quả.':error.message);}
