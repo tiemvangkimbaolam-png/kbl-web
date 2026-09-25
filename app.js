@@ -6,6 +6,7 @@ const http = require('http');
 const https = require('https');
 
 const { createAiApi, RELEASE: KBL_AI_API_RELEASE } = require('./modules/kbl-ai-api');
+const { generateDeepSeekJson } = require('./modules/kbl-deepseek-json');
 const kblAiApi = createAiApi({ secrets: () => [GEMINI_API_KEY, DEEPSEEK_API_KEY, OPENAI_API_KEY, ADMIN_TOKEN, SYNC_TOKEN] });
 const kblAiFetch = kblAiApi.fetch;
 
@@ -8207,7 +8208,7 @@ app.get('/api/health', (_req, res) => json(res, 200, {
   aiTryOn: !AI_TRYON_ENABLED ? 'disabled' : (GEMINI_API_KEY ? `gemini:${GEMINI_IMAGE_MODEL}` : 'quick-browser-only'),
   aiPhotoStudio: 'local-worker+google-flow-fallback',
   videoStudio: 'v5-veo-raw+ffmpeg-price-overlay-worker',
-  aiBrain: { version:KBL_AI_AGENT_VERSION, powerUnlock:KBL_AI_POWER_UNLOCK_VERSION, architecture:'agent-first>understand>source>verify>cross-check>answer', agentFirst:KBL_AI_V8_AGENT_FIRST_ENABLED, strictEvidence:KBL_AI_V8_STRICT_EVIDENCE_ENABLED, providerFallback:KBL_AI_V8_PROVIDER_FALLBACK_ENABLED, providerFallbackReady:Boolean(OPENAI_API_KEY), promptFinalFallback:KBL_AI_V8_PROMPT_FALLBACK_ENABLED, promptFinalFallbackReady:Boolean(GEMINI_API_KEY), deepSeekPromptReady:Boolean(DEEPSEEK_API_KEY), conversationEngine:KBL_AI_V61_CONVERSATION_ENABLED, adaptiveToolRouting:KBL_AI_V61_ADAPTIVE_TOOL_ROUTING, naturalSchool:KBL_AI_V61_NATURAL_SCHOOL_ENABLED, dialogueTurns:KBL_AI_V61_DIALOGUE_TURNS, goldMath:'0.1-ly-integer', functionCalling:true, answerVerifier:KBL_AI_V4_VERIFIER_ENABLED, proEscalation:KBL_AI_V4_PRO_ENABLED, proModel:GEMINI_PRO_MODEL, embedding:KBL_AI_V3_EMBEDDING_ENABLED, trace:KBL_AI_V4_TRACE_ENABLED, learning:KBL_AI_V5_LEARNING_ENABLED, trainingQuestions:kblAiV5TrainingRows.length, policySections:kblAiV6PolicyRows.length, approvedKnowledge:kblAiV5LearnedRows.length, pendingKnowledge:kblAiV5PendingRows.length, googleSearch:KBL_AI_V3_GOOGLE_SEARCH_ENABLED, master:{version:KBL_AI_MASTER_VERSION,enabled:KBL_AI_MASTER_ENABLED,quickMinutes:Math.round(KBL_AI_MASTER_QUICK_MS/60000),deepMinutes:Math.round(KBL_AI_MASTER_DEEP_MS/60000),vietnamFirst:true} },
+  aiBrain: { version:KBL_AI_AGENT_VERSION, powerUnlock:KBL_AI_POWER_UNLOCK_VERSION, architecture:'agent-first>understand>source>verify>cross-check>answer', agentFirst:KBL_AI_V8_AGENT_FIRST_ENABLED, strictEvidence:KBL_AI_V8_STRICT_EVIDENCE_ENABLED, providerFallback:KBL_AI_V8_PROVIDER_FALLBACK_ENABLED, providerFallbackReady:Boolean(OPENAI_API_KEY||DEEPSEEK_API_KEY), promptFinalFallback:KBL_AI_V8_PROMPT_FALLBACK_ENABLED, promptFinalFallbackReady:Boolean(GEMINI_API_KEY), deepSeekPromptReady:Boolean(DEEPSEEK_API_KEY), conversationEngine:KBL_AI_V61_CONVERSATION_ENABLED, adaptiveToolRouting:KBL_AI_V61_ADAPTIVE_TOOL_ROUTING, naturalSchool:KBL_AI_V61_NATURAL_SCHOOL_ENABLED, dialogueTurns:KBL_AI_V61_DIALOGUE_TURNS, goldMath:'0.1-ly-integer', functionCalling:true, answerVerifier:KBL_AI_V4_VERIFIER_ENABLED, proEscalation:KBL_AI_V4_PRO_ENABLED, proModel:GEMINI_PRO_MODEL, embedding:KBL_AI_V3_EMBEDDING_ENABLED, trace:KBL_AI_V4_TRACE_ENABLED, learning:KBL_AI_V5_LEARNING_ENABLED, trainingQuestions:kblAiV5TrainingRows.length, policySections:kblAiV6PolicyRows.length, approvedKnowledge:kblAiV5LearnedRows.length, pendingKnowledge:kblAiV5PendingRows.length, googleSearch:KBL_AI_V3_GOOGLE_SEARCH_ENABLED, master:{version:KBL_AI_MASTER_VERSION,enabled:KBL_AI_MASTER_ENABLED,quickMinutes:Math.round(KBL_AI_MASTER_QUICK_MS/60000),deepMinutes:Math.round(KBL_AI_MASTER_DEEP_MS/60000),vietnamFirst:true} },
   commerceV5: kblCommerceV5 ? { version:kblCommerceV5.version, ...kblCommerceV5.overview() } : { version:'loading' },
   customerRegistration: PUBLIC_REGISTRATION_ENABLED ? 'open' : 'disabled',
   premiumTryOnPolicy: { loginRequired:true, initialFree:TRYON_INITIAL_FREE, shareBonus:true, vipUnlimited:true, vipPoints:LOYALTY_VIP_POINTS, pointProfitVnd:LOYALTY_POINT_PROFIT_VND, cooldownSeconds:Math.round(TRYON_COOLDOWN_MS/1000), cacheHours:Math.round(TRYON_CACHE_MS/3600000), adminBonus:true },
@@ -11737,7 +11738,7 @@ async function kblMasterGroundedSearch(scope='vi',mode='deep'){
 }
 async function kblMasterGenerateJson(system,prompt,schema,options={}){
   if(typeof fetch!=='function'){kblAiMasterDiag(options.stage||'brain','blocked','Runtime fetch chưa sẵn sàng.');return null}
-  const preferPro=Boolean(options.pro&&KBL_AI_V4_PRO_ENABLED),models=GEMINI_API_KEY?(preferPro?geminiModelCandidates(GEMINI_PRO_MODEL,[GEMINI_TEXT_MODEL,'gemini-3.7-flash']):geminiModelCandidates(GEMINI_TEXT_MODEL,['gemini-3.7-flash','gemini-3.6-flash'])):[],stage=cleanLabelText(options.stage||'brain',60),timeoutMs=Math.max(60000,number(options.timeoutMs,KBL_AI_MASTER_BRAIN_TIMEOUT_MS));let last='';
+  const preferPro=Boolean(options.pro&&KBL_AI_V4_PRO_ENABLED),models=GEMINI_API_KEY?(preferPro?geminiModelCandidates(GEMINI_PRO_MODEL,[GEMINI_TEXT_MODEL,'gemini-3.7-flash']):geminiModelCandidates(GEMINI_TEXT_MODEL,['gemini-3.7-flash','gemini-3.6-flash'])):[],stage=cleanLabelText(options.stage||'brain',60),timeoutMs=Math.max(60000,number(options.timeoutMs,KBL_AI_MASTER_BRAIN_TIMEOUT_MS));let last='',geminiBillingBlocked=false;
   if(!GEMINI_API_KEY)kblAiMasterDiag(stage,'retry','Gemini chưa sẵn sàng; V8 sẽ thử provider dự phòng nếu đã cấu hình.');
   for(const model of models){
     for(let attempt=1;attempt<=2;attempt++){
@@ -11749,6 +11750,7 @@ async function kblMasterGenerateJson(system,prompt,schema,options={}){
           last=cleanLabelText(data&&data.error&&data.error.message||('HTTP '+response.status),260);
           const transient=[429,500,502,503,504].includes(response.status)||/high demand|temporar|try again|overload|resource exhausted/i.test(last);
           kblAiMasterDiag(stage,transient?'retry':'error',`${model} lượt ${attempt}: ${last}`,{model,attempt,httpStatus:response.status});
+          if(response.status===402||/prepayment credits are depleted|insufficient.*(?:balance|credit)/i.test(last))geminiBillingBlocked=true;
           if(transient&&attempt<2){await new Promise(resolve=>setTimeout(resolve,1800*attempt));continue}
           break;
         }
@@ -11762,6 +11764,15 @@ async function kblMasterGenerateJson(system,prompt,schema,options={}){
         break;
       }finally{clearTimeout(timer)}
     }
+    if(geminiBillingBlocked)break;
+  }
+  if(KBL_AI_V8_PROVIDER_FALLBACK_ENABLED&&DEEPSEEK_API_KEY){
+    const model=kblPromptDeepSeekRuntimeModel(),schemaName=('kbl_master_'+plainVietnamese(stage).replace(/[^a-z0-9]+/g,'_')).replace(/^_+|_+$/g,'').slice(0,58)||'kbl_master_output';
+    kblAiMasterDiag(stage,'retry',`Gemini chưa trả JSON hợp lệ; thử DeepSeek ${model}.`,{model,provider:'deepseek'});
+    try{
+      const result=await generateDeepSeekJson({fetch:kblAiFetch,baseUrl:KBL_PROMPT_DEEPSEEK_BASE,key:DEEPSEEK_API_KEY,model,system:KBL_AI_MASTER_CONTRACT+'\n'+String(system||''),prompt:String(prompt||''),schema,schemaName,timeoutMs,maxOutputTokens:Math.max(1600,Math.min(8000,number(options.maxOutputTokens,3600))),temperature:Number.isFinite(Number(options.temperature))?Number(options.temperature):.35});
+      kblAiMasterDiag(stage,'ok',`JSON hợp lệ từ DeepSeek ${model}.`,{model,provider:'deepseek'});return result;
+    }catch(error){last=kblAiApi.redact(error&&error.name==='AbortError'?`DeepSeek quá ${Math.round(timeoutMs/1000)} giây`:error&&error.message||'DeepSeek request failed');kblAiMasterDiag(stage,'error',last,{model,provider:'deepseek'})}
   }
   if(KBL_AI_V8_PROVIDER_FALLBACK_ENABLED&&OPENAI_API_KEY){
     const model=AI_MODEL,controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
