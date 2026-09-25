@@ -32,10 +32,11 @@ async function render(markup){
     image=renderer.render();return Buffer.from(image.asPng());
   }finally{if(image)image.free();if(renderer)renderer.free();}
 }
-async function compose({base,logo,qr,footer}){
+async function compose({base,logo,qr,footer,sourcePhoto=false}){
   const content=footer.replace(/^<svg[^>]*>/,'').replace(/<\/svg>\s*$/,'');
   const markup=`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1080" height="1350" viewBox="0 0 1080 1350">
-    <image x="0" y="0" width="1080" height="1350" preserveAspectRatio="xMidYMid slice" xlink:href="${dataUrl(base)}"/>
+    <rect width="1080" height="1350" fill="#fff8ed"/>
+    <image x="0" y="0" width="1080" height="${sourcePhoto?880:1350}" preserveAspectRatio="${sourcePhoto?'xMidYMid meet':'xMidYMid slice'}" xlink:href="${dataUrl(base)}"/>
     ${content}
     <image x="36" y="914" width="128" height="128" preserveAspectRatio="xMidYMid meet" xlink:href="${dataUrl(logo)}"/>
     <rect x="884" y="914" width="160" height="160" fill="white"/>

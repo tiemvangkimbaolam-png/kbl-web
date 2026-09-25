@@ -18,12 +18,14 @@ const end = source.indexOf('function kblMasterOpportunitySchema()', start);
 assert(start >= 0 && end > start);
 const adapter = source.slice(start, end);
 
-async function scenario(deepSeekPayload, enabled = true) {
+async function scenario(deepSeekPayload, enabled = true, dedicatedFreeKey = false) {
   const calls = [], events = [];
   const ctx = {
     fetch: () => {}, AbortController, setTimeout, clearTimeout, Response,
     KBL_AI_V4_PRO_ENABLED: false, KBL_AI_MASTER_BRAIN_TIMEOUT_MS: 60000,
     GEMINI_API_KEY: 'fixture-gemini', GEMINI_TEXT_MODEL: 'gemini-3.6-flash',
+    GEMINI_TEXT_API_KEY: dedicatedFreeKey ? 'fixture-free-project' : 'fixture-gemini',
+    GEMINI_ECONOMY_TEXT_MODEL: 'gemini-2.5-flash', KBL_ALLOW_PAID_TEXT_FALLBACK: false,
     DEEPSEEK_API_KEY: 'fixture-deepseek', KBL_PROMPT_DEEPSEEK_BASE: 'https://api.deepseek.com',
     KBL_AI_V8_PROVIDER_FALLBACK_ENABLED: enabled, OPENAI_API_KEY: '',
     KBL_AI_MASTER_CONTRACT: 'Only verified facts.',
@@ -62,5 +64,8 @@ async function scenario(deepSeekPayload, enabled = true) {
   const disabled = await scenario({ status: 'completed', output_text: '{"answer":"verified"}' }, false);
   assert.equal(disabled.calls.length, 1, 'fallback setting must be respected');
   assert.equal(disabled.result, null);
+  const freeQuota = await scenario({status:'completed',output_text:'{"answer":"verified"}'}, true, true);
+  assert.equal(freeQuota.calls.length, 1, 'Free project billing/quota failure must never auto-spend on DeepSeek/OpenAI');
+  assert.equal(freeQuota.result, null);
   console.log('DEEPSEEK_JSON_OK: billing 402 skips duplicate Gemini calls; verified JSON uses DeepSeek only when enabled');
 })().catch(error => { console.error(error); process.exitCode = 1; });

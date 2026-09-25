@@ -48,7 +48,7 @@ vm.createContext(image);
 vm.runInContext(section('async function kblGeminiStudioGenerate(','async function geminiProductStudioImage('),image);
 
 const prep={
-  crypto,AI_PHOTO_STUDIO_ENABLED:true,GEMINI_API_KEY:'fixture',
+  crypto,AI_PHOTO_STUDIO_ENABLED:true,GEMINI_API_KEY:'fixture',KBL_GROWTH_POSTER_SOURCE:'ai',
   kblGrowthState:{assets:{},care:{imageCalls:[]},settings:{autoImages:true,imageRetryHours:24}},
   kblGrowthProductCardFacts:p=>({id:p.id,sku:p.sku,image:'/images/fixture.png',name:'Nhẫn mẫu',goldCode:'610',weightChi:.2,sizeLabel:'12'}),
   kblGrowthStorePosterFacts:()=>({website:'https://tiemvangkimbaolam.id.vn'}),

@@ -9,7 +9,7 @@ fs.mkdirSync(data,{recursive:true});fs.mkdirSync(path.join(pub,'images','kbl-gro
 for(const name of ['kbl-logo-production.png','kbl-website-qr.png'])fs.copyFileSync(path.join(root,'public/images/kbl-growth',name),path.join(pub,'images/kbl-growth',name));
 fs.writeFileSync(path.join(data,'growth-autopilot-v1.json'),JSON.stringify({settings:{enabled:false,autoPublishPosts:false,autoImages:true,autoMarket:false,maxAiImagesPerDay:12}}));
 fs.writeFileSync(path.join(data,'growth-autopilot-full-auto-v1.2.7.json'),JSON.stringify({appliedAt:new Date().toISOString()}));
-Object.assign(process.env,{KBL_DATA_DIR:data,KBL_AI_MASTER_ENABLED:'0',KBL_GOLD_INTEL_ENABLED:'0',KBL_GEMINI_AUTO_MODEL_ENABLED:'0',KBL_PROMPT_DEEPSEEK_AUTO_MODEL_ENABLED:'0',KBL_GEMINI_API_KEY:'fixture-key-not-a-real-key',KBL_ADMIN_TOKEN:'T'.repeat(40),KBL_PUBLIC_BASE_URL:'https://tiemvangkimbaolam.id.vn',PORT:'0',HOST:'127.0.0.1'});
+Object.assign(process.env,{KBL_DATA_DIR:data,KBL_AI_MASTER_ENABLED:'0',KBL_GOLD_INTEL_ENABLED:'0',KBL_GEMINI_AUTO_MODEL_ENABLED:'0',KBL_PROMPT_DEEPSEEK_AUTO_MODEL_ENABLED:'0',KBL_GROWTH_POSTER_SOURCE:'ai',KBL_GEMINI_API_KEY:'fixture-key-not-a-real-key',KBL_ADMIN_TOKEN:'T'.repeat(40),KBL_PUBLIC_BASE_URL:'https://tiemvangkimbaolam.id.vn',PORT:'0',HOST:'127.0.0.1'});
 const nativeFetch=global.fetch;let generationCalls=0,visionCalls=0,failAt=2,blockMedia=false,dispatches=0,app,rejectSku='',reviewUnavailable=false,reviewHook=null,mediaHook=null;const generatedPrompts=[];
 global.fetch=async(url,options)=>{
   const u=new URL(String(url));
