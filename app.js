@@ -6,7 +6,7 @@ const http = require('http');
 const https = require('https');
 
 const { createAiApi, RELEASE: KBL_AI_API_RELEASE } = require('./modules/kbl-ai-api');
-const { generateDeepSeekJson } = require('./modules/kbl-deepseek-json');
+const { generateDeepSeekJson, matchesSchema } = require('./modules/kbl-deepseek-json');
 const kblAiApi = createAiApi({ secrets: () => [GEMINI_API_KEY, GEMINI_VIDEO_API_KEY, GEMINI_RESEARCH_API_KEY, GEMINI_TEXT_API_KEY, DEEPSEEK_API_KEY, OPENAI_API_KEY, ADMIN_TOKEN, SYNC_TOKEN] });
 const kblAiFetch = kblAiApi.fetch;
 
@@ -171,7 +171,7 @@ const KBL_PROMPT_DEEPSEEK_AUTO_PROBE_TIMEOUT_MS = Math.min(90000, Math.max(15000
 const KBL_PROMPT_DEEPSEEK_AUTO_MAX_FALLBACKS = Math.min(6, Math.max(1, Number(process.env.KBL_PROMPT_DEEPSEEK_AUTO_MAX_FALLBACKS || 3) || 3));
 const KBL_PROMPT_DEEPSEEK_AUTO_FILE = path.join(DATA_DIR, 'prompt-deepseek-auto-v1.json');
 const KBL_PROMPT_GEMINI_MODEL_OVERRIDE = String(process.env.KBL_PROMPT_GEMINI_MODEL || 'auto').trim();
-// Chỉ cứu lượt tư vấn chữ khi key Gemini chính hết prepaid; không gửi ảnh sang provider khác.
+// Chỉ dùng DeepSeek Flash khi key Gemini chính hết prepaid; key Free riêng không tự chi tiền dự phòng.
 const KBL_PROMPT_DEEPSEEK_CONSULT_FALLBACK = String(process.env.KBL_PROMPT_DEEPSEEK_CONSULT_FALLBACK || '1').trim() !== '0';
 const KBL_PROMPT_GEMINI_REFRESH_MS = Math.min(24*60*60*1000, Math.max(30*60*1000, Number(process.env.KBL_PROMPT_GEMINI_REFRESH_MS || 6*60*60*1000) || 6*60*60*1000));
 const KBL_PROMPT_CONSULT_DAILY_MAX = Math.min(50, Math.max(3, Math.round(Number(process.env.KBL_PROMPT_CONSULT_DAILY_MAX || 12) || 12)));
@@ -4971,7 +4971,7 @@ function kblPromptStrongModelRank(modelId){
 }
 let kblPromptGeminiCache={at:0,candidates:[],selected:'',lastError:''};
 async function kblPromptGeminiCandidates(){
-  if(GEMINI_TEXT_API_KEY!==GEMINI_API_KEY)return [GEMINI_ECONOMY_TEXT_MODEL];
+  if(GEMINI_TEXT_API_KEY!==GEMINI_API_KEY)return [...new Set([GEMINI_ECONOMY_TEXT_MODEL,'gemini-3.1-flash-lite'])];
   const override=kblGeminiModelId(KBL_PROMPT_GEMINI_MODEL_OVERRIDE);
   if(override&&override!=='auto')return [...new Set([override,kblGeminiRuntimeTextModel(),'gemini-3.8-flash','gemini-3.7-flash'].filter(Boolean))];
   if(kblPromptGeminiCache.candidates.length&&Date.now()-kblPromptGeminiCache.at<KBL_PROMPT_GEMINI_REFRESH_MS)return kblPromptGeminiCache.candidates;
@@ -5123,12 +5123,10 @@ Hãy hiểu mục đích thật, tư vấn phù hợp ngành nghề và cập nh
       const data=await response.json().catch(()=>({}));
       if(!response.ok){
         if(response.status===402){
-          if(KBL_PROMPT_DEEPSEEK_CONSULT_FALLBACK&&DEEPSEEK_API_KEY&&GEMINI_TEXT_API_KEY===GEMINI_API_KEY&&!refs.length){
-            return kblPromptDeepSeekConsultFallback({system,userText,imageCount,research:freshResearch,researchSources});
+          if(KBL_PROMPT_DEEPSEEK_CONSULT_FALLBACK&&DEEPSEEK_API_KEY&&GEMINI_TEXT_API_KEY===GEMINI_API_KEY){
+            return kblPromptDeepSeekConsultFallback({system,userText,refs,imageCount,research:freshResearch,researchSources});
           }
-          const billingError=new Error(refs.length
-            ? 'Gemini hết số dư trả trước nên chưa đọc được ảnh. Cần nạp Gemini hoặc cấu hình KBL_GEMINI_TEXT_API_KEY từ dự án Free còn quota.'
-            : 'Gemini hết số dư trả trước. Cần nạp Gemini hoặc cấu hình KBL_GEMINI_TEXT_API_KEY từ dự án Free còn quota; DeepSeek dự phòng chưa sẵn sàng.');
+          const billingError=new Error('Gemini hết số dư trả trước. Cần nạp Gemini hoặc cấu hình KBL_GEMINI_TEXT_API_KEY từ dự án Free còn quota; DeepSeek dự phòng chưa sẵn sàng.');
           billingError.code='GEMINI_BILLING';throw billingError;
         }
         lastError=kblPromptText(data&&data.error&&data.error.message||`Gemini HTTP ${response.status}`,260);continue;
@@ -5142,22 +5140,20 @@ Hãy hiểu mục đích thật, tư vấn phù hợp ngành nghề và cập nh
   }
   throw new Error(lastError||'Gemini Consultant chưa phản hồi.');
 }
-async function kblPromptDeepSeekConsultFallback({system,userText,imageCount,research,researchSources}){
+async function kblPromptDeepSeekConsultFallback({system,userText,refs,imageCount,research,researchSources}){
   // Một request Flash tối đa; không tự retry model khác để tránh nhân chi phí khi Gemini đã hết tiền.
-  const model=kblPromptDeepSeekRuntimeModel(),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),90000);
+  const model=refs.length?'deepseek-flash':kblPromptDeepSeekRuntimeModel(),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),90000);
   try{
+    const content=refs.length?[{type:'text',text:userText},...refs.map(img=>({type:'image_url',image_url:{url:`data:${img.mimeType};base64,${img.data}`,detail:'high'}}))]:userText;
     const response=await kblAiFetch(`${KBL_PROMPT_DEEPSEEK_BASE}/chat/completions`,{
       method:'POST',headers:{Authorization:`Bearer ${DEEPSEEK_API_KEY}`,'Content-Type':'application/json'},signal:controller.signal,
-      body:JSON.stringify({model,messages:[{role:'system',content:system},{role:'user',content:userText}],thinking:{type:'disabled'},response_format:{type:'json_object'},temperature:.2,max_tokens:3500})
+      body:JSON.stringify({model,messages:[{role:'system',content:`${system}\nJSON kết quả phải có đủ các trường và kiểu dữ liệu theo schema sau: ${JSON.stringify(KBL_PROMPT_CONSULT_SCHEMA)}`},{role:'user',content}],thinking:{type:'disabled'},response_format:{type:'json_object'},temperature:.2,max_tokens:3500})
     },'kblPromptDeepSeekConsultFallback');
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(kblPromptText(data&&data.error&&data.error.message||`DeepSeek HTTP ${response.status}`,260));
     const raw=String(data&&data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content||'').trim();
     const parsed=JSON.parse(raw);
-    if(!parsed||typeof parsed.reply!=='string'||!parsed.reply.trim()||!parsed.brief||typeof parsed.brief!=='object'||Array.isArray(parsed.brief))throw new Error('DeepSeek trả nội dung tư vấn chưa đầy đủ.');
-    parsed.questions=Array.isArray(parsed.questions)?parsed.questions:[];
-    parsed.suggestions=Array.isArray(parsed.suggestions)?parsed.suggestions:[];
-    parsed.businessContextUpdate=parsed.businessContextUpdate&&typeof parsed.businessContextUpdate==='object'&&!Array.isArray(parsed.businessContextUpdate)?parsed.businessContextUpdate:{};
+    if(!matchesSchema(parsed,KBL_PROMPT_CONSULT_SCHEMA)||!parsed.reply.trim())throw new Error('DeepSeek trả nội dung tư vấn chưa đầy đủ.');
     parsed.brief.referenceImageCount=imageCount;
     parsed.brief.promptCount=kblPromptBriefPromptCount(parsed.brief);
     return {result:parsed,model:`deepseek-fallback:${model}`,usage:data.usage||{},imageCount,research:research&&research.available?{used:true,cached:Boolean(research.cached),sourceCount:Array.isArray(research.sources)?research.sources.length:0,checkedAt:cleanLabelText(research.checkedAt,80),sources:researchSources}:{used:false}};
