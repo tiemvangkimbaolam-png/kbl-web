@@ -3,13 +3,13 @@
 // Only external image/vision providers and HTTPS media transport use fixtures.
 const fs=require('fs'),path=require('path'),os=require('os'),Module=require('module'),assert=require('assert');
 const root=path.resolve(__dirname,'..'),tmp=fs.mkdtempSync(path.join(os.tmpdir(),'kbl-prep-test-')),pub=path.join(tmp,'public'),data=path.join(tmp,'data');
-const withoutSharp=process.argv.includes('--without-sharp'),fixtureSharp=require(path.join(root,'vendor/sharp')),nativeModuleLoad=Module._load;
+const withoutSharp=process.argv.includes('--without-sharp'),originalRecovery=process.argv.includes('--original-recovery'),fixtureSharp=require(path.join(root,'vendor/sharp')),nativeModuleLoad=Module._load;
 if(withoutSharp)Module._load=function(request,parent,isMain){if(request==='sharp'||String(request).includes('vendor/sharp')){const error=new Error('Native Sharp unavailable on hosting fixture');error.code='ERR_DLOPEN_FAILED';throw error}return nativeModuleLoad.call(this,request,parent,isMain)};
 fs.mkdirSync(data,{recursive:true});fs.mkdirSync(path.join(pub,'images','kbl-growth'),{recursive:true});
 for(const name of ['kbl-logo-production.png','kbl-website-qr.png'])fs.copyFileSync(path.join(root,'public/images/kbl-growth',name),path.join(pub,'images/kbl-growth',name));
 fs.writeFileSync(path.join(data,'growth-autopilot-v1.json'),JSON.stringify({settings:{enabled:false,autoPublishPosts:false,autoImages:true,autoMarket:false,maxAiImagesPerDay:12}}));
 fs.writeFileSync(path.join(data,'growth-autopilot-full-auto-v1.2.7.json'),JSON.stringify({appliedAt:new Date().toISOString()}));
-Object.assign(process.env,{KBL_DATA_DIR:data,KBL_AI_MASTER_ENABLED:'0',KBL_GOLD_INTEL_ENABLED:'0',KBL_GEMINI_AUTO_MODEL_ENABLED:'0',KBL_PROMPT_DEEPSEEK_AUTO_MODEL_ENABLED:'0',KBL_GROWTH_POSTER_SOURCE:'ai',KBL_GEMINI_API_KEY:'fixture-key-not-a-real-key',KBL_ADMIN_TOKEN:'T'.repeat(40),KBL_PUBLIC_BASE_URL:'https://tiemvangkimbaolam.id.vn',PORT:'0',HOST:'127.0.0.1'});
+Object.assign(process.env,{KBL_DATA_DIR:data,KBL_AI_MASTER_ENABLED:'0',KBL_GOLD_INTEL_ENABLED:'0',KBL_GEMINI_AUTO_MODEL_ENABLED:'0',KBL_PROMPT_DEEPSEEK_AUTO_MODEL_ENABLED:'0',KBL_GROWTH_POSTER_SOURCE:originalRecovery?'original':'ai',KBL_GEMINI_API_KEY:'fixture-key-not-a-real-key',KBL_ADMIN_TOKEN:'T'.repeat(40),KBL_PUBLIC_BASE_URL:'https://tiemvangkimbaolam.id.vn',PORT:'0',HOST:'127.0.0.1'});
 const nativeFetch=global.fetch;let generationCalls=0,visionCalls=0,failAt=2,blockMedia=false,dispatches=0,app,rejectSku='',reviewUnavailable=false,reviewHook=null,mediaHook=null;const generatedPrompts=[];
 global.fetch=async(url,options)=>{
   const u=new URL(String(url));
@@ -53,6 +53,18 @@ module.exports.growthTest={
   api.install(async(refs,prompt)=>{generationCalls++;generatedPrompts.push(prompt);await new Promise(r=>setTimeout(r,10));if(generationCalls===failAt)return {ok:false,error:'HTTP 429 — fixture quota'};return {ok:true,image:{mimeType:'image/png',data:base.toString('base64')}}},async(product)=>{visionCalls++;if(reviewHook){const hook=reviewHook;reviewHook=null;hook();}if(reviewUnavailable)return {approved:false,reason:'Review service unavailable',issues:['design-review-unavailable']};if(product.sku===rejectSku)return {approved:false,model:'fixture-review',reason:'Product is cropped; keep entire jewelry above footer',issues:['cropped-product']};return {approved:true,score:95,model:'fixture-review',reason:'Fixture review'}},store);
   const rows=[1,2,3].map(i=>({id:'fixture-'+i,sku:'TEST-'+i,name:'Sản phẩm kiểm thử '+i,kind:'current',status:'available',publicationStatus:'published',goldCode:'610',weightChi:1.234,sizeLabel:'12',image:'/images/fixture.png'}));
   api.seed(rows);const old=api.state.queue[0];api.save();assert.notStrictEqual(api.state.queue[0],old,'Fixture must exercise real cloned queue state');
+  if(originalRecovery){
+    const future=new Date(Date.now()+20*3600000).toISOString();
+    for(const row of api.state.queue){row.status='retry-wait';row.preparationStage='GENERATING';row.preparationError='Cost Guard: đã hết lượt tạo ảnh trong ngày';row.nextPreparationAt=future;}api.save();
+    assert.equal(await api.pending(),1,'Switching to original photos must bypass the old AI image budget delay');
+    assert(api.state.queue.every(row=>row.status==='ready'&&api.ready(row.preparedPost)));
+    assert.equal(generationCalls,0,'Recovery must use product photos without paid Gemini image generation');
+    assert(api.state.queue[0].preparedPost.posterResults.every(row=>row.originalPhoto&&row.qrQa?.approved));
+    api.seed(rows);for(const row of api.state.queue){row.status='prep-blocked';row.preparationStage='DESIGN_REVIEW';row.preparationError='AI đã loại TEST-2 3 lần';row.nextPreparationAt=future;}api.save();
+    assert.equal(await api.pending(),1,'Original photos must recover a campaign blocked by AI art rejection');
+    assert(api.state.queue.every(row=>row.status==='ready'&&api.ready(row.preparedPost)));
+    assert.equal(generationCalls,0);console.log('GROWTH_ORIGINAL_RECOVERY_OK old cost guard + rejected AI poster -> original photos, QR/HTTPS READY');return;
+  }
   let result;
   if(withoutSharp){await require(path.join(root,'modules/kbl-growth-poster')).ensureComposer(null);api.markSharpBlocked();assert.equal(await api.pending(),1,'Old Sharp-blocked campaign should recover automatically');result={ok:api.state.queue[0].status==='ready'};assert.equal(api.composer().engine,'wasm-deterministic');}
   else result=await api.prepare('fixture');
