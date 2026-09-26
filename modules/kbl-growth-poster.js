@@ -67,7 +67,7 @@ function svg(facts,store) {
       ${one('Mã SP: '+facts.sku,188,1050,24,660,700)}
       ${one(meta,188,1084,22,660)}
       ${one(facts.priceText,36,1150,50,1008,800)}
-      ${one('Giá tại thời điểm cập nhật',36,1180,18,1008)}
+      ${one('Giá tham khảo lúc tạo ảnh · có thể thay đổi',36,1180,18,1008)}
       ${one('SĐT '+store.phone+' · '+store.websiteHost,36,1220,24,1008,600)}
       ${address.lines.map((v,i)=>`<text x="36" y="${1255+i*27}" font-size="${address.size}">${escapeXml(v)}</text>`).join('')}
       ${one('Nhắn mã '+facts.sku+' để giữ mẫu',36,1320,22,1008,700)}
