@@ -15933,13 +15933,22 @@ async function kblGrowthPrepareCampaign(campaignId,reason='scheduler'){
   kblGrowthPreparationPromise=Promise.resolve().then(()=>kblGrowthPrepareCampaignWork(id,reason)).finally(()=>{kblGrowthPreparationPromise=null;kblGrowthPreparationCampaign=''});
   return kblGrowthPreparationPromise;
 }
+function kblGrowthCanRecoverOriginalPoster(row){
+  if(KBL_GROWTH_POSTER_SOURCE!=='original'||!['retry-wait','prep-blocked'].includes(String(row?.status||'')))return false;
+  if(!/^(GENERATING|DESIGN_REVIEW)/.test(String(row.preparationStage||'')))return false;
+  const failure=[row.preparationError,row.message,row.preparedPost?.message].filter(Boolean).join(' ');
+  return /Cost Guard|\bHTTP\s*402\b|\bGemini\b.*\bquota\b|AI đã loại .*3 lần/i.test(failure);
+}
 async function kblGrowthPreparePending(limit=1){
   if(kblGrowthPreparationPromise)return 0;
   const seen=new Set(),ids=[];
   for(const row of [...(kblGrowthState.queue||[])].sort((a,b)=>kblIsoMs(a.dueAt)-kblIsoMs(b.dueAt))){
+    const id=String(row.campaignId||row.id||'');if(seen.has(id))continue;
+    const originalRecovered=kblGrowthCanRecoverOriginalPoster(row);
+    if(originalRecovered)kblGrowthPatchCampaign(id,{status:'retry-wait',nextPreparationAt:'',preparationError:'',message:'Đã chuyển từ poster AI sang ảnh sản phẩm thật; chuẩn bị lại.'});
     const runtimeRecovered=row.status==='prep-blocked'&&/Chưa có bộ ghép ảnh Sharp|Thiếu bộ ghép ảnh Sharp|Không tải được mô-đun poster|Thiếu bộ quét QR/.test(String(row.preparationError||row.message||''))&&kblGrowthPosterRuntimeStatus().ready;
-    if(!kblGrowthPrepActive(row)||(row.status==='prep-blocked'&&!runtimeRecovered)||kblIsoMs(row.nextPreparationAt)>Date.now())continue;
-    const id=String(row.campaignId||row.id||'');if(seen.has(id))continue;seen.add(id);
+    if(!kblGrowthPrepActive(row)||(row.status==='prep-blocked'&&!runtimeRecovered&&!originalRecovered)||(!originalRecovered&&kblIsoMs(row.nextPreparationAt)>Date.now()))continue;
+    seen.add(id);
     if(!kblGrowthIsReady(row.preparedPost)||!kblGrowthPreparedFilesPresent(row.preparedPost)||row.status!=='ready')ids.push(id);
     if(ids.length>=Math.max(1,limit))break;
   }
