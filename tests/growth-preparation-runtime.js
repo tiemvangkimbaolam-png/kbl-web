@@ -36,7 +36,6 @@ module.exports.growthTest={
  clearWait(){for(const a of Object.values(kblGrowthState.assets))a.nextRetryAt='';for(const r of kblGrowthState.queue)r.nextPreparationAt='';kblGrowthSave()},
  markSharpBlocked(){for(const row of kblGrowthState.queue){row.status='prep-blocked';row.preparationError='Chưa có bộ ghép ảnh Sharp.'}kblGrowthSave()},
  changePrice(value=9000000){prices.price_sell_610=value},
- rejectRefreshAfterSave(){const original=kblGrowthRefreshPreparedPriceLayer;kblGrowthRefreshPreparedPriceLayer=async(bundle,prep)=>{kblGrowthSave();return {...prep,ready:false,brandedReady:false,message:'Fixture changed facts'}};return ()=>{kblGrowthRefreshPreparedPriceLayer=original}},
  changePriceDuringReview(){const original=kblGrowthDesignReviewOne;let changed=false;kblGrowthDesignReviewOne=async(...args)=>{const result=await original(...args);if(!changed){changed=true;prices.price_sell_610=10000000}return result};return ()=>{kblGrowthDesignReviewOne=original}},
  install(generator,review,store){kblGeminiStudioGenerate=generator;kblGrowthDesignReviewOne=review;kblGrowthStorePosterFacts=()=>store;kblPromptDeepSeekFinalize=async ({mode,brief})=>({prompt:'DEEPSEEK_FIXTURE_PROMPT '+brief.intent,model:'deepseek-fixture'})},
  forceDue(){for(const r of kblGrowthState.queue)r.dueAt=new Date(Date.now()-1000).toISOString();kblGrowthState.settings.enabled=true;kblGrowthState.settings.autoPublishPosts=true;kblGrowthSave()},
@@ -63,7 +62,15 @@ module.exports.growthTest={
     api.seed(rows);for(const row of api.state.queue){row.status='prep-blocked';row.preparationStage='DESIGN_REVIEW';row.preparationError='AI đã loại TEST-2 3 lần';row.nextPreparationAt=future;}api.save();
     assert.equal(await api.pending(),1,'Original photos must recover a campaign blocked by AI art rejection');
     assert(api.state.queue.every(row=>row.status==='ready'&&api.ready(row.preparedPost)));
-    assert.equal(generationCalls,0);console.log('GROWTH_ORIGINAL_RECOVERY_OK old cost guard + rejected AI poster -> original photos, QR/HTTPS READY');return;
+    const prepared=api.state.queue[0].preparedPost;
+    api.forceDue();api.changePrice(9000000);let published=null;
+    api.stubDispatch(payload=>{published=payload});
+    const result=await api.publish();
+    assert.equal(result.count,1,'An approved original-photo post must publish despite a later price change');
+    assert.equal(published.priceSnapshots[0].priceVnd,prepared.priceSnapshots[0].priceVnd);
+    assert.equal(published.priceSnapshotAt,prepared.preparedAt);
+    assert.match(published.caption,/Giá trên ảnh chỉ tham khảo lúc tạo/);
+    assert.equal(generationCalls,0);console.log('GROWTH_ORIGINAL_RECOVERY_OK original photos, QR/HTTPS READY, reference price publishes on schedule');return;
   }
   let result;
   if(withoutSharp){await require(path.join(root,'modules/kbl-growth-poster')).ensureComposer(null);api.markSharpBlocked();assert.equal(await api.pending(),1,'Old Sharp-blocked campaign should recover automatically');result={ok:api.state.queue[0].status==='ready'};assert.equal(api.composer().engine,'wasm-deterministic');}
@@ -99,9 +106,6 @@ module.exports.growthTest={
   // A legacy fallback must never be dispatched as a fully-approved poster.
   const approved=api.state.queue[0].preparedPost;
   api.forceDue();api.stubDispatch(()=>dispatches++);
-  const restoreRefresh=api.rejectRefreshAfterSave();await api.publish();restoreRefresh();
-  assert.equal(dispatches,0);assert.equal(api.state.queue[0].status,'retry-wait','Failed revalidation must update the current normalized row');
-  assert.equal(JSON.parse(fs.readFileSync(api.file)).queue[0].status,'retry-wait');
   for(const r of api.state.queue){r.preparedPost={...approved,ready:true,brandedReady:false,mode:'clean-fallback'};r.status='fallback-ready';}
   api.forceDue();api.stubDispatch(()=>dispatches++);await api.publish();assert.equal(dispatches,0);
   for(const r of api.state.queue){r.preparedPost=approved;r.status='ready';}api.save();
@@ -112,8 +116,15 @@ module.exports.growthTest={
   api.forceDue();mediaHook=()=>api.replaceProduct('fixture-1',{status:'sold'});await api.publish();assert.equal(dispatches,0,'A product sold during media validation must stop dispatch');
   api.replaceProduct('fixture-1',{status:'available'});
   for(const r of api.state.queue){r.preparedPost=approved;r.status='ready';}api.save();
+  api.changePrice(11000000);let published=null;
+  api.stubDispatch(payload=>{published=payload;dispatches++});
+  mediaHook=()=>api.changePrice(12000000);
   const dispatchResults=await Promise.all([api.publish(),api.publish()]);assert.equal(dispatches,1,'Concurrent dispatch calls must share one run');
   assert(dispatchResults.every(x=>x.count===1));
+  assert.equal(published.priceSnapshots[0].priceVnd,approved.priceSnapshots[0].priceVnd,'A gold price change before and during media checks must preserve the poster snapshot');
+  assert.equal(published.priceSnapshotAt,approved.preparedAt);
+  assert.match(published.caption,/Giá trên ảnh chỉ tham khảo lúc tạo/);
+  assert.equal(generationCalls,4,'Price movement must not trigger image generation');
   // A scheduler restart after a long outage must send old campaigns to Review.
   api.seed(rows);api.resetImages();api.state.settings.enabled=true;api.state.settings.autoPublishPosts=true;
   for(const row of api.state.queue){row.status='ready';row.preparedPost=approved;row.dueAt=new Date(Date.now()-25*3600000).toISOString();}api.save();

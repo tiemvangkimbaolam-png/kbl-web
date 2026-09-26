@@ -19,14 +19,15 @@ function schemaFixture(schema){
   return 'fixture';
 }
 
-async function scenario({images=[],dedicatedFree=false,geminiStatus=402,deepSeekStatus=200,enabled=true}={}) {
+async function scenario({images=[],dedicatedFree=false,geminiStatus=402,deepSeekStatus=200,enabled=true,expertEnabled=true,escalate=false,deepSeekKey=true}={}) {
   const calls=[];
   let reply;
   const ctx={
     AbortController, setTimeout, clearTimeout,
     GEMINI_TEXT_API_KEY:dedicatedFree?'free-project':'paid-project',GEMINI_API_KEY:'paid-project',
-    DEEPSEEK_API_KEY:'fixture-deepseek',KBL_PROMPT_DEEPSEEK_BASE:'https://api.deepseek.com',
+    DEEPSEEK_API_KEY:deepSeekKey?'fixture-deepseek':'',KBL_PROMPT_DEEPSEEK_BASE:'https://api.deepseek.com',
     KBL_PROMPT_DEEPSEEK_CONSULT_FALLBACK:enabled,
+    KBL_PROMPT_DEEPSEEK_EXPERT_FALLBACK:expertEnabled,
     KBL_AI_V3_GOOGLE_SEARCH_ENABLED:false,KBL_AI_MASTER_CONTRACT:'Keep verified facts only.',
     kblPromptGeminiCandidates:async()=>['gemini-3.8-flash','gemini-3.7-flash'],
     kblPromptImages:x=>x,kblPromptHistory:()=>[],kblPromptProfileText:()=>'',
@@ -41,11 +42,12 @@ async function scenario({images=[],dedicatedFree=false,geminiStatus=402,deepSeek
       const isGemini=url.includes('googleapis.com');
       calls.push({url,body:JSON.parse(opts.body)});
       if(isGemini)return new Response(JSON.stringify(geminiStatus===200?{text:JSON.stringify({...reply,reply:'Gemini OK'})}:{error:{message:'Your prepayment credits are depleted.'}}),{status:geminiStatus});
-      return new Response(JSON.stringify(deepSeekStatus===200?{choices:[{message:{content:JSON.stringify({...reply,reply:'DeepSeek OK'})}}],usage:{prompt_tokens:120,completion_tokens:60,total_tokens:180}}:{error:{message:'DeepSeek balance depleted.'}}),{status:deepSeekStatus});
+      return new Response(JSON.stringify(deepSeekStatus===200?{choices:[{message:{content:JSON.stringify({...reply,reply:'DeepSeek OK',escalateToDeepSeek:false,escalationReason:''})}}],usage:{prompt_tokens:120,completion_tokens:60,total_tokens:180}}:{error:{message:'DeepSeek balance depleted.'}}),{status:deepSeekStatus});
     }
   };
   const {run,schema}=vm.runInNewContext(adapter+'\n({run:kblPromptGeminiConsult,schema:KBL_PROMPT_CONSULT_SCHEMA})',ctx);
   reply=schemaFixture(schema);
+  reply.escalateToDeepSeek=escalate;reply.escalationReason=escalate?'Cần phân tích chiến lược chuyên sâu.':'';
   assert(matchesSchema(reply,schema));
   const args={mode:'image',message:'Tư vấn bài đăng',history:[],profile:{},images,businessContext:{}};
   try{return {result:await run(args),calls}}catch(error){return {error,calls}}
@@ -63,6 +65,21 @@ async function scenario({images=[],dedicatedFree=false,geminiStatus=402,deepSeek
   const geminiHealthy=await scenario({geminiStatus:200});
   assert.equal(geminiHealthy.result.result.reply,'Gemini OK');
   assert.equal(geminiHealthy.calls.length,1,'healthy Gemini must not call DeepSeek');
+
+  const expert=await scenario({geminiStatus:200,dedicatedFree:true,escalate:true,images:[{mimeType:'image/png',data:'AAAA'}]});
+  assert.equal(expert.result.result.reply,'DeepSeek OK');
+  assert.equal(expert.calls.length,2,'a difficult request escalates once even with a Free Gemini key');
+  assert.match(expert.calls[1].body.messages[1].content[0].text,/Cần phân tích chiến lược chuyên sâu/);
+  assert.equal(expert.calls[1].body.messages[1].content[1].image_url.url,'data:image/png;base64,AAAA');
+  assert(expert.calls.every(x=>/generateContent|chat\/completions/.test(x.url)),'consultation must only call text/vision chat APIs');
+
+  const missingExpert=await scenario({geminiStatus:200,escalate:true,deepSeekKey:false});
+  assert.equal(missingExpert.calls.length,1);
+  assert.match(missingExpert.error.message,/DeepSeek chưa sẵn sàng/);
+  const expertFailed=await scenario({geminiStatus:200,escalate:true,deepSeekStatus:402});
+  assert.equal(expertFailed.calls.length,2);
+  assert.match(expertFailed.error.message,/DeepSeek chưa thể hỗ trợ yêu cầu chuyên sâu/);
+  assert.doesNotMatch(expertFailed.error.message,/Gemini hết số dư/);
 
   const image=await scenario({images:[{mimeType:'image/png',data:'AAAA'}]});
   assert.equal(image.result.result.reply,'DeepSeek OK');
@@ -87,5 +104,5 @@ async function scenario({images=[],dedicatedFree=false,geminiStatus=402,deepSeek
 
   const html=fs.readFileSync(path.join(__dirname,'../views/taoprompt.html'),'utf8');
   assert.match(html,/addBubble\(mode,'assistant',e.message\)/,'Prompt UI must keep the upstream error visible');
-  console.log('PROMPT_AI_BILLING_OK: 402 consult fallback is bounded, supports images and preserves Free-project guard');
+  console.log('PROMPT_AI_BILLING_OK: text/vision consultation, expert escalation and bounded 402 fallback');
 })().catch(error=>{console.error(error);process.exitCode=1});
