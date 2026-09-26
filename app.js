@@ -15851,7 +15851,7 @@ function kblGrowthPreparedFactsStillMatch(bundle,prep){
   const oldRows=prep&&prep.factQa&&prep.factQa.rows,oldSources=prep&&prep.productSources,oldStore=prep&&prep.factQa&&prep.factQa.store,store=kblGrowthStorePosterFacts();
   if(!Array.isArray(bundle)||bundle.length!==3||!Array.isArray(oldRows)||oldRows.length!==3||!Array.isArray(oldSources)||oldSources.length!==3||!oldStore)return false;
   if(['name','phone','address'].some(key=>String(oldStore[key]||'')!==String(store[key]||''))||String(oldStore.website||'')!==String(store.websiteHost||''))return false;
-  if(prep.qrQa?.expected&&String(prep.qrQa.expected)!==String(store.website))return false;
+  if(prep.qrQa?.expected){try{if(new URL(prep.qrQa.expected).href!==new URL(store.website).href)return false}catch(_){return false}}
   return bundle.every((product,i)=>{
     const current=kblGrowthProductCardFacts(product),old=oldRows[i];
     return ['id','sku','name','goldCode','weightChi','sizeLabel'].every(key=>String(old[key]??'')===String(current[key]??''))&&oldSources[i]===current.image;
