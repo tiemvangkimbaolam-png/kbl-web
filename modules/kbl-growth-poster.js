@@ -82,12 +82,12 @@ async function scan(sharp,buffer,expected) {
   return {approved:Boolean(target&&actual===target),expected:target,decoded:decoded&&decoded.data||'',
     message:actual===target&&target?'QR quét đúng website.':'QR không đọc được hoặc trỏ sai website.'};
 }
-async function compose({sharp,base,logo,qr,facts,store}) {
+async function compose({sharp,base,logo,qr,facts,store,sourcePhoto=false}) {
   if(!logo||!qr)throw new Error('Thiếu file logo hoặc QR.');
   const sourceQr=await scan(sharp,qr,store.website);
   if(!sourceQr.approved)throw new Error(sourceQr.message);
   if(!sharp){
-    const buffer=await portable().compose({base,logo,qr,footer:svg(facts,store)});
+    const buffer=await portable().compose({base,logo,qr,footer:svg(facts,store),sourcePhoto});
     const finalQr=await scan(null,buffer,store.website);
     if(!finalQr.approved)throw new Error('QR trên poster hoàn chỉnh không quét đúng website.');
     return {buffer,qrQa:finalQr,layout,engine:'wasm-deterministic'};
@@ -95,7 +95,11 @@ async function compose({sharp,base,logo,qr,facts,store}) {
   const logoBuffer=await sharp(logo).resize({width:128,height:128,fit:'contain',background:'#fff8ed'}).png().toBuffer();
   const qrBuffer=await sharp(qr).resize({width:144,height:144,fit:'contain',kernel:'nearest',background:'#fff'})
     .extend({top:8,bottom:8,left:8,right:8,background:'#fff'}).png().toBuffer();
-  const buffer=await sharp(base).rotate().resize({width:1080,height:1350,fit:'cover'}).composite([
+  // The catalog photo stays entirely visible above the price layer. AI art may still fill the canvas.
+  const background=sourcePhoto
+    ? await sharp(base).rotate().resize({width:1080,height:880,fit:'contain',background:'#fff8ed'}).extend({bottom:470,background:'#fff8ed'}).png().toBuffer()
+    : await sharp(base).rotate().resize({width:1080,height:1350,fit:'cover'}).png().toBuffer();
+  const buffer=await sharp(background).composite([
     {input:Buffer.from(svg(facts,store))},
     {input:logoBuffer,left:layout.logo.left,top:layout.logo.top},
     {input:qrBuffer,left:layout.qr.left,top:layout.qr.top}
