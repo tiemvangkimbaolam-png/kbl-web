@@ -8123,7 +8123,7 @@ function kblVideoUploadStream(req,res,{maxBytes,prefix,onSaved}){
   req.on('error',()=>fail(400,'Không đọc được luồng video upload.'));
   req.on('data',chunk=>{bytes+=chunk.length;if(bytes>maxBytes)fail(413,`Video vượt ${Math.round(maxBytes/1024/1024)}MB.`)});
   out.on('error',()=>fail(500,'Server không ghi được video lên đĩa.'));
-  out.on('finish',()=>{if(done)return;if(!bytes)return fail(400,'Video rỗng.');try{fs.renameSync(tmp,full);try{fs.chmodSync(full,0o644)}catch(_){};kblHouse2QueueRuntimeFile(full);done=true;const source='/uploads/studio/'+file;return onSaved({source,bytes,mime,full})}catch(_){return fail(500,'Server không hoàn tất được file video.')}});
+  out.on('finish',()=>{if(done)return;if(!bytes)return fail(400,'Video rỗng.');try{fs.renameSync(tmp,full);try{fs.chmodSync(full,0o644)}catch(_){};try{kblHouse2QueueRuntimeFile(full)}catch(error){console.error('KBL source video replication deferred:',cleanLabelText(error.message,180))}done=true;const source='/uploads/studio/'+file;return onSaved({source,bytes,mime,full})}catch(_){return fail(500,'Server không hoàn tất được file video.')}});
   req.pipe(out);
 }
 app.post('/api/admin/content/source-video/:id',rateLimit('content-source-video-stream',20,10*60*1000),(req,res)=>{
@@ -8162,7 +8162,141 @@ app.post('/api/video-studio/worker/complete/:id',(req,res)=>{
   const stem=cleanLabelText(`video-studio-master-${job.template}-${job.sku||job.id}`,70).replace(/[^a-z0-9_-]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase()||'video-studio-master';const file=`${stem}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.mp4`,full=path.join(publicUploadsDir(),file),tmp=full+'.uploading';const out=fs.createWriteStream(tmp,{mode:0o600});let bytes=0,done=false;
   const cleanup=()=>{try{fs.unlinkSync(tmp)}catch(_){}};const fail=(status,message)=>{if(done)return;done=true;try{req.unpipe(out)}catch(_){};try{out.destroy()}catch(_){};cleanup();try{req.resume()}catch(_){};return json(res,status,{success:false,message})};
   req.on('aborted',()=>fail(400,'Worker upload video master bị ngắt giữa chừng.'));req.on('error',()=>fail(400,'Không đọc được video master từ Worker.'));req.on('data',chunk=>{bytes+=chunk.length;if(bytes>KBL_VIDEO_WORKER_COMPLETE_STREAM_MAX_BYTES)fail(413,`Video master vượt ${Math.round(KBL_VIDEO_WORKER_COMPLETE_STREAM_MAX_BYTES/1024/1024)}MB.`)});out.on('error',()=>fail(500,'Server không ghi được video master.'));
-  out.on('finish',()=>{if(done)return;if(!bytes)return fail(400,'Worker trả về video rỗng.');if(job.status==='canceled')return fail(409,'Job đã bị chủ tiệm hủy trong lúc Worker upload; file tạm đã bỏ.');try{fs.renameSync(tmp,full);try{fs.chmodSync(full,0o644)}catch(_){};kblHouse2QueueRuntimeFile(full);done=true;const headerDuration=number(req.headers['x-kbl-video-duration'],0);if(headerDuration>0&&headerDuration<3600)job.durationSeconds=Number(headerDuration.toFixed(2));job.status='done';job.completedAt=new Date().toISOString();job.resultVideo='/uploads/studio/'+file;job.masterQuality={...kblVideoMasterQualityProfile(),workerVersion:cleanLabelText(req.headers['x-kbl-worker-version']||'',80),sourceFps:cleanLabelText(req.headers['x-kbl-source-fps']||'',30),outputFps:cleanLabelText(req.headers['x-kbl-output-fps']||'',30),width:Math.max(0,Math.round(number(req.headers['x-kbl-output-width']))),height:Math.max(0,Math.round(number(req.headers['x-kbl-output-height']))),bytes};job.message=job.autoCardFromVideo?'AI quét nội dung + Worker gắn card xong ở SOCIAL MASTER QUALITY. Hãy duyệt trước khi đăng.':'Hậu kỳ SOCIAL MASTER QUALITY xong: giữ độ phân giải/FPS nguồn, encode đúng 1 lần, chờ chủ tiệm duyệt.';persistVideoRenderJobs();auditEvent(req,'video-studio.worker-complete-master','ok',{jobId:job.id,template:job.template,sku:job.sku,bytes,quality:job.masterQuality});res.set('X-KBL-Video-Quality','social-master');return json(res,200,{success:true,job:videoRenderPublicJob(job),queue:videoRenderQueueStatus()})}catch(_){return fail(500,'Server không hoàn tất được video master.')}});req.pipe(out);
+  out.on('finish',()=>{if(done)return;if(!bytes)return fail(400,'Worker trả về video rỗng.');if(job.status==='canceled')return fail(409,'Job đã bị chủ tiệm hủy trong lúc Worker upload; file tạm đã bỏ.');try{fs.renameSync(tmp,full);try{fs.chmodSync(full,0o644)}catch(_){};try{kblHouse2QueueRuntimeFile(full)}catch(error){console.error('KBL worker master replication deferred:',cleanLabelText(error.message,180))}done=true;const headerDuration=number(req.headers['x-kbl-video-duration'],0);if(headerDuration>0&&headerDuration<3600)job.durationSeconds=Number(headerDuration.toFixed(2));job.status='done';job.completedAt=new Date().toISOString();job.resultVideo='/uploads/studio/'+file;job.masterQuality={...kblVideoMasterQualityProfile(),workerVersion:cleanLabelText(req.headers['x-kbl-worker-version']||'',80),sourceFps:cleanLabelText(req.headers['x-kbl-source-fps']||'',30),outputFps:cleanLabelText(req.headers['x-kbl-output-fps']||'',30),width:Math.max(0,Math.round(number(req.headers['x-kbl-output-width']))),height:Math.max(0,Math.round(number(req.headers['x-kbl-output-height']))),bytes};job.message=job.autoCardFromVideo?'AI quét nội dung + Worker gắn card xong ở SOCIAL MASTER QUALITY. Hãy duyệt trước khi đăng.':'Hậu kỳ SOCIAL MASTER QUALITY xong: giữ độ phân giải/FPS nguồn, encode đúng 1 lần, chờ chủ tiệm duyệt.';persistVideoRenderJobs();auditEvent(req,'video-studio.worker-complete-master','ok',{jobId:job.id,template:job.template,sku:job.sku,bytes,quality:job.masterQuality});res.set('X-KBL-Video-Quality','social-master');return json(res,200,{success:true,job:videoRenderPublicJob(job),queue:videoRenderQueueStatus()})}catch(_){return fail(500,'Server không hoàn tất được video master.')}});req.pipe(out);
+});
+// Worker master upload: small resumable chunks avoid losing the rendered MP4 when
+// the primary node or its reverse proxy drops a large request.
+const kblWorkerUploadBusy = new Set();
+function kblWorkerUploadSessionId(jobId) {
+  return 'UP-' + crypto.createHash('sha256').update('worker-master:' + String(jobId)).digest('hex').slice(0, 24).toUpperCase();
+}
+function kblWorkerUploadJob(req, res) {
+  if (!requireVideoRenderWorker(req, res)) return null;
+  const job = videoRenderJobs.find(row => row && String(row.id) === String(req.params.id || ''));
+  if (!job) { json(res, 404, { success: false, message: 'Không tìm thấy job video.' }); return null; }
+  return job;
+}
+function kblWorkerUploadState(job) {
+  const id = kblWorkerUploadSessionId(job.id);
+  let meta = null;
+  try {
+    meta = JSON.parse(fs.readFileSync(kblVideoChunkMetaFile(id), 'utf8'));
+    if (!meta || meta.id !== id) meta = null;
+    if (meta && !kblWorkerUploadBusy.has(id)) {
+      const partial = kblVideoChunkPartialFile(id);
+      const actual = fs.statSync(partial).size;
+      // Only acknowledged chunks count. Discard an interrupted, unchecked tail.
+      if (actual > meta.receivedBytes) fs.truncateSync(partial, meta.receivedBytes);
+      else if (actual < meta.receivedBytes) {
+        meta.receivedBytes = actual;
+        kblVideoChunkWriteMeta(meta);
+      }
+    }
+  } catch (_) { meta = null; }
+  return { id, meta: meta && meta.kind === 'worker-master' && meta.jobId === job.id ? meta : null };
+}
+app.post('/api/video-studio/worker/upload/session/:id', (req, res) => {
+  const job = kblWorkerUploadJob(req, res); if (!job) return;
+  if (['done', 'approved'].includes(String(job.status)) && safeStudioVideoSource(job.resultVideo))
+    return json(res, 200, { success: true, done: true, job: videoRenderPublicJob(job) });
+  if (job.status !== 'running') return json(res, 409, { success: false, message: 'Job không còn ở trạng thái Worker đang dựng.' });
+  const size = Math.floor(number(req.headers['x-kbl-file-size']));
+  if (!size || size > KBL_VIDEO_WORKER_COMPLETE_STREAM_MAX_BYTES)
+    return json(res, 413, { success: false, message: 'Kích thước video master không hợp lệ.' });
+  const { id, meta: existing } = kblWorkerUploadState(job);
+  if (existing && Number(existing.size) !== size) return json(res, 409, { success: false, message: 'Kích thước master đã thay đổi; hãy tạo job dựng mới.' });
+  let meta = existing;
+  if (!meta) {
+    const now = new Date().toISOString();
+    meta = { id, kind: 'worker-master', jobId: job.id, size, mime: 'video/mp4',
+      durationSeconds: number(req.headers['x-kbl-video-duration']),
+      sourceFps: cleanLabelText(req.headers['x-kbl-source-fps'] || '', 30),
+      outputFps: cleanLabelText(req.headers['x-kbl-output-fps'] || '', 30),
+      width: Math.max(0, Math.round(number(req.headers['x-kbl-output-width']))),
+      height: Math.max(0, Math.round(number(req.headers['x-kbl-output-height']))),
+      workerVersion: cleanLabelText(req.headers['x-kbl-worker-version'] || '', 80),
+      receivedBytes: 0, createdAt: now, updatedAt: now };
+    fs.mkdirSync(kblVideoChunkSessionPath(id), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(kblVideoChunkPartialFile(id), Buffer.alloc(0), { mode: 0o600 });
+    kblVideoChunkWriteMeta(meta);
+  }
+  return json(res, 200, { success: true, receivedBytes: meta.receivedBytes, size: meta.size });
+});
+app.get('/api/video-studio/worker/upload/status/:id', (req, res) => {
+  const job = kblWorkerUploadJob(req, res); if (!job) return;
+  if (['done', 'approved'].includes(String(job.status)) && safeStudioVideoSource(job.resultVideo))
+    return json(res, 200, { success: true, done: true, job: videoRenderPublicJob(job) });
+  const { meta } = kblWorkerUploadState(job);
+  if (!meta) return json(res, 404, { success: false, message: 'Chưa có phiên upload master.' });
+  return json(res, 200, { success: true, receivedBytes: meta.receivedBytes, size: meta.size });
+});
+app.put('/api/video-studio/worker/upload/chunk/:id', (req, res) => {
+  const job = kblWorkerUploadJob(req, res); if (!job) return;
+  if (job.status !== 'running') return json(res, 409, { success: false, message: 'Job không còn chạy.' });
+  const { id, meta } = kblWorkerUploadState(job);
+  if (!meta) return json(res, 404, { success: false, message: 'Chưa có phiên upload master.' });
+  const start = Math.floor(number(req.headers['x-kbl-upload-offset']));
+  const length = Math.floor(number(req.headers['content-length']));
+  const expectedHash = String(req.headers['x-kbl-chunk-sha256'] || '').toLowerCase();
+  if (start !== meta.receivedBytes) return json(res, 409, { success: false, receivedBytes: meta.receivedBytes, message: 'Mốc upload đã thay đổi.' });
+  if (!length || length > KBL_VIDEO_CHUNK_MAX_REQUEST_BYTES || start + length > meta.size || !/^[a-f0-9]{64}$/.test(expectedHash))
+    return json(res, 400, { success: false, message: 'Chunk/kiểm tra SHA-256 không hợp lệ.' });
+  if (kblWorkerUploadBusy.has(id)) return json(res, 409, { success: false, receivedBytes: meta.receivedBytes, message: 'Chunk trước đang ghi.' });
+  kblWorkerUploadBusy.add(id);
+  const partial = kblVideoChunkPartialFile(id), out = fs.createWriteStream(partial, { flags: 'a', mode: 0o600 });
+  const hash = crypto.createHash('sha256'); let bytes = 0, done = false;
+  const fail = (status, message) => {
+    if (done) return; done = true;
+    const cleanup = () => {
+      try { fs.truncateSync(partial, start); } catch (_) {}
+      kblWorkerUploadBusy.delete(id);
+      if (!res.headersSent && !res.destroyed) json(res, status, { success: false, message, receivedBytes: start });
+    };
+    try { req.unpipe(out); req.resume(); } catch (_) {}
+    if (out.closed) cleanup(); else { out.once('close', cleanup); out.destroy(); }
+  };
+  req.on('aborted', () => fail(400, 'Chunk bị ngắt.'));
+  req.on('error', () => fail(400, 'Không đọc được chunk.'));
+  req.on('data', chunk => { bytes += chunk.length; hash.update(chunk); if (bytes > length) fail(413, 'Chunk vượt kích thước khai báo.'); });
+  out.on('error', () => fail(500, 'Không ghi được chunk xuống đĩa.'));
+  out.on('finish', () => {
+    if (done) return;
+    if (bytes !== length || hash.digest('hex') !== expectedHash) return fail(409, 'Chunk thiếu byte hoặc sai SHA-256.');
+    try {
+      meta.receivedBytes = start + bytes; meta.updatedAt = new Date().toISOString();
+      kblVideoChunkWriteMeta(meta); done = true; kblWorkerUploadBusy.delete(id);
+      return json(res, 200, { success: true, receivedBytes: meta.receivedBytes, size: meta.size });
+    } catch (error) { return fail(500, 'Không lưu được trạng thái upload.'); }
+  });
+  req.pipe(out);
+});
+app.post('/api/video-studio/worker/upload/finalize/:id', (req, res) => {
+  const job = kblWorkerUploadJob(req, res); if (!job) return;
+  if (['done', 'approved'].includes(String(job.status)) && safeStudioVideoSource(job.resultVideo))
+    return json(res, 200, { success: true, done: true, job: videoRenderPublicJob(job) });
+  if (job.status !== 'running') return json(res, 409, { success: false, message: 'Job không còn chạy.' });
+  const { id, meta } = kblWorkerUploadState(job);
+  if (!meta) return json(res, 404, { success: false, message: 'Chưa có phiên upload master.' });
+  if (kblWorkerUploadBusy.has(id)) return json(res, 409, { success: false, message: 'Chunk đang ghi.' });
+  const partial = kblVideoChunkPartialFile(id);
+  let actual = 0; try { actual = fs.statSync(partial).size; } catch (_) {}
+  if (actual !== meta.size || meta.receivedBytes !== meta.size)
+    return json(res, 409, { success: false, receivedBytes: actual, message: 'Video master chưa tải đủ.' });
+  try {
+    const file = 'video-studio-master-' + String(job.id).replace(/[^a-z0-9_-]/gi, '').slice(0, 80) + '-' + Date.now() + '.mp4';
+    const full = path.join(publicUploadsDir(), file);
+    fs.renameSync(partial, full); try { fs.chmodSync(full, 0o644); } catch (_) {}
+    try { kblHouse2QueueRuntimeFile(full); } catch (error) { console.error('KBL worker master replication deferred:', cleanLabelText(error.message, 180)); }
+    const duration = number(meta.durationSeconds);
+    if (duration > 0 && duration < 3600) job.durationSeconds = Number(duration.toFixed(2));
+    job.status = 'done'; job.completedAt = new Date().toISOString(); job.resultVideo = '/uploads/studio/' + file;
+    job.masterQuality = { ...kblVideoMasterQualityProfile(), workerVersion: meta.workerVersion,
+      sourceFps: meta.sourceFps, outputFps: meta.outputFps, width: meta.width, height: meta.height, bytes: actual };
+    job.message = job.autoCardFromVideo ? 'AI quét nội dung + Worker gắn card xong ở SOCIAL MASTER QUALITY. Hãy duyệt trước khi đăng.' : 'Hậu kỳ SOCIAL MASTER QUALITY xong; chờ chủ tiệm duyệt.';
+    persistVideoRenderJobs();
+    auditEvent(req, 'video-studio.worker-complete-chunk', 'ok', { jobId: job.id, bytes: actual });
+    return json(res, 200, { success: true, done: true, job: videoRenderPublicJob(job), queue: videoRenderQueueStatus() });
+  } catch (error) { return json(res, 500, { success: false, message: 'Server không hoàn tất được video master: ' + cleanLabelText(error.message, 180) }); }
 });
 app.use('/api/video-studio/worker/complete/', express.raw({ type: ['video/mp4','application/octet-stream'], limit: '600mb' }));
 app.use('/api/video-studio/worker/fail/', express.json({ limit: '128kb', strict: true }));
