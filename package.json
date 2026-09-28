@@ -10,7 +10,7 @@
     "check": "node --check app.js",
     "test:ui": "node tests/ui-static-smoke.js",
     "test:security": "node tests/security-smoke.js",
-    "test:ai": "node tests/ai-api-runtime.js && node tests/ai-sales-recovery.js && node tests/ai-adviser-smoke.js && node tests/edge-ai-routing-runtime.js && node tests/deepseek-json-runtime.js && node tests/prompt-ai-billing-runtime.js && node tests/video-scan-cache-runtime.js",
+    "test:ai": "node tests/ai-api-runtime.js && node tests/ai-sales-recovery.js && node tests/ai-adviser-smoke.js && node tests/edge-ai-routing-runtime.js && node tests/deepseek-json-runtime.js && node tests/prompt-ai-billing-runtime.js && node tests/video-scan-cache-runtime.js && node tests/video-auto-card-recovery-runtime.js",
     "test:release": "node tests/release-smoke.js",
     "test:growth": "node tests/growth-preparation-runtime.js && node tests/growth-preparation-runtime.js --without-sharp && node tests/growth-preparation-runtime.js --original-recovery && node tests/growth-original-poster-runtime.js && node tests/growth-prepared-ui-runtime.js && node tests/growth-media-runtime-smoke.js && node tests/sales-studio-runtime-smoke.js && node tests/growth-pipeline-static-smoke.js",
     "test:startup": "node tests/hosting-startup-runtime.js",
