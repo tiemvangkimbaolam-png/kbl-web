@@ -1,0 +1,24 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {candidates}=require('../modules/kbl-growth-idea-pool');
+const products=[{id:'1',sku:'KBL-A',name:'Nhẫn hoa',price:2000000},{id:'2',sku:'KBL-B',name:'Nhẫn tròn',price:2000000},{id:'3',sku:'KBL-C',name:'Nhẫn khác',price:2100000}];
+const state={records:[{id:'STUDIO-1',opportunity:{type:'comparison',skus:['KBL-A','KBL-B']},ideas:[{id:'IDEA-1',angle:'COMPARISON',title:'Cùng 2.000.000đ: hai nhẫn?',hook:'Giá 2 triệu cho hai mẫu',recommended:true},{id:'IDEA-2',angle:'POV',title:'Thử lần nữa',hook:'Một góc khác'}]}]};
+const found=candidates(state,products);
+assert.equal(found.length,2);
+assert.deepEqual(found[0].productIds,['1','2']);
+assert.equal(found[0].source,'Video Studio');
+assert(!JSON.stringify(found[0]).includes('2.000.000'),'Price and pair claims from the video must not enter an image post');
+assert.deepEqual(candidates(state,products,new Set([found[0].id])).map(x=>x.id),[found[1].id]);
+assert.equal(candidates(state,products.slice(0,1)).length,0,'Do not use a pair with a missing product');
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const source=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
+const start=source.indexOf('async function kblGrowthIdeaReview('),end=source.indexOf('function kblGrowthPipelineProgress(',start);
+assert(start>0&&end>start);
+const context={kblGrowthProductCardFacts:p=>({id:p.id,sku:p.sku,name:p.name,priceVnd:p.price,image:'/image.png'}),kblGrowthIdeaOpportunity:()=>null,number:Number,KBL_AI_MASTER_MIN_IDEA_SCORE:75};
+const review=vm.runInNewContext(source.slice(start,end)+'\nkblGrowthIdeaReview',context);
+(async()=>{
+  assert.equal((await review(found[0],products,{campaign:'Giới thiệu sản phẩm'})).approved,true);
+  assert.equal((await review(found[0],products.slice(1),{})).approved,false,'Missing video SKU must fail catalog gate');
+  assert.equal((await review(null,products,{})).approved,true,'Factual catalog post can proceed without AI Market');
+  console.log('GROWTH_VIDEO_IDEA_POOL_OK');
+})().catch(e=>{console.error(e);process.exitCode=1});
