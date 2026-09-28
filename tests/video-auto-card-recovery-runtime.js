@@ -57,5 +57,34 @@ const upload=vm.runInNewContext(html.slice(uploadStart,uploadEnd)+'\n(kblChunkVi
   assert.equal(result.source,'/uploads/studio/raw.mp4');assert.equal(chunkAttempts,2,'retry a transient network error without restarting upload');
   assert(requests.some(url=>url.includes('/status/')),'check committed offset before retrying a chunk');
   assert.equal(stored['resume-video'],'');
-  console.log('VIDEO_AUTO_CARD_RECOVERY_OK scan retry stays out of FFmpeg queue; upload resumes transient chunk failure');
+  const modelStart=source.indexOf('let kblAutoCardModelsCache ='),modelEnd=source.indexOf('function kblBuildAutoCardRenderJob',modelStart);
+  assert(modelStart>0&&modelEnd>modelStart);
+  const modelCalls=[],deleted=[],cacheKeys=[];let listCalls=0;
+  const modelContext={
+    kblStudioVideoFilePath:()=>'/tmp/video.mp4',kblLongVideoMimeFromPath:()=> 'video/mp4',
+    kblVideoAutoCardCatalog:()=>[],
+    GEMINI_VIDEO_API_KEY:'fixture-key',GEMINI_VIDEO_MODEL:'gemini-2.5-flash',
+    require:()=>({keys:async(_file,_catalog,models)=>{cacheKeys.push(...models);return models},key:async(_file,_catalog,model)=>model,get:()=>null,put:()=>{}}),
+    path,DATA_DIR:'/tmp',kblGeminiUploadVideoFile:async()=>({uri:'files/fixture',name:'files/fixture'}),
+    kblGeminiDeleteFile:async(file)=>deleted.push(file.name),
+    KBL_AI_MASTER_CONTRACT:'truth',kblAiFetch:async(url)=>{
+      if(url.includes('/models?pageSize=')){listCalls++;return {ok:true,json:async()=>({models:[
+        {name:'models/gemini-2.5-flash',supportedGenerationMethods:['generateContent']},
+        {name:'models/gemini-3.7-flash',supportedGenerationMethods:['generateContent']},
+        {name:'models/gemini-3.8-flash',supportedGenerationMethods:['generateContent']},
+        {name:'models/gemini-3.8-flash-image',supportedGenerationMethods:['generateContent']}
+      ]})}}
+      const model=decodeURIComponent(url.match(/models\/([^/:]+)/)[1]);modelCalls.push(model);
+      if(model==='gemini-3.8-flash')return {ok:false,status:400,json:async()=>({error:{message:'This model is no longer available to new users'}})};
+      return {ok:true,json:async()=>({candidates:[{content:{parts:[{text:JSON.stringify({summary:'Đã quét',transcriptText:'',cardPlan:[],cautions:[]})}]}}]})};
+    },geminiTextGenerationConfig:()=>({}),cleanLabelText:v=>String(v),AbortController,AbortSignal,Date,setTimeout,clearTimeout,JSON,encodeURIComponent
+  };
+  const scan=vm.runInNewContext(source.slice(modelStart,modelEnd)+'\n(kblAnalyzeVideoForAutoCards)',modelContext);
+  const scanResult=await scan('/uploads/studio/video.mp4','Video thử');
+  assert.equal(scanResult.model,'gemini-3.7-flash');
+  assert.deepEqual(modelCalls,['gemini-3.8-flash','gemini-3.7-flash']);
+  assert(!cacheKeys.includes('gemini-2.5-flash'),'legacy model must not drive scan/cache');
+  assert.equal(listCalls,2,'model access failure refreshes the API list');
+  assert.deepEqual(deleted,['files/fixture']);
+  console.log('VIDEO_AUTO_CARD_RECOVERY_OK scan retry and current model fallback; upload resumes transient chunk failure');
 })().catch(error=>{console.error(error);process.exitCode=1});

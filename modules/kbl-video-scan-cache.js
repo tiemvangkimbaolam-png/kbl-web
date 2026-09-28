@@ -6,11 +6,16 @@ const crypto = require('crypto');
 const VERSION = 1;
 const MAX_AGE_MS = 21 * 86400000;
 
+async function keys(filePath, catalog, models) {
+  const video = crypto.createHash('sha256');
+  for await (const chunk of fs.createReadStream(filePath)) video.update(chunk);
+  const videoHash = video.digest('hex');
+  return models.map(model => crypto.createHash('sha256')
+    .update(JSON.stringify({version: VERSION, catalog, model, videoHash})).digest('hex'));
+}
+
 async function key(filePath, catalog, model) {
-  const hash = crypto.createHash('sha256');
-  hash.update(JSON.stringify({version: VERSION, catalog, model}));
-  for await (const chunk of fs.createReadStream(filePath)) hash.update(chunk);
-  return hash.digest('hex');
+  return (await keys(filePath, catalog, [model]))[0];
 }
 
 function entries(filePath) {
@@ -46,4 +51,4 @@ function put(filePath, digest, data, model) {
   } finally { try { if (fs.existsSync(temp)) fs.unlinkSync(temp); } catch (_) {} }
 }
 
-module.exports = {key, get, put};
+module.exports = {key, keys, get, put};
