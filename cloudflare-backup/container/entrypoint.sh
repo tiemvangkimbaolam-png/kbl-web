@@ -14,7 +14,7 @@ R2_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 mkdir -p /mnt/kbl-r2
 
 # Run the FUSE mount in the background; Node must not start on ephemeral state.
-tigrisfs --endpoint "$R2_ENDPOINT" -f "$R2_BUCKET_NAME" /mnt/kbl-r2 &
+tigrisfs --endpoint "$R2_ENDPOINT" --region auto -f "$R2_BUCKET_NAME" /mnt/kbl-r2 &
 FUSE_PID=$!
 
 ready=0
