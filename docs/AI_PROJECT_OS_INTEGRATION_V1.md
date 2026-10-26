@@ -67,3 +67,17 @@ D. Sai nguồn, token lỗi, vượt quota, thiếu media: chặn đăng, báo l
 E. Không bật publicationEnabled thì không có bài đăng tự động.
 
 **Không tự merge nhánh này sang kbl-web-moi; không thay DNS/domain và không chạy build production.**
+
+
+## Quyết định bổ sung: Chrome-first / tối ưu chi phí (yêu cầu chủ, 26/10/2026)
+
+- **Ưu tiên bắt buộc:** AI_PROJECT_OS dùng các phiên Chrome đã đăng nhập hợp lệ của Gemini / ChatGPT / Claude / DeepSeek / Grok để nghiên cứu, soạn nội dung, kiểm duyệt và tạo ảnh khi dịch vụ/tài khoản hỗ trợ. Đây là đội AI CHÍNH; **không tự ý đổi sang mô hình gọi API trả phí**.
+- Cloudflare xử lý UI/API website, lệnh, trạng thái, hàng đợi và hẹn giờ. Không chạy năm Chrome trên Cloudflare Browser Run, không sao chép Chrome profile/cookie lên cloud.
+- **API Market riêng, chi phí giới hạn:** nguồn vàng thế giới, tỷ giá, tin RSS/trang chính thức có quyền sử dụng; chỉ gọi AI API nếu chủ bật riêng + có khóa/quota/budget. Mặc định không dùng LLM trả phí. Cron có giới hạn và cache nguồn.
+- **Chuyển việc theo năng lực thật:** không giả định mỗi dịch vụ có thể tạo ảnh; nếu tài khoản hết lượt hoặc vướng đăng nhập, đưa job vào `NEEDS_ATTENTION` hoặc thử tài khoản khác đã được cấp quyền cho công việc đó; không vòng lặp vô hạn hoặc vượt CAPTCHA.
+- **Hai hàng đợi độc lập:** `CONTENT_PRODUCTION` cho AI Chrome Windows (chạy khi máy bật) và `PUBLISH_SCHEDULE` cho bài đã duyệt (website/cloud). Mất điện mạng không mất checkpoint; bài chỉ có thể đăng khi Windows tắt nếu đã có tệp đủ điều kiện trên cloud/kênh và API/đặt lịch hợp lệ, nếu không `WAITING_FOR_WINDOWS`.
+- **Mục tiêu người vận hành:** chỉ cần mở Windows để AI làm ra nhiều sản phẩm đã duyệt theo quota/ngày, tự điền vào lịch đăng 07:00/12:00/19:00 (không spam nhiều bài cùng lúc). Việc được nhận và kết thúc có `jobId`, `sourceUrls`, `mediaHash`, `reviewReceipt`; publication có `idempotencyKey`.
+- Chrome miễn phí có giới hạn lượt và điều kiện sử dụng từng nhà cung cấp; không được khẳng định miễn phí tuyệt đối hoặc tự động chạy 24/7. Cần kiểm tra quyền tự động hóa từng ứng dụng, không vượt bảo vệ đăng nhập/hạn mức.
+- Bản tích hợp phải **tận dụng engine, queue, UI và tiện ích** từ AI_Project_OS v0.9.82 sau khi đọc đủ source, thay vì dựng một bộ Chrome Worker trùng chức năng. Không dùng hoặc sửa source POS.
+- **Điều kiện nghiệm thu thêm:** bật Windows: đội Chrome hoàn thành một bản tin thật → chờ lịch; tắt Windows: Market API vẫn chạy, job Chrome giữ; bật lại: không đăng trùng. Khi tài khoản Chrome gặp CAPTCHA/hết hạn mức: dừng đúng việc, hiển thị lý do, không hứa đã hoàn thành.
+- Mọi thay đổi kỹ thuật sẽ vào nhánh tích hợp trước để review; nhánh Cloudflare production `kbl-web-moi` và `main` giữ nguyên đến khi nghiệm thu.
