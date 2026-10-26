@@ -1,0 +1,59 @@
+/* Hallmark · macrostructure: user-owned reference restoration · theme: studied-DNA (source: https://tiemvangkimbaolam.id.vn) · preserve existing public layout. */
+body.kbl-reference-home{line-height:1.6;font-size:16px;background:var(--paper);color:var(--ink)}
+.kbl-reference-home h1,.kbl-reference-home h2,.kbl-reference-home h3{font-weight:700}
+.kbl-reference-home p+p{margin-top:0}
+.kbl-reference-home .price-strip{display:block;width:100%;margin:-20px 0 0;border:0;border-radius:0}
+.kbl-reference-home .hero{display:block;padding:0;margin:0}
+.kbl-reference-home .product-grid{gap:22px}
+.kbl-reference-home .product-image{width:100%;border:0;border-radius:0;text-align:inherit}
+.kbl-reference-home .product-card .product-image img{height:100%;width:100%;object-fit:cover}
+.kbl-reference-home .product-body{min-width:0}
+.kbl-reference-home .product-card button{white-space:nowrap}
+.kbl-reference-home .product-lane[hidden]{display:none!important}
+.kbl-reference-home .reference-price-empty{padding:32px 20px;min-height:328px;display:grid;align-content:center;gap:24px;border:1px solid var(--line);color:var(--muted);font-size:14px;grid-column:1/-1}
+.kbl-reference-home .reference-price-empty button{justify-self:start}
+.kbl-reference-home .reference-source-note{padding:16px;font-size:13px;color:var(--muted)}
+.kbl-reference-home #kbl-cart-link{display:inline-grid;place-items:center;min-width:44px;height:44px;color:var(--ink)}
+.kbl-reference-home #kbl-cart-link svg{width:26px;height:26px}
+.kbl-reference-home .reference-compare{position:fixed;bottom:24px;left:4%;width:92%;max-height:70dvh;overflow:auto;padding:24px;background:var(--paper);color:var(--ink);border:1px solid var(--gold);box-shadow:var(--shadow);z-index:1000}
+.kbl-reference-home .reference-compare>div{display:flex;gap:24px;overflow:auto;padding-block:16px}
+.kbl-reference-home .reference-compare article{display:grid;gap:8px;min-width:160px;max-width:240px}
+.kbl-reference-home .reference-compare img{width:100px;height:100px;object-fit:contain}
+.kbl-reference-home .reference-notice{position:fixed;bottom:96px;left:5%;max-width:650px;width:90%;padding:20px 48px 20px 24px;background:var(--paper);color:var(--ink);border:1px solid var(--gold);box-shadow:var(--shadow);z-index:1200}
+.kbl-reference-home .reference-notice button{position:absolute;right:0;top:0;width:44px;height:44px;font-size:24px}
+.kbl-reference-home .floating-contact-menu.show{opacity:1;visibility:visible;pointer-events:auto;display:grid;transform:none}
+.kbl-reference-home .kbl-modal-v2.modal-backdrop{display:flex;position:fixed;inset:0;z-index:4000;align-items:center;justify-content:center;padding:24px;background:var(--color-overlay);overflow-y:auto}
+.kbl-reference-home .kbl-modal-v2>.modal{display:block;position:relative;inset:auto;width:min(900px,100%);max-height:90dvh;overflow:auto;padding:28px;background:var(--paper);color:var(--ink);border-radius:16px;box-shadow:var(--shadow)}
+.kbl-reference-home .kbl-modal-v2>.modal>header{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:24px}
+.kbl-reference-home .kbl-modal-v2 h2{font-size:27px;line-height:1.3}
+.kbl-reference-home .kbl-modal-v2 .stack{display:grid;gap:20px}
+.kbl-reference-home .kbl-modal-v2 .button{font-family:var(--font-body);min-height:44px;white-space:nowrap}
+.kbl-reference-home .kbl-modal-v2 label{display:grid;gap:8px;font-size:14px}
+.kbl-reference-home .kbl-modal-v2 input,.kbl-reference-home .kbl-modal-v2 select,.kbl-reference-home .kbl-modal-v2 textarea{border:1px solid var(--line);padding:12px;min-height:44px;width:100%;border-radius:6px}
+.kbl-reference-home .kbl-modal-v2 input[type=checkbox]{width:18px;min-height:18px}
+.kbl-reference-home .kbl-modal-v2 input[hidden]{display:none}
+.kbl-reference-home .chatbox{position:fixed;z-index:4100;bottom:100px;right:24px;width:min(390px,calc(100% - 32px));max-height:75dvh;overflow:auto;background:var(--paper);color:var(--ink);padding:24px;box-shadow:var(--shadow);border:1px solid var(--gold)}
+.kbl-reference-home .reference-tryon-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px}
+.kbl-reference-home .reference-camera-stage{position:relative;min-width:0;min-height:350px;align-self:start;background:var(--cream);overflow:hidden}
+.kbl-reference-home .reference-camera-stage>img:first-child,.kbl-reference-home .reference-camera-stage>video{display:block;width:100%;height:auto}
+.kbl-reference-home .reference-camera-empty{padding:80px 20px;text-align:center}
+.kbl-reference-home .reference-jewel-layer{position:absolute;height:auto;max-width:none;pointer-events:none}
+.kbl-reference-home .reference-tryon-layout input[type=range]{accent-color:var(--gold)}
+.kbl-reference-home .kbl-slider-track{transition:transform .35s ease-out}
+.kbl-reference-home .product-lane-empty{grid-column:1/-1}
+.kbl-reference-home .reference-world-chart{height:420px;margin:24px 0;border:1px solid var(--line)}
+.kbl-reference-home .reference-world-chart iframe{width:100%;height:100%;border:0}
+.reference-policy{max-width:1000px;margin:40px auto;padding:24px;color:var(--color-ink);font-family:var(--font-body)}
+.reference-policy h1{font-size:clamp(28px,4vw,44px);margin:24px 0}
+.reference-policy h2,.reference-policy h3{margin:24px 0 16px}
+.reference-policy p,.reference-policy ul,.reference-policy ol{margin:16px 0}
+.reference-policy a{text-decoration:underline}
+@media(max-width:767px){.kbl-reference-home .reference-tryon-layout{grid-template-columns:minmax(0,1fr)}.kbl-reference-home .kbl-modal-v2>.modal{padding:20px}.kbl-reference-home .kbl-modal-v2.modal-backdrop{padding:12px}.kbl-reference-home .reference-camera-stage{min-height:260px}.kbl-reference-home .reference-compare{bottom:76px}.kbl-reference-home .chatbox{right:16px;bottom:80px}.kbl-reference-home .product-grid{gap:12px}.kbl-reference-home .product-card-utility{flex-wrap:wrap}.kbl-reference-home .product-card-actions{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.kbl-reference-home *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+@media(min-width:641px) and (max-width:1023px){body.kbl-reference-home .main-nav{justify-content:flex-start!important;flex-wrap:wrap;column-gap:12px;row-gap:0}}
+.kbl-reference-home .reference-market-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0;padding:16px}
+.kbl-reference-home .reference-market-grid article{display:grid;gap:12px;align-content:start;padding:20px;border:1px solid var(--line);background:var(--cream);min-width:0}
+.kbl-reference-home .reference-market-grid small{font-size:11px;font-weight:700;color:var(--muted)}
+.kbl-reference-home .reference-market-grid strong{font-size:clamp(18px,2vw,25px);color:var(--ink);overflow-wrap:anywhere}
+.kbl-reference-home .reference-market-grid span,.kbl-reference-home .reference-market-grid a{font-size:12px;overflow-wrap:anywhere}
+@media(max-width:767px){.kbl-reference-home .reference-market-grid{grid-template-columns:minmax(0,1fr)}}

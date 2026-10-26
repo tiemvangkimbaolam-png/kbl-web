@@ -1,0 +1,24 @@
+{
+  "release": "2.1.0-pos-source",
+  "date": "2026-10-26",
+  "checks": {
+    "testsPassed": 26,
+    "newPosTestsPassed": 9,
+    "typescript": "passed",
+    "workerBuild": "passed",
+    "posUploadsUnchanged": 6,
+    "nativeZipMatchesSource": true
+  },
+  "limits": {
+    "livePosWindows": "not verified",
+    "newReceiptBrowserUI": "not verified",
+    "providerAIAndPublicSocialPost": "not verified",
+    "deploymentOfPosChanges": "not performed",
+    "dnsChange": "not performed"
+  },
+  "nativeWindowsZip": {
+    "path": "public/downloads/KBL-WINDOWS-2.zip",
+    "bytes": 83367,
+    "sha256": "76594f0b28369c242f2563e9d41c1a6fa223df6a6ed3273ee855adbd81c843ea"
+  }
+}

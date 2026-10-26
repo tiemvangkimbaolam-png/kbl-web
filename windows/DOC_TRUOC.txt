@@ -1,0 +1,21 @@
+KBL WINDOWS MỚI 2.1 · BỔ SUNG RELAY POS CHỈ ĐỌC
+
+POS: trang http://127.0.0.1:39878/ → Lấy cấu hình POS trên máy này. Nhập URL local và mã local vào phần đồng bộ website sẵn có trong POS, kiểm tra đường dẫn data/product-photos. Không sửa file code POS. Chỉ cấu hình khi website mới đã triển khai các endpoint POS; source mới này chưa deploy lên web. Hướng dẫn đầy đủ: docs/POS_SYNC.md trong gói source, hoặc POS_SYNC.md đi kèm bộ Windows tải từ Admin.
+
+0. Tạm dừng bộ AI cũ và tắt tiện ích KBL cũ trong các hồ sơ sẽ dùng cho bộ mới; giữ nguyên dữ liệu và đăng nhập Chrome. Tránh hai bộ cùng điều khiển một tab.
+1. Cần Node.js 24, Google Chrome. Để dựng video cần FFmpeg, ffprobe và thư viện node-edge-tts đã có ở bộ worker cũ. Đặt bộ mới trong một thư mục con của worker hiện tại để dùng lại công cụ, không dùng lại token server cũ. Dịch vụ giọng đọc cần Internet, chưa có xác nhận trực tiếp trên máy của bạn.
+2. Admin mới → Kết nối → Kết nối Windows → Tải kbl-config.json, đặt cạnh KBL_WINDOWS.cjs. File cấu hình có mã riêng, không gửi vào chat.
+3. Bấm BAT_DAU.cmd. Mở http://127.0.0.1:39878. Bộ mới dùng SQLite trong LOCALAPPDATA\KBL-New, không sửa dữ liệu bộ cũ.
+4. Nếu muốn giữ phiên Chrome cũ: trang local có danh sách các hồ sơ được quản lý cũ; chọn đúng hồ sơ và bấm Dùng hồ sơ này trước khi Mở đăng nhập. Không sao chép cookie. Nếu hồ sơ đang mở nhưng tiện ích chưa kết nối, bộ mới không tự mở tab khác.
+5. Admin → Đội AI → Thêm tài khoản. Windows nhận danh sách sau khoảng 15 giây. Bấm Mở đăng nhập để mở hồ sơ riêng một lần.
+6. Trong đúng Chrome, mở chrome://extensions, bật Chế độ nhà phát triển, Tải tiện ích đã giải nén → chọn EXTENSION. Chrome yêu cầu người dùng tự nạp tiện ích; bộ cài không âm thầm thay chính sách bảo mật.
+7. Trang local → Lấy mã ghép một lần cho đúng tài khoản. Mở tiện ích KBL Windows mới, dán mã, bật nhận việc → Lưu → Kiểm tra kết nối và phiên. Phiên AI đăng nhập bằng trang chính thức của nhà cung cấp.
+8. Admin → Đội AI → Bắt đầu. Tạo bản tin. Bật đăng website trong Bản tin & Video khi muốn cho phép bài đủ điều kiện được xuất bản.
+
+Chạy nền: CHAY_AN.vbs. Tự chạy khi đăng nhập Windows: mở PowerShell chạy CAI_TU_KHOI_DONG.ps1 (nếu Windows cho phép script). Tắt nhận việc từ Admin trước khi đóng tiến trình. Bộ cũ cổng 39877 không bị tắt tự động.
+
+Ẩn cửa sổ: tiện ích chỉ ẩn cửa sổ Chrome đã xác minh bằng dấu ngẫu nhiên. Tab không liên quan không bị ẩn. Đăng nhập từ Admin mở lại đúng tab đã ghép trong 5 phút. Chrome phải tiếp tục chạy; không bấm dấu X. Trình duyệt đóng hoặc đăng nhập hết hạn có thể cần thao tác người dùng, hệ thống không vượt CAPTCHA.
+
+Tạo ảnh hỗ trợ adapter Gemini/ChatGPT. Duyệt ảnh hỗ trợ Gemini/Claude và đòi ảnh thật đính kèm. Grok có adapter văn bản ban đầu, cần kiểm tra selector trên tài khoản thật; không giao tạo ảnh cho Grok khi chưa có adapter ảnh. Các adapter phụ thuộc giao diện nhà cung cấp; kiểm thử giả lập không chứng minh tài khoản thật đã chạy.
+
+Video: Node Edge TTS xuất giọng và mốc chữ; bộ mới chỉ nhận mốc khớp lời đọc, không tự ước lượng toàn bộ phụ đề. FFmpeg ghép hai ảnh, giọng, phụ đề dọc 1080x1920. File gốc giữ ở Windows; website chỉ dọn video tạm khi đủ biên nhận. Hiện bộ xuất bản website có sẵn; Facebook/YouTube/Threads và các kênh khác chưa có quyền ứng dụng mới, không giả biên nhận.
