@@ -9,7 +9,7 @@ export async function put(kind: string, id: string, data: any, version?: number)
         throw Object.assign(Error('Dữ liệu đã thay đổi ở cửa sổ khác; tải lại trước khi lưu.'), { status: 409 });
 }
 else {
-    const limits: Record<string, number> = { product: 500, order: 5000, consultation: 5000, story: 1000, article: 1000, account: 20, worker: 20, 'worker-auth': 40, command: 200, price: 200, settings: 10, channel: 20 };
+    const limits: Record<string, number> = { product: 500, order: 5000, consultation: 5000, story: 1000, article: 1000, account: 20, worker: 20, 'worker-auth': 40, command: 200, price: 200, settings: 10, channel: 20, 'job-receipt': 20000, 'job-evidence': 6000, 'job-transition': 30000 };
     const limit = limits[kind] || 20000;
     const saved = await sql().prepare('INSERT INTO records(kind,id,data,created_at,updated_at) SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM records WHERE kind=? AND id=?) OR (SELECT COUNT(*) FROM records WHERE kind=?)<? ON CONFLICT(kind,id) DO UPDATE SET data=excluded.data,version=records.version+1,updated_at=excluded.updated_at').bind(kind, id, JSON.stringify(data), at, at, kind, id, kind, limit).run();
     if (saved.meta.changes !== 1)

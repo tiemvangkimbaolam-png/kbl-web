@@ -6,10 +6,22 @@ export async function createStory(input: any, stableId?: string) { const storyId
     await ensureJob(storyId, 'research');
     return storyId;
 } await put('story', storyId, { title: String(input.title || 'Bản tin vàng mới').slice(0, 200), topic: String(input.topic || 'Thông tin vàng và thị trường Việt Nam').slice(0, 2000), sourceUrl: input.sourceUrl ? sourceURL(input.sourceUrl) : null, platforms: ['website'], status: 'working', editionAt: now() }); await ensureJob(storyId, 'research'); await event('story-created', 'Đã đưa bản tin vào hàng đợi.', storyId); return storyId; }
-export async function ensureJob(storyId: string, stage: string, exclude: string | null = null) { const at = now(), jobId = `KBL-${storyId}-${stage}`; await sql().prepare('INSERT OR IGNORE INTO jobs(id,story_id,stage,status,exclude_account,created_at,updated_at) VALUES(?,?,?,\'queued\',?,?,?)').bind(jobId, storyId, stage, exclude, at, at).run(); return jobId; }
+export async function ensureJob(storyId: string, stage: string, exclude: string | null = null) {
+    const at = now(), jobId = `KBL-${storyId}-${stage}`;
+    await sql().prepare('INSERT OR IGNORE INTO jobs(id,story_id,stage,status,exclude_account,created_at,updated_at) VALUES(?,?,?,\'queued\',?,?,?)').bind(jobId, storyId, stage, exclude, at, at).run();
+    if (stage === 'review' || stage === 'image-review') {
+        await sql().prepare("UPDATE jobs SET status='queued',owner=NULL,lease_hash=NULL,lease_until=NULL,result=NULL,result_hash=NULL,error=NULL,exclude_account=?,updated_at=? WHERE id=? AND status='waiting-revision' AND EXISTS(SELECT 1 FROM jobs creator WHERE creator.story_id=jobs.story_id AND creator.stage=? AND creator.status='complete')").bind(exclude, at, jobId, stage === 'review' ? 'write' : 'image').run();
+    }
+    return jobId;
+}
 export async function jobsFor(storyId: string) { return (await sql().prepare('SELECT * FROM jobs WHERE story_id=? ORDER BY created_at ASC').bind(storyId).all<any>()).results; }
 export async function promptFor(job: any) {
     const story = await get('story', job.story_id), previous = await jobsFor(job.story_id), context: any = { story, previousFailure: job.previousFailure || null, outputs: Object.fromEntries(previous.filter(x => x.result).map(x => [x.stage, JSON.parse(x.result)])) };
+    const repair = await sql().prepare("SELECT data FROM records WHERE kind='job-evidence' AND json_extract(data,'$.storyId')=? AND json_extract(data,'$.creatorStage')=? ORDER BY json_extract(data,'$.round') DESC LIMIT 1").bind(job.story_id, job.stage).first<any>();
+    if (repair) {
+        const evidence = JSON.parse(repair.data);
+        context.revision = { round: evidence.round, reason: evidence.reason, previousOutput: JSON.parse(evidence.creatorSnapshot.result || '{}') };
+    }
     let schema: any;
     const s = (max = 4000) => ({ type: 'string', maxLength: max });
     const obj = (props: any) => ({ type: 'object', properties: props, required: Object.keys(props), additionalProperties: false });
@@ -52,7 +64,7 @@ export async function claim(workerId: string, accountId: string | null, capabili
     if (!stages.length)
         return { wait: true };
     const owner = accountId || workerId;
-    const rows = (await sql().prepare('SELECT * FROM jobs WHERE status=\'queued\' AND (exclude_account IS NULL OR exclude_account<>?) ORDER BY CASE stage WHEN \'consult\' THEN 0 WHEN \'image-review\' THEN 1 WHEN \'review\' THEN 1 WHEN \'render\' THEN 2 WHEN \'image\' THEN 3 WHEN \'write\' THEN 4 ELSE 5 END,created_at LIMIT 100').bind(owner).all<any>()).results;
+    const rows = (await sql().prepare("SELECT * FROM jobs WHERE status='queued' AND (exclude_account IS NULL OR exclude_account<>?) AND stage IN (SELECT value FROM json_each(?)) AND (? IS NULL OR id=?) ORDER BY CASE stage WHEN 'consult' THEN 0 WHEN 'image-review' THEN 1 WHEN 'review' THEN 1 WHEN 'render' THEN 2 WHEN 'image' THEN 3 WHEN 'write' THEN 4 ELSE 5 END,created_at LIMIT 100").bind(owner, JSON.stringify(stages), targetId || null, targetId || null).all<any>()).results;
     for (const candidate of rows) {
         if ((targetId && candidate.id !== targetId) || !stages.includes(candidate.stage))
             continue;
@@ -114,34 +126,48 @@ async function verifyAssets(ids: string[], storyId: string, mimes: string[]) { f
         fail('Thiếu file thật đúng bản tin: ' + aid, 409);
 } }
 export async function complete(workerId: string, jobId: string, lease: string, result: any) {
+    const leaseHash = await sha(lease || ''), resultHash = await sha(JSON.stringify(result)), receiptId = await sha(jobId + ':' + leaseHash);
+    const current = await sql().prepare('SELECT * FROM jobs WHERE id=?').bind(jobId).first<any>();
+    if (!current || current.lease_hash !== leaseHash) {
+        const receipt = await get('job-receipt', receiptId);
+        if (receipt?.workerId === workerId && receipt.jobId === jobId && receipt.inputHash === resultHash)
+            return { stored: true, idempotent: true, previousAttempt: true };
+        fail('Lượt hoặc kết quả cũ không khớp biên nhận đã lưu.', 409);
+    }
     const job = await ownedJob(workerId, jobId, lease), all = await jobsFor(job.story_id), previous = (stage: string) => all.find(x => x.stage === stage), parsed = (stage: string) => JSON.parse(previous(stage)?.result || '{}');
-    const resultHash = await sha(JSON.stringify(result));
     if (job.status === 'complete') {
         if (job.result_hash !== resultHash)
             fail('Lượt đã có kết quả khác; giữ biên nhận cũ.', 409);
-        await advance(job);
+        await advanceAndRecord(job);
         return { stored: true, idempotent: true };
     }
-    if (!['leased', 'running', 'attention'].includes(job.status))
+    if (!['leased', 'running', 'attention'].includes(job.status)) {
+        const receipt = await get('job-receipt', receiptId);
+        if (receipt?.workerId === workerId && receipt.inputHash === resultHash) return { stored: true, idempotent: true };
         fail('Lượt chưa đủ điều kiện nhận kết quả.', 409);
+    }
     validateResult(job.stage, result, { actor: job.owner, creator: job.stage === 'review' ? previous('write')?.owner : previous('image')?.owner, assets: parsed('image').rows?.map((x: any) => x.assetId), sourceUrls: parsed('research').items?.map((x: any) => x.url) });
     if (job.stage === 'research') {
-        const evidence = [];
-        try {
-            for (const item of result.items.slice(0, 2))
-                evidence.push(await sourceSnapshot(item.url));
-        }
-        catch (e: any) {
-            const reason = 'Nguồn chưa truy cập được: ' + result.items.map((x: any) => x.url).join(', ') + ' · ' + e.message;
+        const attempts = await Promise.all(result.items.map(async (item: any) => {
+            const url = sourceURL(item.url);
+            try { return { ok: true, item: { ...item, url }, evidence: await sourceSnapshot(url) }; }
+            catch (e: any) { return { ok: false, url, message: String(e.message || 'Nguồn chưa đọc được.').slice(0, 300), fetchedAt: now() }; }
+        }));
+        const verified = attempts.filter((attempt: any) => attempt.ok), rejected = attempts.filter((attempt: any) => !attempt.ok);
+        if (!verified.length) {
+            const reason = 'Nguồn chưa truy cập được: ' + rejected.map((attempt: any) => attempt.url + ' · ' + attempt.message).join('; ');
+            await put('job-evidence', await sha('research-attempt:' + job.id + ':' + job.lease_hash), { storyId: job.story_id, stage: 'research', attempt: job.attempt, submitted: result, sourceAttempts: rejected, capturedAt: now() });
             if (job.attempt < 3) {
                 await sql().prepare("UPDATE jobs SET status='queued',exclude_account=owner,owner=NULL,lease_hash=NULL,lease_until=NULL,error=?,updated_at=? WHERE id=? AND lease_hash=?").bind(reason.slice(0, 1600), now(), job.id, job.lease_hash).run();
                 await event('source-retry', 'Nguồn bị chặn; giữ kết quả cũ tại Windows và giao tìm nguồn khác.', job.story_id);
                 throw Object.assign(Error('Nguồn bị từ chối; đã giao lại cho tài khoản khác tìm nguồn công khai.'), { status: 422 });
             }
             await sql().prepare("UPDATE jobs SET status='blocked',error=?,updated_at=? WHERE id=?").bind(reason.slice(0, 1600), now(), job.id).run();
+            const story = await get('story', job.story_id);
+            if (story) await put('story', story.id, { ...story, status: 'blocked', message: reason.slice(0, 1600) });
             throw Object.assign(Error('Ba lần chưa đọc được nguồn. Giữ hồ sơ và chọn nguồn công khai khác.'), { status: 422 });
         }
-        result = { ...result, sourceEvidence: evidence, capturedAt: now() };
+        result = { ...result, items: verified.map((attempt: any) => attempt.item), sourceEvidence: verified.map((attempt: any) => attempt.evidence), sourceAttempts: rejected, capturedAt: now() };
     }
     if (job.stage === 'image')
         await verifyAssets(result.rows.map((r: any) => r.assetId), job.story_id, ['image/']);
@@ -150,13 +176,59 @@ export async function complete(workerId: string, jobId: string, lease: string, r
         await verifyAssets([result.audioId], job.story_id, ['audio/']);
         await verifyAssets([result.captionsId], job.story_id, ['text/', 'application/x-subrip']);
     }
-    const finalHash = resultHash;
-    const saved = await sql().prepare('UPDATE jobs SET status=\'complete\',result=?,result_hash=?,updated_at=? WHERE id=? AND lease_hash=? AND status IN (\'leased\',\'running\',\'attention\')').bind(JSON.stringify(result), finalHash, now(), jobId, job.lease_hash).run();
-    if (saved.meta.changes !== 1)
-        fail('Lượt vừa thay đổi; đối chiếu biên nhận trước khi thử lại.', 409);
+    const finalHash = resultHash, at = now(), receipt = { workerId, jobId, storyId: job.story_id, stage: job.stage, owner: job.owner, inputHash: resultHash, capturedAt: at };
+    const saved = await sql().batch([
+        sql().prepare("UPDATE jobs SET status='complete',result=?,result_hash=?,updated_at=? WHERE id=? AND lease_hash=? AND status IN ('leased','running','attention') AND ((SELECT COUNT(*) FROM records WHERE kind='job-receipt')<20000 OR EXISTS(SELECT 1 FROM records WHERE kind='job-receipt' AND id=?))").bind(JSON.stringify(result), finalHash, at, jobId, job.lease_hash, receiptId),
+        sql().prepare("INSERT OR IGNORE INTO records(kind,id,data,created_at,updated_at) SELECT 'job-receipt',?,?,?,? WHERE EXISTS(SELECT 1 FROM jobs WHERE id=? AND lease_hash=? AND status='complete' AND result_hash=?)").bind(receiptId, JSON.stringify(receipt), at, at, jobId, job.lease_hash, finalHash)
+    ]);
+    if (saved[0].meta.changes !== 1) {
+        const stored = await sql().prepare('SELECT * FROM jobs WHERE id=?').bind(jobId).first<any>();
+        if (stored?.status === 'complete' && stored.lease_hash === job.lease_hash && stored.result_hash === finalHash) {
+            await advanceAndRecord(stored);
+            return { stored: true, idempotent: true };
+        }
+        const accepted = await get('job-receipt', receiptId);
+        if (accepted?.workerId === workerId && accepted.inputHash === resultHash) return { stored: true, idempotent: true };
+        fail('Lượt vừa thay đổi hoặc kho biên nhận đầy; giữ kết quả và đối chiếu trước khi thử lại.', 409);
+    }
     await event('job-complete', `Đã lưu kết quả: ${(LABELS as Record<string, string>)[job.stage]}.`, job.story_id);
-    await advance({ ...job, result: JSON.stringify(result), result_hash: finalHash, status: 'complete' });
+    await advanceAndRecord({ ...job, result: JSON.stringify(result), result_hash: finalHash, status: 'complete' });
     return { stored: true };
+}
+function transitionId(job: any) { return `${job.id}:${job.attempt}:${job.result_hash || ''}`; }
+async function advanceAndRecord(job: any) {
+    const key = transitionId(job);
+    if (await get('job-transition', key)) return;
+    await advance(job);
+    await put('job-transition', key, { jobId: job.id, attempt: job.attempt, stage: job.stage, at: now() });
+}
+
+async function repairAfterReview(job: any, reason: string) {
+    const creatorStage = job.stage === 'review' ? 'write' : 'image';
+    const current = await sql().prepare('SELECT * FROM jobs WHERE id=?').bind(job.id).first<any>();
+    if (current?.status !== 'complete' || current.lease_hash !== job.lease_hash || current.result_hash !== job.result_hash) return;
+    const key = await sha('repair:' + job.id + ':' + job.lease_hash);
+    if (await get('job-evidence', key)) return;
+    const prior = await sql().prepare("SELECT COUNT(*) n FROM records WHERE kind='job-evidence' AND json_extract(data,'$.storyId')=? AND json_extract(data,'$.reviewStage')=?").bind(job.story_id, job.stage).first<any>();
+    const story = await get('story', job.story_id);
+    if (Number(prior.n) >= 3) {
+        await sql().prepare("UPDATE jobs SET status='blocked',error=?,updated_at=? WHERE id=? AND status='complete' AND lease_hash=?").bind(reason, now(), job.id, job.lease_hash).run();
+        if (story) await put('story', story.id, { ...story, status: 'blocked', message: 'Đã sửa ba vòng nhưng chưa được duyệt: ' + reason });
+        await event('review-blocked', 'Giữ hồ sơ sau ba vòng sửa chưa đạt: ' + reason, job.story_id);
+        return;
+    }
+    const creator = await sql().prepare("SELECT * FROM jobs WHERE story_id=? AND stage=? AND status='complete'").bind(job.story_id, creatorStage).first<any>();
+    if (!creator) fail('Chưa có kết quả gốc để sửa; giữ kết luận duyệt.', 409);
+    const round = Number(prior.n) + 1, marker = id(), at = now();
+    const evidence = { storyId: job.story_id, reviewStage: job.stage, creatorStage, round, reason, transition: marker, creatorSnapshot: creator, reviewSnapshot: current, at };
+    const ownsTransition = "EXISTS(SELECT 1 FROM records WHERE kind='job-evidence' AND id=? AND json_extract(data,'$.transition')=?)";
+    const changed = await sql().batch([
+        sql().prepare("INSERT OR IGNORE INTO records(kind,id,data,created_at,updated_at) SELECT 'job-evidence',?,?,?,? WHERE EXISTS(SELECT 1 FROM jobs WHERE id=? AND status='complete' AND lease_hash=? AND result_hash=?) AND EXISTS(SELECT 1 FROM jobs WHERE id=? AND status='complete' AND lease_hash=?)").bind(key, JSON.stringify(evidence), at, at, job.id, job.lease_hash, job.result_hash, creator.id, creator.lease_hash),
+        sql().prepare("UPDATE jobs SET status='queued',exclude_account=owner,owner=NULL,lease_hash=NULL,lease_until=NULL,result=NULL,result_hash=NULL,error=?,updated_at=? WHERE id=? AND status='complete' AND " + ownsTransition).bind(`Vòng sửa ${round}: ${reason}`, at, creator.id, key, marker),
+        sql().prepare("UPDATE jobs SET status='waiting-revision',owner=NULL,lease_hash=NULL,lease_until=NULL,result=NULL,result_hash=NULL,error=?,updated_at=? WHERE id=? AND status='complete' AND lease_hash=? AND " + ownsTransition).bind(reason, at, job.id, job.lease_hash, key, marker),
+        sql().prepare("UPDATE records SET data=json_set(data,'$.status','waiting-revision','$.message',?,'$.reviewRevision',?),version=version+1,updated_at=? WHERE kind='story' AND id=? AND " + ownsTransition).bind(`Vòng sửa ${round}: ${reason}`, round, at, job.story_id, key, marker)
+    ]);
+    if (changed[0].meta.changes === 1) await event('review-revision', `Đã giữ kết luận duyệt và giao sửa vòng ${round}: ${reason}`, job.story_id);
 }
 export async function advance(job: any) {
     const result = JSON.parse(job.result || '{}');
@@ -167,10 +239,12 @@ export async function advance(job: any) {
         return;
     }
     if (['review', 'image-review'].includes(job.stage) && result.approved === false) {
-        const s = await get('story', job.story_id);
-        if (s && (s.status !== 'rejected' || s.reason !== result.reason))
-            await put('story', s.id, { ...s, status: 'rejected', reason: result.reason });
+        await repairAfterReview(job, result.reason);
         return;
+    }
+    if (job.stage === 'write' || job.stage === 'image') {
+        const story = await get('story', job.story_id);
+        if (story?.status === 'waiting-revision') await put('story', story.id, { ...story, status: 'working', message: 'Đã lưu bản sửa; chờ tài khoản khác duyệt lại.' });
     }
     const stage = nextStage(job.stage);
     if (stage) {
@@ -187,13 +261,27 @@ export async function tick() {
     const at = now();
     await sql().prepare('UPDATE jobs SET status=\'queued\',owner=NULL,lease_hash=NULL,lease_until=NULL,error=\'Hết lượt giữ việc trước khi gửi prompt.\' WHERE status=\'leased\' AND lease_until<?').bind(at).run();
     await sql().prepare('UPDATE jobs SET status=\'attention\',error=\'Mất liên lạc sau khi gửi. Giữ lượt cũ để đối chiếu, không gửi lại tự động.\' WHERE status=\'running\' AND lease_until<?').bind(at).run();
-    const finished = (await sql().prepare('SELECT * FROM jobs WHERE status=\'complete\' ORDER BY updated_at DESC LIMIT 5').all<any>()).results;
-    for (const j of finished)
-        if (j.stage !== 'publish')
-            await advance(j);
-    const queuedPublish = (await sql().prepare('SELECT story_id FROM jobs WHERE stage=\'publish\' AND status=\'queued\' LIMIT 1').all<any>()).results;
-    for (const row of queuedPublish)
-        await publishWebsite(row.story_id);
+    const finished = (await sql().prepare("SELECT * FROM jobs WHERE status='complete' AND stage<>'publish' AND NOT EXISTS(SELECT 1 FROM records WHERE kind='job-transition' AND records.id=jobs.id||':'||jobs.attempt||':'||COALESCE(jobs.result_hash,'')) ORDER BY updated_at ASC LIMIT 5").all<any>()).results;
+    for (const j of finished) {
+        try { await advanceAndRecord(j); }
+        catch (e: any) {
+            // Move this retry behind older unfinished transitions; one broken
+            // story must not stall the unrelated work in the same cron tick.
+            await sql().prepare("UPDATE jobs SET error=?,updated_at=? WHERE id=? AND status='complete' AND lease_hash=?").bind(String(e.message || 'Chưa chuyển được bước kế tiếp.').slice(0, 600), at, j.id, j.lease_hash).run();
+            await event('transition-waiting', 'Đã giữ kết quả; chưa chuyển xong bước kế tiếp.', j.story_id);
+        }
+    }
+    const queuedPublish = (await sql().prepare('SELECT id,story_id FROM jobs WHERE stage=\'publish\' AND status=\'queued\' ORDER BY updated_at ASC LIMIT 1').all<any>()).results;
+    for (const row of queuedPublish) {
+        try {
+            const outcome = await publishWebsite(row.story_id);
+            if (!outcome?.published) await sql().prepare("UPDATE jobs SET error=?,updated_at=? WHERE id=? AND status='queued'").bind(outcome?.reason || 'Chờ đủ nội dung, ảnh, video và quyền xuất bản.', at, row.id).run();
+        }
+        catch {
+            await sql().prepare("UPDATE jobs SET error='Chưa nhận được biên nhận xuất bản; giữ để thử lại.',updated_at=? WHERE id=? AND status='queued'").bind(at, row.id).run();
+            await event('publication-waiting', 'Chưa nhận đủ biên nhận xuất bản; giữ bản tin để thử lại.', row.story_id);
+        }
+    }
     const cfg = await settings();
     if (cfg.teamEnabled) {
         if (cfg.autoConsult) {
@@ -221,8 +309,11 @@ export async function cleanup() { const cfg = await settings(), rows = (await sq
     const receipt = (await sql().prepare('SELECT platform,external_id,url FROM receipts WHERE story_id=?').bind(a.story_id).all<any>()).results;
     const required = (await get('story', a.story_id))?.platforms || cfg.requiredPlatforms;
     if (required.length && required.every((p: string) => receipt.some(r => r.platform === p && r.external_id && r.url))) {
-        await env.BUCKET?.delete(a.id);
-        await sql().prepare('UPDATE assets SET deleted_at=? WHERE id=?').bind(now(), a.id).run();
-        count++;
+        try {
+            if (!env.BUCKET) continue;
+            await env.BUCKET.delete(a.id);
+            await sql().prepare('UPDATE assets SET deleted_at=? WHERE id=?').bind(now(), a.id).run();
+            count++;
+        } catch { await event('cleanup-waiting', 'Kho file chưa xác nhận xóa file tạm; giữ bản ghi để thử lại.', a.story_id).catch(() => {}); }
     }
 } return { deleted: count }; }
