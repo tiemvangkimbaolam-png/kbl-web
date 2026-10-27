@@ -41,3 +41,9 @@ Bổ sung cuối: vòng sửa dùng attempt/lease mới và không nhận nhầm
 ZIP Windows 86.353 byte, SHA256 57ca7ad59d50ed5334402c8b149d36984908836381e0fa257d50e33191d1ebf6; không chứa cấu hình/token/profile. Video tạm chỉ dọn sau đủ biên nhận; ảnh tin/sản phẩm và bản Windows được giữ.
 
 Deploy hiện cho phép staging workers.dev khi AUD trống, Admin vẫn khóa 503; check:cloudflare và nghiệm thu đầy đủ tiếp tục yêu cầu AUD. Không đổi DNS. Kết nối GitHub đã tạo check Workers Builds cho kbl-web-moi nhưng chưa có bằng chứng deploy thành công hoặc schema/R2 thật đã sẵn sàng. Cần lấy AUD không bí mật của ứng dụng KBL Admin Moi, xem log build nếu còn lỗi, rồi kiểm tra Admin/POS/Chrome/video thật trước khi chuyển miền. Không khẳng định Facebook/YouTube đã nối hay đã đăng tin.
+
+## Kết nối POS bổ sung 27/10
+
+Đã thấy GitHub check Workers Builds: kbl-web-moi thành công tại commit 242629a768dafdf8ae3c78e7db5068d608400fb6; AUD đã cấu hình. HTTP health từ môi trường kiểm tra vẫn bị Cloudflare 403/1010, chưa đọc được trạng thái DB/R2 thật. Không thay DNS.
+
+Lưu thư mục POS hợp lệ giờ bật ngay đọc chỉ đọc giá/kho/ảnh, không cần POST đầu tiên nếu POS ghim URL cũ. Kiểm tra settings/inventory trước khi lưu; đường dẫn lỗi không thay lựa chọn cũ. Phiếu cầm/bảo hành vẫn cần POST riêng. Bộ test gộp 71/71 đạt sau khi cài đủ dependency.

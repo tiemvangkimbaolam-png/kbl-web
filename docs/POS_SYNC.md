@@ -57,3 +57,7 @@ Kho 500 dòng; phiếu cầm 500 dòng/lần, tối đa 20.000 bản ghi; bảo 
 Loyalty/VIP, cloud-price-config Google relay và đối chiếu giao dịch hàng loạt chưa chuyển sang backend mới; endpoint báo chưa hỗ trợ, không xác nhận giả. Phép tính và lưu cục bộ POS giữ nguyên. Các token mạng xã hội/API từ server cũ chưa được khôi phục chỉ từ source.
 
 26 bài kiểm thử dùng schema từ code thật với fixture, SQLite thật và D1/R2 giả lập. TypeScript và build được kiểm tra. Chưa chạy trên POS/Windows thật của người dùng; không dùng kết quả mô phỏng để khẳng định đã đồng bộ hay đăng tin thật.
+
+## Khi POS tự đưa URL về tên miền cũ
+
+Không sửa công thức hoặc ép URL trong POS. Trên trang Windows local, lưu đúng thư mục data có settings.json và inventory_db.json: thao tác này bật đọc chỉ đọc giá/kho/ảnh ngay, không cần POS gửi HTTP lần đầu. Việc đọc tiếp tục khi đóng trang cấu hình nếu worker còn chạy. Đường dẫn không hợp lệ không được lưu. Phiếu cầm/bảo hành và giao dịch tức thời vẫn cần kết nối POST của POS; đọc kho không có nghĩa các phiếu đã được đồng bộ.

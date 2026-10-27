@@ -45,7 +45,18 @@ function create({ ledger, bridge, config, now = Date.now }) {
     }
     function dataRoot() { return ledger.get('pos-data-dir') || config.posDataDir || process.env.KBL_POS_DATA_DIR || path.join(process.env.APPDATA || process.env.LOCALAPPDATA || process.env.USERPROFILE || os.homedir(), 'KimBaoLam_POS_TichHop', 'data'); }
     function credentials() { return { url: 'http://127.0.0.1:39878', token: relayToken, dataDir: dataRoot(), ...view() }; }
-    function setDataDir(dir) { if (!path.isAbsolute(dir) || !fs.statSync(dir).isDirectory()) throw Error('Chọn đúng thư mục data của POS trên máy này.'); ledger.set('pos-data-dir', fs.realpathSync(dir)); return { success: true }; }
+    function setDataDir(dir) {
+        if (typeof dir !== 'string' || !path.isAbsolute(dir) || !fs.statSync(dir).isDirectory()) throw Error('Chọn đúng thư mục data của POS trên máy này.');
+        // Explicit local selection authorizes read-only stock/price import even
+        // when the old POS pins its website URL and cannot POST to this relay.
+        const real = fs.realpathSync(dir);
+        C.prices({ prices: readOnlyJSON(real, 'settings.json') });
+        C.inventory({ inventory: readOnlyJSON(real, 'inventory_db.json'), mode: 'snapshot' }, {});
+        ledger.set('pos-data-dir', real); ledger.set('pos-relay-active', true);
+        nextLocalRead = 0;
+        syncLocalSnapshot();
+        return { success: true, readOnly: true, message: 'Đã bật đọc giá/kho/ảnh từ POS. Phiếu cầm và bảo hành vẫn cần POS gửi qua kết nối đồng bộ.' };
+    }
     function auth(token) { return typeof token === 'string' && /^[a-f0-9]{64}$/.test(token) && crypto.timingSafeEqual(Buffer.from(token), Buffer.from(relayToken)); }
     function view() { return { pending: queue.length, photoPending: ledger.get('pos-photo-pending') || 0, lastSuccess: ledger.get('pos-last-success') || 0, lastError: ledger.get('pos-last-error') || '' }; }
     function enqueue(key, endpoint, data) {

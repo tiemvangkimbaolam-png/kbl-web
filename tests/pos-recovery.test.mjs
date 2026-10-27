@@ -83,3 +83,23 @@ test('photo failures are bounded to five attempts, rotate after restart, and ACK
         assert.equal(relay.view().photoPending, 5);
     } finally { fs.openSync = originalOpen; fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test('explicit data-directory selection starts read-only stock and price sync without an initial POS POST', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kbl-pos-select-'));
+    try {
+        fs.writeFileSync(path.join(root, 'settings.json'), JSON.stringify({ price_buy_9999: 13000000, price_sell_9999: 14000000 }));
+        fs.writeFileSync(path.join(root, 'inventory_db.json'), JSON.stringify(inventory.inventory));
+        const before = fs.readFileSync(path.join(root, 'settings.json'));
+        const ledger = memoryLedger(), calls = [];
+        const relay = create({ ledger, config, now: () => 1000, bridge: { async request(route, method, data) { calls.push({ route, data }); return { success: true }; } } });
+        relay.syncLocalSnapshot(); assert.equal(relay.view().pending, 0);
+        assert.equal(relay.setDataDir(root).readOnly, true);
+        assert.equal(ledger.get('pos-relay-active'), true);
+        assert.equal(relay.view().pending, 2);
+        await relay.flush(); assert.equal(calls.length, 2);
+        assert.deepEqual(fs.readFileSync(path.join(root, 'settings.json')), before);
+        const empty = path.join(root, 'empty'); fs.mkdirSync(empty);
+        assert.throws(() => relay.setDataDir(empty));
+        assert.equal(ledger.get('pos-data-dir'), fs.realpathSync(root));
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
