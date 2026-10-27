@@ -5,6 +5,7 @@ import * as P from './pipeline';
 import * as POS from './pos';
 import { admin, worker } from './auth';
 import { readWorldMarket } from './market.mjs';
+import { bindingHealth } from './health.mjs';
 import { accountInput, productInput, text, money, fail, httpsURL, PROVIDER_URLS } from './domain.mjs';
 const response = (v: any, status = 200, headers: Record<string, string> = {}) => Response.json(v, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers } });
 async function body(req: Request, max = 100000) { if (!req.headers.get('content-type')?.includes('application/json'))
@@ -56,8 +57,10 @@ async function upload(req: Request, storyId: string | null, purpose: string) {
 export async function handle(req: Request): Promise<Response> {
     try {
         const u = new URL(req.url), path = u.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean), method = req.method;
-        if (path[0] === 'health')
-            return response({ ok: true, version: '2.0.0', database: !!env.DB, files: !!env.BUCKET, paidAIFallback: false });
+        if (path[0] === 'health') {
+            const health = await bindingHealth(env);
+            return response({ ...health, version: '2.1.1', paidAIFallback: false }, health.ok ? 200 : 503);
+        }
         if (path[0] === 'media' && path[1] && method === 'GET')
             return await assetResponse(req, path[1]);
         if (method === 'GET' && (path[0] === 'lookup' || path[0] === 'public' && path[1] === 'pos-receipt')) {
@@ -225,8 +228,11 @@ export async function handle(req: Request): Promise<Response> {
                 const v = await body(req);
                 if (v.confirmOriginalStopped !== true)
                     fail('Xác nhận đã kiểm tra và dừng lượt cũ trước khi giao lại.');
-                await S.sql().prepare('UPDATE jobs SET status=\'queued\',exclude_account=owner,owner=NULL,lease_hash=NULL,lease_until=NULL,error=NULL,updated_at=? WHERE id=? AND status IN (\'blocked\',\'attention\')').bind(Date.now(), job.id).run();
-                await S.event('job-requeued', 'Chủ đã kiểm tra lượt cũ; giao lại cho tài khoản khác.', job.story_id);
+                const resumed = await S.sql().prepare('UPDATE jobs SET status=\'queued\',exclude_account=owner,owner=NULL,lease_hash=NULL,lease_until=NULL,error=NULL,updated_at=? WHERE id=? AND status IN (\'blocked\',\'attention\') AND updated_at=? RETURNING id').bind(Date.now(), job.id, job.updated_at).first();
+                if (!resumed) fail('Lượt vừa thay đổi; tải lại trước khi tiếp tục.', 409);
+                const story = await S.get('story', job.story_id);
+                if (story && story.status !== 'published') await S.put('story', story.id, { ...story, status: 'working', message: 'Đã kiểm tra lượt cũ; chờ tài khoản khác nhận tiếp.' }, story.version);
+                await S.event('job-requeued', `Chủ đã kiểm tra lượt cũ; giao lại cho tài khoản khác. ${job.stage}: ${String(job.error || job.status).slice(0, 500)}`, job.story_id);
                 return response({ ok: true });
             }
             if (method === 'GET' && path[1] === 'export') {
@@ -266,7 +272,7 @@ export async function handle(req: Request): Promise<Response> {
                 const encoded = JSON.stringify(reports);
                 await S.sql().prepare("UPDATE records SET data=json_set(data,'$.workerId',?,'$.lastSeen',?,'$.status',(SELECT json_extract(j.value,'$.status') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id),'$.message',(SELECT json_extract(j.value,'$.message') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id)),version=version+1,updated_at=? WHERE kind='account' AND id IN (SELECT json_extract(value,'$.id') FROM json_each(?)) AND (json_extract(data,'$.workerId') IS NULL OR json_extract(data,'$.workerId')=?)").bind(wid, Date.now(), encoded, encoded, Date.now(), encoded, wid).run();
                 const activeIds = JSON.stringify(Array.isArray(v.activeJobIds) ? v.activeJobIds.slice(0, 40) : []);
-                await S.sql().prepare("UPDATE jobs SET lease_until=? WHERE status IN ('leased','running') AND id IN (SELECT value FROM json_each(?)) AND (owner=? OR owner IN (SELECT id FROM records WHERE kind='account' AND json_extract(data,'$.workerId')=?))").bind(Date.now() + 30 * 60000, activeIds, wid, wid).run();
+                await S.sql().prepare("UPDATE jobs SET lease_until=? WHERE status IN ('leased','running','attention') AND id IN (SELECT value FROM json_each(?)) AND (owner=? OR owner IN (SELECT id FROM records WHERE kind='account' AND json_extract(data,'$.workerId')=?))").bind(Date.now() + 30 * 60000, activeIds, wid, wid).run();
                 await P.tick();
                 const commands = (await S.list('command', 50)).filter((c: any) => c.workerId === wid && c.status === 'pending' && c.expiresAt > Date.now());
                 return response({ ok: true, workerId: wid, accounts: (await S.list('account', 20)).filter((a: any) => !a.workerId || a.workerId === wid), commands, settings: await S.settings() });
@@ -299,7 +305,7 @@ export async function handle(req: Request): Promise<Response> {
                 if (method === 'POST' && path[3] === 'dispatch') {
                     if (!['leased', 'running', 'attention'].includes(job.status))
                         fail('Lượt đã bị dừng; không gửi prompt.', 409);
-                    await S.sql().prepare('UPDATE jobs SET status=\'running\',updated_at=? WHERE id=? AND status=\'leased\'').bind(Date.now(), job.id).run();
+                    await S.sql().prepare('UPDATE jobs SET status=\'running\',lease_until=?,updated_at=? WHERE id=? AND status IN (\'leased\',\'attention\') AND lease_hash=?').bind(Date.now() + 30 * 60000, Date.now(), job.id, job.lease_hash).run();
                     return response({ ok: true });
                 }
                 if (method === 'POST' && path[3] === 'complete')
@@ -318,7 +324,7 @@ export async function handle(req: Request): Promise<Response> {
             }
             if (method === 'POST' && path[1] === 'assets') {
                 const storyId = u.searchParams.get('storyId'), purpose = u.searchParams.get('purpose') || 'news-image', jid = req.headers.get('x-kbl-job-id') || '', lease = req.headers.get('x-kbl-job-lease') || '', job = await P.ownedJob(wid, jid, lease);
-                if (job.story_id !== storyId || !['leased', 'running'].includes(job.status))
+                if (job.story_id !== storyId || !['leased', 'running', 'attention'].includes(job.status))
                     fail('File không thuộc lượt đang giữ.', 409);
                 const allowed = job.stage === 'image' ? ['news-image'] : job.stage === 'render' ? ['video-temp', 'audio', 'captions'] : [];
                 if (!allowed.includes(purpose))
