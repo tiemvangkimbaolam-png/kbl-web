@@ -127,6 +127,8 @@ export async function handle(req: Request): Promise<Response> {
                 await S.put('consultation', threadId, { question, productId, reply: null, tokenHash: await S.sha(token), status: 'awaiting-reply' });
                 let queued = false;
                 if (apiConsultReady() && assistant.enabled) {
+                    const original = await S.get('consultation',threadId);
+                    await S.put('consultation',threadId,{...original,status:'api-processing'},original.version);
                     const task = await P.promptFor({ id: 'consult-'+threadId, story_id: threadId, stage: 'consult', attempt: 0 });
                     const answer = await consultProvider(task.prompt);
                     if (answer) {
@@ -135,6 +137,8 @@ export async function handle(req: Request): Promise<Response> {
                         return response({ id: threadId, token, queued: false, assistant, message: 'AI đã trả lời.' }, 201);
                     }
                 }
+                const pendingQuestion = await S.get('consultation',threadId);
+                if (pendingQuestion.status === 'api-processing') await S.put('consultation',threadId,{...pendingQuestion,status:'awaiting-reply'},pendingQuestion.version);
                 if (assistant.enabled) {
                     try { await P.ensureJob(threadId, 'consult'); queued = true; }
                     catch { /* Saved privately; the scheduled tick can recover its idempotent job. */ }
@@ -168,7 +172,7 @@ export async function handle(req: Request): Promise<Response> {
             }
             if (method === 'POST' && path[1] === 'settings') {
                 const v = await body(req), old = await S.settings();
-                const allowed = z.object({ teamEnabled: z.boolean().optional(), autoResearch: z.boolean().optional(), autoConsult: z.boolean().optional(), publicationEnabled: z.boolean().optional(), storageLimitMB: z.number().int().min(32).max(2048).optional(), companyName: z.string().min(3).max(150).optional(), phone: z.string().max(30).optional(), address: z.string().max(300).optional(), hours: z.string().max(100).optional() }).strict().parse(v);
+                const allowed = z.object({ teamEnabled: z.boolean().optional(), autoResearch: z.boolean().optional(), autoConsult: z.boolean().optional(), autoProducts: z.boolean().optional(), productHours: z.array(z.number().int().min(0).max(23)).min(1).max(6).optional(), publicationEnabled: z.boolean().optional(), storageLimitMB: z.number().int().min(32).max(2048).optional(), companyName: z.string().min(3).max(150).optional(), phone: z.string().max(30).optional(), address: z.string().max(300).optional(), hours: z.string().max(100).optional() }).strict().parse(v);
                 if (allowed.teamEnabled === true) {
                     const ac = await S.list('account', 20);
                     if (!ac.length)
@@ -213,6 +217,15 @@ export async function handle(req: Request): Promise<Response> {
                 await S.put('worker', wid, { label, status: 'offline', lastSeen: 0, capabilities: [] });
                 await S.put('worker-auth', await S.sha(token), { workerId: wid, enabled: true });
                 return response({ id: wid, token, serverUrl: u.origin, protocol: 'kbl-worker-v2', serviceAccessBearer: (env as any).SITES_SERVICE_TOKEN || undefined }, 201);
+            }
+            if (method === 'PATCH' && path[1] === 'products' && path[2] && path[3] === 'display') {
+                const v = z.object({ published: z.boolean() }).strict().parse(await body(req)), p = await S.get('product', path[2]);
+                if (!p) fail('Không thấy sản phẩm.', 404);
+                if (v.published && (!p.available || p.posMissing)) fail('Sản phẩm không còn sẵn trong POS.', 409);
+                const result = await S.sql().prepare("UPDATE records SET data=json_set(data,'$.published',json(?),'$.websitePublished',json(?)),version=version+1,updated_at=? WHERE kind='product' AND id=? AND version=?").bind(String(v.published), String(v.published), Date.now(), p.id, p.version).run();
+                if (result.meta.changes !== 1) fail('Dữ liệu vừa thay đổi; tải lại trước khi lưu.', 409);
+                await POS.refreshPhotoVisibility();
+                return response({ok:true,published:v.published,wroteToPOS:false});
             }
             if (method === 'POST' && path[1] === 'products') {
                 if (await POS.locked()) fail('Danh mục do POS quản lý. Sửa tại POS rồi đồng bộ lại.', 403);
@@ -378,8 +391,9 @@ export async function handle(req: Request): Promise<Response> {
                 return response(await upload(req, storyId, purpose));
             }
             if (method === 'GET' && path[1] === 'assets' && path[2]) {
-                const job = await P.ownedJob(wid, u.searchParams.get('jobId') || '', req.headers.get('x-kbl-job-lease') || ''), a = await S.sql().prepare('SELECT * FROM assets WHERE id=? AND story_id=? AND deleted_at IS NULL').bind(path[2], job.story_id).first<any>();
-                if (!a)
+                const job = await P.ownedJob(wid, u.searchParams.get('jobId') || '', req.headers.get('x-kbl-job-lease') || ''), a = await S.sql().prepare('SELECT * FROM assets WHERE id=? AND deleted_at IS NULL').bind(path[2]).first<any>(), story = await S.get('story',job.story_id);
+                const originalProductPhoto = story?.kind === 'product' && a?.purpose === 'product' && story.productSnapshot?.imageIds?.includes(path[2]);
+                if (!a || (a.story_id !== job.story_id && !originalProductPhoto))
                     fail('Ảnh không thuộc bản tin.', 404);
                 const f = await env.BUCKET?.get(a.id);
                 if (!f)

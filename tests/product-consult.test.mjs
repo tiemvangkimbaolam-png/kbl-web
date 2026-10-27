@@ -120,3 +120,19 @@ test('actual React product detail renders safe facts and original photo links wi
     const safe = { ...p, description: 'MÔ PHỎNG KIỂM TRA GIAO DIỆN — KHÔNG PHẢI HÀNG ĐANG BÁN', imageIds: [] };
     fs.writeFileSync('.sites-runtime/qa-product-detail.html', '<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kiểm thử giao diện sản phẩm KBL</title><style>' + fs.readFileSync('app/globals.css','utf8').replace(/@import[^;]+;/g,'') + '</style><body><main style="max-width:720px;padding:20px;margin:30px auto"><h1>Chi tiết sản phẩm — bản kiểm thử</h1>' + renderToStaticMarkup(createElement(ProductDetails, { product: safe })) + '</main></body></html>');
 });
+
+test('website display toggle persists over POS resync and cannot invent stock or edit prices', async()=>{
+ const original=(await call('admin/state')).data.products.find(p=>p.id===productId);
+ const hidden=await call('admin/products/'+productId+'/display','PATCH',{published:false});assert.equal(hidden.status,200);assert.equal(hidden.data.wroteToPOS,false);
+ const p=C.inventory(inventory,price)[0];const synced=await call('worker/pos-snapshot','POST',{products:[p],complete:true,revision:10},wh);assert.equal(synced.status,200);
+ let state=(await call('admin/state')).data, saved=state.products.find(p=>p.id===productId);assert.equal(saved.published,false);assert.equal(saved.price,original.price);assert.equal((await call('public/catalog')).data.products.some(p=>p.id===productId),false);
+ assert.equal((await call('admin/products/'+productId+'/display','PATCH',{published:true,price:1})).status,422);
+ assert.equal((await call('admin/products/'+productId+'/display','PATCH',{published:true})).status,200);
+ await call('worker/pos-snapshot','POST',{products:[],complete:true,revision:11},wh);
+ assert.equal((await call('admin/products/'+productId+'/display','PATCH',{published:true})).status,409);
+});
+
+test('OAuth setup diagnostics show exact missing variable names and callbacks, never secrets',async()=>{
+ const r=await call('admin/social/providers');assert.equal(r.status,200);
+ const facebook=r.data.providers.find(p=>p.id==='facebook');assert.ok(facebook.missing.includes('KBL_META_APP_ID'));assert.ok(facebook.missing.includes('KBL_SOCIAL_ENCRYPTION_KEY'));assert.equal(facebook.callback,'https://tiemvangkimbaolam.id.vn/api/admin/social/oauth/facebook/callback');assert.equal(facebook.configured,false);
+});

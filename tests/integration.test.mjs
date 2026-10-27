@@ -1,4 +1,4 @@
-import {test,before} from 'node:test';import a from 'node:assert/strict';import fs from 'node:fs';import path from 'node:path';import {DatabaseSync} from 'node:sqlite';import {createRequire} from 'node:module';const {build}=createRequire(fs.realpathSync('node_modules/wrangler/package.json'))('esbuild');import {webcrypto} from 'node:crypto';
+import {test,before,beforeEach} from 'node:test';import a from 'node:assert/strict';import fs from 'node:fs';import path from 'node:path';import {DatabaseSync} from 'node:sqlite';import {createRequire} from 'node:module';const {build}=createRequire(fs.realpathSync('node_modules/wrangler/package.json'))('esbuild');import {webcrypto} from 'node:crypto';
 import {STAGES,accountInput,validateResult,sourceURL,goldSlot,mayDelete} from '../lib/kbl/domain.mjs';
 import {createAccessGate} from '../lib/kbl/cloudflare-access.mjs';
 import {generateKeyPair,exportJWK,createLocalJWKSet,SignJWT} from 'jose';
@@ -7,6 +7,8 @@ const owner={'oai-authenticated-user-id':'owner-fixture','oai-authenticated-user
 function database(){const db=new DatabaseSync(':memory:');for(const file of fs.readdirSync('drizzle').filter(x=>x.endsWith('.sql')).sort())db.exec(fs.readFileSync('drizzle/'+file,'utf8').replaceAll('--> statement-breakpoint',''));const api={prepare(query){let params=[];const stmt={bind(...p){params=p;return stmt;},async first(){return db.prepare(query).get(...params)||null;},async all(){return {results:db.prepare(query).all(...params)};},async run(){const r=db.prepare(query).run(...params);return {success:true,meta:{changes:Number(r.changes)}};}};return stmt;},async batch(stmts){db.exec('BEGIN');try{const r=[];for(const s of stmts)r.push(await s.run());db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}}};return {db,api};}
 async function call(p,method='GET',value,headers=owner){const r=await handle(new Request('https://kbl.test/api/'+p,{method,headers,...(value!==undefined?{body:Buffer.isBuffer(value)?value:JSON.stringify(value)}:{})}));const ct=r.headers.get('content-type');return {status:r.status,value:ct?.includes('json')?await r.json():Buffer.from(await r.arrayBuffer())};}
 before(async()=>{const d=database();DB=d.db;files=new Map();globalThis.__KBL_TEST_ENV={DB:d.api,BUCKET:{async head(id){return files.has(id)?{size:files.get(id).raw.length}:null;},async put(id,raw,meta){files.set(id,{raw:Buffer.from(raw),meta});},async get(id){const f=files.get(id);return f?{body:f.raw,size:f.raw.length}:null;},async delete(id){files.delete(id);}}};await build({entryPoints:['lib/kbl/api.ts'],bundle:true,platform:'node',format:'esm',outfile:'.sites-runtime/test-api.mjs',plugins:[{name:'test-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fake-env'}));b.onLoad({filter:/.*/,namespace:'fake-env'},()=>({contents:'export const env=globalThis.__KBL_TEST_ENV;',loader:'js'}));}}]});handle=(await import(path.resolve('.sites-runtime/test-api.mjs')+'?v='+Date.now())).handle;await call('admin/settings','POST',{autoResearch:false,autoConsult:false});});
+// Each scenario owns its unfinished stories; FIFO must not mix independent fixtures.
+beforeEach(()=>{DB.prepare("UPDATE records SET data=json_set(data,'$.status','fixture-finished') WHERE kind='story' AND json_extract(data,'$.status') IN ('working','waiting-revision')").run();});
 test('public catalog starts empty and unauthorized Admin cannot read private data',async()=>{const r=await call('public/catalog','GET',undefined,{});a.equal(r.status,200);a.equal(r.value.products.length,0);a.equal((await call('admin/state','GET',undefined,{})).status,401);a.equal((await call('admin/state','GET',undefined,{...owner,'oai-authenticated-user-email':'other@example.test'})).status,403);});
 test('product persists, stale edit rejected, checkout revalidates trusted server price',async()=>{let r=await call('admin/products','POST',{sku:'TEST-ONE',name:'Sản phẩm kiểm thử',category:'nhan',purity:'999.9',weight:1,price:1000000,published:true});a.equal(r.status,200);const id=r.value.id;const state=(await call('admin/state')).value,p=state.products.find(x=>x.id===id);r=await call('admin/products','POST',{...p,version:0,name:'stale'});a.equal(r.status,409);r=await call('public/orders','POST',{items:[{id,quantity:2,price:1}],customer:{name:'Khách thử',phone:'0900000000',consent:true}});a.equal(r.status,201);a.equal(r.value.total,2000000);a.equal((await call('public/orders','POST',{items:[{id,quantity:-1}],customer:{name:'Khách thử',phone:'0900000000',consent:true}})).status,422);});
 test('consultation is private to its visitor token and owner reply is durable',async()=>{let r=await call('public/consult','POST',{question:'Câu hỏi kiểm thử'});a.equal(r.status,201);const {id,token}=r.value;a.equal((await call('public/consult/'+id,'GET',undefined,{})).status,404);await call('admin/consultations/'+id,'POST',{reply:'Đã tiếp nhận thông tin.'});r=await call('public/consult/'+id,'GET',undefined,{'x-kbl-chat-token':token});a.equal(r.status,200);a.equal(r.value.reply,'Đã tiếp nhận thông tin.');});
@@ -48,4 +50,36 @@ test('Cloudflare entry to real Admin API accepts only signed owner identity and 
  const verified=await gate(new Request('https://kbl.test/api/admin/state',{headers:{'cf-access-jwt-assertion':token}}),e);a.ok(verified instanceof Request);a.equal((await handle(verified)).status,200);
  const denied=await gate(new Request('https://kbl.test/api/admin/state',{headers:owner}),e);a.equal(denied.status,401);
  const image=DB.prepare('SELECT id FROM assets WHERE public=0 AND deleted_at IS NULL LIMIT 1').get();a.ok(image);const cleaned=await gate(new Request('https://kbl.test/api/media/'+image.id,{headers:owner}),e);a.ok(cleaned instanceof Request);a.equal((await handle(cleaned)).status,401);
+});
+
+test('FIFO retains a newer story without dispatch until older story is published; consultation stays independent',async()=>{
+ const w=(await call('admin/workers','POST',{label:'FIFO worker'})).value,wh={'Content-Type':'application/json','x-kbl-worker-token':w.token};
+ const aid=(await call('admin/accounts','POST',{provider:'deepseek',label:'FIFO account',workerId:w.id})).value.id;
+ await call('admin/settings','POST',{teamEnabled:true,autoResearch:false});
+ const first=(await call('admin/stories','POST',{title:'First'})).value.id,second=(await call('admin/stories','POST',{title:'Second'})).value.id;
+ DB.prepare('UPDATE records SET created_at=? WHERE kind=? AND id=?').run(1,'story',first);DB.prepare('UPDATE records SET created_at=? WHERE kind=? AND id=?').run(2,'story',second);
+ let r=await call('worker/claim','POST',{accountId:aid,jobId:'KBL-'+second+'-research'},wh);a.equal(r.value.wait,true);
+ a.equal(DB.prepare('SELECT status FROM jobs WHERE id=?').get('KBL-'+second+'-research').status,'queued');
+ DB.prepare("UPDATE records SET data=json_set(data,'$.status','published') WHERE kind='story' AND id=?").run(first);
+ r=await call('worker/claim','POST',{accountId:aid,jobId:'KBL-'+second+'-research'},wh);a.equal(r.value.job.storyId,second);
+});
+
+test('product schedule freezes two original POS images once per slot; no stock or image generation is fabricated',async()=>{
+ const at=Date.now(),pid='product-schedule-fixture',images=['e'.repeat(64),'f'.repeat(64)];
+ const seed=(kind,id,data)=>DB.prepare("INSERT OR REPLACE INTO records(kind,id,data,created_at,updated_at) VALUES(?,?,?,?,?)").run(kind,id,JSON.stringify(data),at,at);
+ seed('product',pid,{name:'Sản phẩm fixture',sku:'SCHEDULE-TEST',source:'pos',published:true,available:true,price:1234567,purity:'610',weight:1,imageIds:images});seed('pos-sync','product',{receivedAt:at});
+ for(const id of images)DB.prepare("INSERT OR IGNORE INTO assets(id,mime,bytes,purpose,public,created_at) VALUES(?,'image/png',100,'product',1,?)").run(id,at);
+ const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',hourCycle:'h23'}).format(new Date(at)));
+ await call('admin/settings','POST',{autoResearch:false,autoProducts:true,productHours:[hour],teamEnabled:true});
+ await call('admin/tick','POST',{});await call('admin/tick','POST',{});
+ const records=DB.prepare("SELECT data FROM records WHERE kind='story' AND json_extract(data,'$.kind')='product'").all();a.equal(records.length,1);const story=JSON.parse(records[0].data);a.equal(story.productSnapshot.price,1234567);a.deepEqual(story.productSnapshot.imageIds,images);a.equal(story.productSnapshot.sku,'SCHEDULE-TEST');
+});
+
+test('scheduled API consultation answers pending inbox work without Chrome and never emits provider credentials',async()=>{
+ const at=Date.now(),id='pending-api-inbox-fixture';
+ DB.prepare("INSERT INTO records(kind,id,data,created_at,updated_at) VALUES('consultation',?,?,?,?)").run(id,JSON.stringify({question:'Giờ mở cửa của tiệm?',status:'awaiting-reply',source:'social-inbox'}),1,at);
+ await call('admin/settings','POST',{autoConsult:true,autoResearch:false,autoProducts:false});
+ globalThis.__KBL_TEST_ENV.GROQ_API_KEY='fixture-only-not-real';const old=globalThis.fetch;let calls=0;
+ globalThis.fetch=async(url,opts)=>{a.equal(String(url),'https://api.groq.com/openai/v1/chat/completions');a.equal(opts.headers.Authorization,'Bearer fixture-only-not-real');calls++;return Response.json({choices:[{message:{content:'Vui lòng gọi cửa hàng để xác nhận giờ mở cửa.'}}]});};
+ try{const r=await call('admin/tick','POST',{});a.equal(r.status,200);const c=JSON.parse(DB.prepare("SELECT data FROM records WHERE kind='consultation' AND id=?").get(id).data);a.equal(c.status,'answered');a.equal(c.replySource,'ai-api');a.ok(!JSON.stringify(c).includes('fixture-only-not-real'));a.equal(calls,1);}finally{delete globalThis.__KBL_TEST_ENV.GROQ_API_KEY;globalThis.fetch=old;}
 });
