@@ -27,6 +27,7 @@ def windows_zip():
                 raise RuntimeError('Operational file found in Windows source; refusing package')
             write(z, 'KBL_WINDOWS_MOI/' + str(rel), p.read_bytes())
         write(z, 'KBL_WINDOWS_MOI/POS_SYNC.md', (ROOT / 'docs/POS_SYNC.md').read_bytes())
+        write(z, 'KBL_WINDOWS_MOI/GIA_CLOUD_KHI_TAT_MAY.md', (ROOT / 'docs/GIA_CLOUD_KHI_TAT_MAY.md').read_bytes())
     with zipfile.ZipFile(target) as z:
         if z.testzip():
             raise RuntimeError('Corrupt Windows archive')
