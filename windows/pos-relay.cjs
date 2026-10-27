@@ -1,7 +1,7 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), os = require('node:os'), C = require('./pos-contract.cjs');
 const hash = v => crypto.createHash('sha256').update(typeof v === 'string' || Buffer.isBuffer(v) ? v : JSON.stringify(v)).digest('hex');
-const supported = new Set(['prices', 'inventory', 'pawn', 'warranty-sale', 'transaction-event']);
+const supported = new Set(['prices', 'inventory', 'pawn', 'warranty-sale', 'transaction-event', 'cloud-price-config']);
 function readOnlyJSON(root, name, limit = 3 * 1024 * 1024) {
     const base = fs.realpathSync(root), filename = path.join(base, name), real = fs.realpathSync(filename);
     if (!real.startsWith(base + path.sep) || fs.lstatSync(filename).isSymbolicLink()) throw Error('Không đọc liên kết ra ngoài thư mục POS.');
@@ -23,6 +23,35 @@ function readPhoto(root, sku, cachedIndex) {
         if (digest + '.jpg' !== row.file || bytes[0] !== 255 || bytes[1] !== 216 || bytes.at(-2) !== 255 || bytes.at(-1) !== 217) throw Error('Hash hoặc định dạng ảnh POS không đúng.');
         return { bytes, hash: digest };
     } finally { fs.closeSync(fd); }
+}
+function cloudPriceConfig(input) {
+    const c = input?.config;
+    if (!c || typeof c !== 'object' || typeof c.enabled !== 'boolean') throw Error('Cần bật hoặc tắt rõ nguồn giá tự động trong POS.');
+    if (!c.enabled) return { enabled: false, symbol: 'BK' };
+    if (c.symbol !== 'BK') throw Error('Nguồn giá POS chưa đúng mã BK.');
+    if (typeof c.markupVnd !== 'number' || !Number.isFinite(c.markupVnd) || c.markupVnd < 0 || c.markupVnd > 1e9) throw Error('Cần mức cộng giá hợp lệ từ POS.');
+    let u; try { u = new URL(c.relayUrl); } catch { throw Error('Cần URL relay giá HTTPS được cấu hình trong POS.'); }
+    if (u.protocol !== 'https:' || u.username || u.password || u.hash || u.search || !['script.google.com','script.googleusercontent.com'].includes(u.hostname)) throw Error('Chỉ nhận URL relay Google HTTPS không chứa token trong URL.');
+    if (typeof c.relayToken !== 'string' || !c.relayToken.trim() || c.relayToken.length > 4096 || /[\r\n\x00]/.test(c.relayToken)) throw Error('Cần mã relay giá từ cấu hình POS; không dùng mã nhúng mặc định.');
+    const spreads = {};
+    for (const code of C.GOLD) {
+        const n = c.spreads?.[code];
+        if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 1e9) throw Error('Cần đủ chênh lệch mua/bán sáu tuổi vàng từ POS.');
+        spreads[code] = n;
+    }
+    const pollMs = c.pollMs === undefined ? 60000 : c.pollMs;
+    if (!Number.isSafeInteger(pollMs) || pollMs < 30000 || pollMs > 3600000) throw Error('Chu kỳ giá POS không hợp lệ.');
+    return { enabled: true, symbol: 'BK', markupVnd: c.markupVnd, relayUrl: u.href, relayToken: c.relayToken.trim(), pollMs, spreads };
+}
+function settingsCloudPriceConfig(settings, priceValues) {
+    if (typeof settings.google_price_auto_enabled !== 'boolean') throw Error('Cần cấu hình bật/tắt nguồn giá Google rõ ràng trong POS.');
+    if (!settings.google_price_auto_enabled) return cloudPriceConfig({ config: { enabled: false } });
+    const spreads = {};
+    for (const code of C.GOLD) {
+        const explicit = settings['spread_' + code], buy = priceValues['price_buy_' + code], sell = priceValues['price_sell_' + code];
+        spreads[code] = explicit !== undefined ? explicit : typeof buy === 'number' && typeof sell === 'number' ? sell - buy : undefined;
+    }
+    return cloudPriceConfig({ config: { enabled: true, symbol: 'BK', markupVnd: settings.google_price_markup_vnd, relayUrl: settings.google_price_relay_url, relayToken: settings.google_price_relay_token, spreads } });
 }
 function create({ ledger, bridge, config, now = Date.now }) {
     let flushing = false, photosBusy = false, nextLocalRead = 0;
@@ -58,9 +87,9 @@ function create({ ledger, bridge, config, now = Date.now }) {
         return { success: true, readOnly: true, message: 'Đã bật đọc giá/kho/ảnh từ POS. Phiếu cầm và bảo hành vẫn cần POS gửi qua kết nối đồng bộ.' };
     }
     function auth(token) { return typeof token === 'string' && /^[a-f0-9]{64}$/.test(token) && crypto.timingSafeEqual(Buffer.from(token), Buffer.from(relayToken)); }
-    function view() { return { pending: queue.length, photoPending: ledger.get('pos-photo-pending') || 0, lastSuccess: ledger.get('pos-last-success') || 0, lastError: ledger.get('pos-last-error') || '' }; }
+    function view() { return { pending: queue.length, photoPending: ledger.get('pos-photo-pending') || 0, lastSuccess: ledger.get('pos-last-success') || 0, lastError: ledger.get('pos-last-error') || '', cloudPriceConfigPending: queue.some(row => row.key === 'cloud-price-config'), cloudPriceConfigError: ledger.get('pos-cloud-price-config-error') || '', cloudPriceHandoff: { pending: queue.some(row => row.key === 'cloud-price-config'), lastSuccess: ledger.get('pos-cloud-price-config-success') || 0, lastError: ledger.get('pos-cloud-price-config-error') || '' } }; }
     function enqueue(key, endpoint, data) {
-        if (['prices', 'inventory', 'pawn'].includes(key)) {
+        if (['prices', 'inventory', 'pawn', 'cloud-price-config'].includes(key)) {
             const snapshots = ledger.get('pos-snapshots') || {};
             snapshots[key] = { endpoint, data };
             ledger.set('pos-snapshots', snapshots);
@@ -89,6 +118,7 @@ function create({ ledger, bridge, config, now = Date.now }) {
         }) };
     }
     function project(operation, input) {
+        if (operation === 'cloud-price-config') { const value = cloudPriceConfig(input); ledger.set('pos-cloud-price-config-error', ''); return enqueue('cloud-price-config', 'pos-cloud-price-config', { config: value }); }
         if (operation === 'prices') {
             const p = C.prices(input); ledger.set('pos-prices', p.values);
             return enqueue('prices', 'pos-prices', { prices: p.values, observedAt: now() });
@@ -126,10 +156,12 @@ function create({ ledger, bridge, config, now = Date.now }) {
                     if (current?.seq === row.seq) queue.splice(queue.indexOf(current), 1);
                     acknowledgements[row.key] = { seq: row.seq, digest: row.digest, result, at: now() };
                     for (const k of Object.keys(acknowledgements).sort((a,b) => acknowledgements[b].at - acknowledgements[a].at).slice(100)) delete acknowledgements[k];
+                    if (row.key === 'cloud-price-config') { ledger.set('pos-cloud-price-config-success', now()); ledger.set('pos-cloud-price-config-error', ''); }
                     ledger.set('pos-last-success', now()); ledger.set('pos-last-error', ''); save();
                 } catch (e) {
                     if (!currentBackend()) return;
-                    row.nextAt = now() + 60000; row.error = String(e.message).slice(0, 250);
+                    row.nextAt = now() + 60000; row.error = row.key === 'cloud-price-config' ? 'Cấu hình giá máy chủ chưa được xác nhận; giữ tại Windows và tự gửi lại. Kiểm tra khóa mã hóa và kết nối website.' : String(e.message).slice(0, 250);
+                    if (row.key === 'cloud-price-config') ledger.set('pos-cloud-price-config-error', row.error);
                     ledger.set('pos-last-error', row.error); save();
                 }
             }
@@ -188,15 +220,23 @@ function create({ ledger, bridge, config, now = Date.now }) {
         nextLocalRead = now() + 60000;
         // No POS module is loaded/executed. Read only two known JSON files;
         // credentials, purchase costs and customer databases never leave Windows.
-        try {
-            const p = C.prices({ prices: readOnlyJSON(dataRoot(), 'settings.json') });
-            project('prices', { prices: p.values });
-            project('inventory', { mode: 'snapshot', inventory: readOnlyJSON(dataRoot(), 'inventory_db.json') });
-        } catch (e) { ledger.set('pos-last-error', 'Đọc POS: ' + String(e.message).slice(0, 220)); }
+        let settings, p;
+        try { settings = readOnlyJSON(dataRoot(), 'settings.json'); }
+        catch { ledger.set('pos-last-error', 'Chưa đọc được settings.json của POS; kiểm tra tệp JSON và đường dẫn data.'); }
+        if (settings) {
+            try { p = C.prices({ prices: settings }); project('prices', { prices: p.values }); }
+            catch { ledger.set('pos-last-error', 'Bảng giá POS chưa hợp lệ; giữ giá đã xác nhận trước đó.'); }
+            try {
+                if (settings.google_price_auto_enabled === true && !p) throw Error('Thiếu bảng giá');
+                project('cloud-price-config', { config: settingsCloudPriceConfig(settings, p?.values || {}) });
+            } catch { ledger.set('pos-cloud-price-config-error', 'Chưa đủ cấu hình nguồn giá POS: kiểm tra bật/tắt, mức cộng, URL/mã relay và chênh lệch sáu tuổi vàng.'); }
+        }
+        try { project('inventory', { mode: 'snapshot', inventory: readOnlyJSON(dataRoot(), 'inventory_db.json') }); }
+        catch { ledger.set('pos-last-error', 'Chưa đọc được inventory_db.json hợp lệ của POS; giữ kho đã xác nhận trước đó.'); }
     }
     if (changedBackend) {
         const snapshots = ledger.get('pos-snapshots') || {};
-        for (const key of ['prices', 'inventory', 'pawn']) {
+        for (const key of ['prices', 'inventory', 'pawn', 'cloud-price-config']) {
             const saved = snapshots[key];
             if (saved && !queue.some(row => row.key === key)) enqueue(key, saved.endpoint, saved.data);
         }
@@ -214,4 +254,4 @@ function create({ ledger, bridge, config, now = Date.now }) {
     save();
     return { accept, auth, view, credentials, setDataDir, syncLocalSnapshot, flush, syncPhotos };
 }
-module.exports = { create, readPhoto, readOnlyJSON };
+module.exports = { create, readPhoto, readOnlyJSON, cloudPriceConfig, settingsCloudPriceConfig };
