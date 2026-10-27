@@ -94,7 +94,7 @@ Cloudflare Worker mới **kbl-web-moi** → Settings → Builds → Connect repo
 | Deploy command | npm run deploy:cloudflare |
 | Node version | 24 |
 
-Điền Database ID, Team domain và AUD trong wrangler.cloudflare.json của chính nhánh kbl-web-moi trước lần triển khai đầu. Build/deploy sẽ dừng khi cấu hình còn placeholder; việc có code trên GitHub chưa có nghĩa website đã chạy. Không gửi token Cloudflare, mật khẩu hay cookie vào repo.
+Database ID và Team domain đã được cấu hình cho tài nguyên mới. Khi thiếu AUD, deploy chỉ cho phép Worker thử workers.dev, giữ Admin khóa 503 và không chuyển miền. Lệnh check:cloudflare và bước nghiệm thu đầy đủ vẫn yêu cầu AUD hợp lệ của KBL Admin Moi; không bỏ xác thực. Có code hoặc build thành công chưa chứng minh website đã chạy. Không gửi token Cloudflare, mật khẩu hay cookie vào repo.
 
 Wrangler name phải khớp tên Worker. Khi đã nối Git và kiểm tra triển khai đầu thành công, cập nhật code trên nhánh kbl-web-moi sẽ tự build/deploy. Không upload ZIP nguyên cục, node_modules, dist hay thư mục Windows vận hành chứa config/profile. Nếu muốn dùng repo mới sau này, chép nội dung source vào gốc repo và chọn đúng nhánh tương ứng; không chia thành nhiều ZIP trên server.
 

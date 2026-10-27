@@ -44,13 +44,13 @@ def main():
     if not args.output:
         return
     paths = subprocess.check_output(['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], cwd=ROOT).decode().split('\0')
-    note = '''KBL WEBSITE MỚI + WINDOWS · BỔ SUNG POS 26/10/2026
+    note = '''KBL WEBSITE MỚI + WINDOWS · KHÔI PHỤC 27/10/2026
 
 Đã bổ sung cấu hình Cloudflare trực tiếp. Đọc KBL_WEB_MOI/HUONG_DAN_CLOUDFLARE.md, chạy hai file CLOUDFLARE_1/2 trong thư mục đó theo hướng dẫn. Chưa triển khai vào tài khoản Cloudflare của người dùng và chưa đổi DNS. KHÔNG upload vào Plesk/Tenten đang thiếu dung lượng.
 
 KBL_WEB_MOI/ là source website; KBL_WEB_MOI/windows/ là bộ Windows mới. Đọc docs/POS_SYNC.md trước khi cấu hình. Sáu file POS gốc không cần thay và không nằm trong gói này. Không chứa dữ liệu khách, API key, token worker, cookie hay hồ sơ Chrome.
 
-Đã kiểm tra 31 test, TypeScript, build Sites/Cloudflare và Wrangler dry-run; test dùng fixture theo schema thật. Chưa chạy trực tiếp với POS Windows/tài khoản AI của người dùng. Facebook/YouTube và các quyền ứng dụng cũ chưa được khôi phục từ source.
+Các test dùng SQLite/API/worker theo schema thật; kết quả kiểm tra hiện tại nằm trong docs/RESTORATION_PROGRESS.md. Không đồng nghĩa đã nghiệm thu môi trường thật. Chưa chạy trực tiếp với POS Windows/tài khoản AI của người dùng. Facebook/YouTube và các quyền ứng dụng cũ chưa được khôi phục từ source.
 
 Chạy thử kbl-web-moi.workers.dev trước, giữ nguyên Worker kbl-backup và tên miền cũ cho tới khi kiểm tra xong. Không coi ZIP này là bằng chứng đã đăng tin/video hoặc đã chuyển website thành công.
 '''
