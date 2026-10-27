@@ -5,11 +5,6 @@
     "after": "    const link = require('./kbl-connection.cjs');\n    return link.read()?.url || link.validateUrl(value || 'https://tiemvangkimbaolam.id.vn');"
   },
   {
-    "line": 430,
-    "deleteCount": 1,
-    "after": "    google_price_relay_token: '',"
-  },
-  {
     "line": 1438,
     "deleteCount": 0,
     "after": "            const connection = require('./kbl-connection.cjs').read();\n            if (connection) { settingsStore.web_sync_url = connection.url; settingsStore.web_sync_token = connection.token; }"
@@ -23,11 +18,6 @@
     "line": 8911,
     "deleteCount": 0,
     "after": "    const savedLink = require('./kbl-connection.cjs').read();\n    if (savedLink) { settingsStore.web_sync_url = savedLink.url; settingsStore.web_sync_token = savedLink.token; }"
-  },
-  {
-    "line": 8918,
-    "deleteCount": 1,
-    "after": "    if (getEl('cfg-google-relay-token')) getEl('cfg-google-relay-token').value = settingsStore.google_price_relay_token || '';"
   },
   {
     "line": 8939,

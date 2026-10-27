@@ -6,7 +6,7 @@ SỬA RIÊNG ĐỊA CHỈ ĐỒNG BỘ POS
 4. Trong Cài đặt POS: nhập http://127.0.0.1:39878 và mã relay lấy từ trang Windows local. Bấm LƯU hoặc ĐỒNG BỘ GIÁ NGAY. Đây không phải token worker tải từ Admin.
 5. Đổi tab/mở lại POS để kiểm tra địa chỉ được giữ. Có lỗi mạng thì giữ địa chỉ đã lưu và báo chưa đồng bộ thành công.
 
-Không thay công thức, tồn kho, phiếu bán/cầm, ảnh hoặc dữ liệu nghiệp vụ. Chỉ sửa renderer.js/main.js ở điểm kết nối và thêm kbl-connection.cjs. Cấu hình kết nối riêng tại LOCALAPPDATA\KBL-New\pos-link.json. Loại bỏ hai giá trị token Google relay cũ đã nhúng trong source; token đã lưu trong settings của máy được giữ nguyên.
+Không thay công thức, tồn kho, phiếu bán/cầm, ảnh hoặc dữ liệu nghiệp vụ. Chỉ sửa renderer.js/main.js ở điểm kết nối và thêm kbl-connection.cjs. Cấu hình kết nối riêng tại LOCALAPPDATA\KBL-New\pos-link.json. Không thay cấu hình hay giá trị mặc định Google relay đang có. Gói sửa không chứa token thật.
 
 Bản gốc renderer.js/main.js được giữ trong KBL_BACKUP_DIA_CHI. Hoàn tác: thoát POS, chép hai file gốc đó về thư mục POS. Không xóa data hoặc settings.json. Nếu dùng bản POS .exe đóng gói thì sửa SOURCE và build lại, không chép file vào thư mục tạm của .exe.
 
