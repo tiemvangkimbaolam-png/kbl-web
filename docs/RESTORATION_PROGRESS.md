@@ -31,3 +31,13 @@ Phần POS đã qua 13 test riêng, TypeScript, cú pháp relay và diff check: 
 5. Chỉ chuyển `tiemvangkimbaolam.id.vn` sau khi workers.dev, đăng nhập chủ, DB/R2, POS và hàng đợi được kiểm tra. Giữ `main`, Worker và database cũ.
 
 Hành động kế tiếp: hoàn tất các kiểm tra trong checkout, commit/push phần đã qua; lấy AUD không bí mật để cấu hình và triển khai qua kết nối GitHub đã có. Cập nhật chính tệp này với commit đã kiểm chứng, lệnh test và kết quả thực tế.
+
+## Mốc kiểm tra gộp 27/10/2026
+
+GitHub đã lưu pipeline tại d78e2685eb128e1fc3986037ddc00928f4c4e808 và giá POS/staging tại b358c75c77dfdab6074703c77ee622914811b424. Checkout cuối đã chạy `node --test tests/*.test.mjs`: 70/70 đạt, không bỏ qua; `npx tsc --noEmit`, `git diff --check`, `npm run build:cloudflare` và Wrangler deploy --dry-run đều đạt.
+
+Bổ sung cuối: vòng sửa dùng attempt/lease mới và không nhận nhầm ACK cũ; giá 07/12/19 giờ Việt Nam chốt nguồn POS ≤5 phút, không dựng bù kỳ thiếu giá; native prompt phân biệt bản giá POS có hash với nguồn HTTP. FFmpeg thực sự tạo MP4 dọc có audio từ fixture, chưa phải giọng Hoài My/tài khoản thật.
+
+ZIP Windows 86.353 byte, SHA256 57ca7ad59d50ed5334402c8b149d36984908836381e0fa257d50e33191d1ebf6; không chứa cấu hình/token/profile. Video tạm chỉ dọn sau đủ biên nhận; ảnh tin/sản phẩm và bản Windows được giữ.
+
+Deploy hiện cho phép staging workers.dev khi AUD trống, Admin vẫn khóa 503; check:cloudflare và nghiệm thu đầy đủ tiếp tục yêu cầu AUD. Không đổi DNS. Kết nối GitHub đã tạo check Workers Builds cho kbl-web-moi nhưng chưa có bằng chứng deploy thành công hoặc schema/R2 thật đã sẵn sàng. Cần lấy AUD không bí mật của ứng dụng KBL Admin Moi, xem log build nếu còn lỗi, rồi kiểm tra Admin/POS/Chrome/video thật trước khi chuyển miền. Không khẳng định Facebook/YouTube đã nối hay đã đăng tin.
