@@ -1,3 +1,4 @@
+import { configureCloudPrice, pollCloudPrice, cloudPriceStatus, publicCloudPrices } from './cloud-price';
 import { handleInboxWebhook, handleInboxAdmin } from './inbox';
 import { servePublishingMedia, publishingStatus } from './publishing';
 import { handleSocialAdmin } from './social';
@@ -77,8 +78,8 @@ export async function handle(req: Request): Promise<Response> {
                 return response(await readWorldMarket());
             if (method === 'GET' && path[1] === 'catalog') {
                 const cfg = await S.settings();
-                const posBound = await POS.locked();
-                return response({ products: (await S.list('product', 500)).filter((p: any) => p.published && p.available && (!posBound || p.source === 'pos')), articles: await S.list('article', 30), prices: (await S.list('price', 40)).filter((p: any) => !posBound || p.id.startsWith('pos-')), company: { name: cfg.companyName, phone: cfg.phone, address: cfg.address, hours: cfg.hours }, posBound, connected: true });
+                const posBound = await POS.locked(), cloudPrice = await publicCloudPrices();
+                return response({ cloudPrice, products: (await S.list('product', 500)).filter((p: any) => p.published && p.available && (!posBound || p.source === 'pos')), articles: await S.list('article', 30), prices: cloudPrice.active ? cloudPrice.prices : (await S.list('price', 40)).filter((p: any) => !posBound || p.id.startsWith('pos-')), company: { name: cfg.companyName, phone: cfg.phone, address: cfg.address, hours: cfg.hours }, posBound, connected: true });
             }
             if (method === 'GET' && path[1] === 'article') {
                 const a = await S.get('article', path[2]);
@@ -121,6 +122,7 @@ export async function handle(req: Request): Promise<Response> {
         }
         if (path[0] === 'admin') {
             const actor = await admin(req);
+            if(path[1] === 'cloud-price') { if(method === 'GET') return response(await cloudPriceStatus()); if(method === 'POST' && path[2] === 'poll') return response(await pollCloudPrice()); }
             if(path[1] === 'inbox') return handleInboxAdmin(req,path.slice(2));
             if(path[1] === 'social') return handleSocialAdmin(req, path.slice(2), actor);
             if(path[1] === 'publication-config') {
@@ -355,6 +357,7 @@ export async function handle(req: Request): Promise<Response> {
                     fail('File không tồn tại.', 404);
                 return new Response(f.body as any, { headers: { 'Content-Type': a.mime, 'X-KBL-Asset-Hash': a.id, 'Cache-Control': 'private,no-store' } });
             }
+            if(method === 'POST' && path[1] === 'pos-cloud-price-config') return response(await configureCloudPrice(wid,await body(req)));
             if (method === 'POST' && path[1] === 'pos-snapshot') return response(await POS.products(wid, await body(req, 3000000)));
         }
         return response({ error: 'Không tìm thấy chức năng.' }, 404);
