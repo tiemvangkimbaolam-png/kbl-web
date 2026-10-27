@@ -1,0 +1,42 @@
+[
+  {
+    "line": 148,
+    "deleteCount": 2,
+    "after": "    const link = require('./kbl-connection.cjs');\n    return link.read()?.url || link.validateUrl(value || 'https://tiemvangkimbaolam.id.vn');"
+  },
+  {
+    "line": 430,
+    "deleteCount": 1,
+    "after": "    google_price_relay_token: '',"
+  },
+  {
+    "line": 1438,
+    "deleteCount": 0,
+    "after": "            const connection = require('./kbl-connection.cjs').read();\n            if (connection) { settingsStore.web_sync_url = connection.url; settingsStore.web_sync_token = connection.token; }"
+  },
+  {
+    "line": 4667,
+    "deleteCount": 1,
+    "after": "    const base = require('./kbl-connection.cjs').publicBase(settingsStore && settingsStore.web_public_url);"
+  },
+  {
+    "line": 8911,
+    "deleteCount": 0,
+    "after": "    const savedLink = require('./kbl-connection.cjs').read();\n    if (savedLink) { settingsStore.web_sync_url = savedLink.url; settingsStore.web_sync_token = savedLink.token; }"
+  },
+  {
+    "line": 8918,
+    "deleteCount": 1,
+    "after": "    if (getEl('cfg-google-relay-token')) getEl('cfg-google-relay-token').value = settingsStore.google_price_relay_token || '';"
+  },
+  {
+    "line": 8939,
+    "deleteCount": 0,
+    "after": "    try { require('./kbl-connection.cjs').save({ url: getEl('cfg-web-sync-url')?.value, token: getEl('cfg-web-sync-token')?.value || '' }); }\n    catch (error) { alert('Chưa lưu kết nối: ' + error.message); return; }"
+  },
+  {
+    "line": 8923,
+    "deleteCount": 0,
+    "after": "        try { const link = require('./kbl-connection.cjs'); link.save({ url: getEl('cfg-web-sync-url')?.value, token: getEl('cfg-web-sync-token')?.value || '' }); const selected=link.read(); settingsStore.web_sync_url=selected.url; settingsStore.web_sync_token=selected.token; }\n        catch (error) { if (showAlert) alert('Chưa lưu kết nối: '+error.message); return {success:false,message:error.message}; }"
+  }
+]
