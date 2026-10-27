@@ -1,3 +1,4 @@
+import {DISPLAY_SECTIONS} from './product-placement.mjs';
 import { apiConsultReady, consultProvider } from './consult-provider';
 import { configureCloudPrice, pollCloudPrice, cloudPriceStatus, publicCloudPrices } from './cloud-price';
 import { handleInboxWebhook, handleInboxAdmin } from './inbox';
@@ -156,8 +157,8 @@ export async function handle(req: Request): Promise<Response> {
         if (path[0] === 'admin') {
             const actor = await admin(req);
             if(path[1] === 'cloud-price') { if(method === 'GET') return response(await cloudPriceStatus()); if(method === 'POST' && path[2] === 'poll') { await rate(req,'cloud-price-poll',6); return response(await pollCloudPrice({force:true})); } }
-            if(path[1] === 'inbox') return handleInboxAdmin(req,path.slice(2));
-            if(path[1] === 'social') return handleSocialAdmin(req, path.slice(2), actor);
+            if(path[1] === 'inbox') return await handleInboxAdmin(req,path.slice(2));
+            if(path[1] === 'social') return await handleSocialAdmin(req, path.slice(2), actor);
             if(path[1] === 'publication-config') {
                 if(method === 'GET') return response({connections:(await S.settings()).publicationConnections||{},outbox:await publishingStatus()});
                 if(method === 'POST') {
@@ -219,13 +220,14 @@ export async function handle(req: Request): Promise<Response> {
                 return response({ id: wid, token, serverUrl: u.origin, protocol: 'kbl-worker-v2', serviceAccessBearer: (env as any).SITES_SERVICE_TOKEN || undefined }, 201);
             }
             if (method === 'PATCH' && path[1] === 'products' && path[2] && path[3] === 'display') {
-                const v = z.object({ published: z.boolean() }).strict().parse(await body(req)), p = await S.get('product', path[2]);
+                const v = z.object({ published: z.boolean().optional(), sections: z.array(z.string().refine(x=>DISPLAY_SECTIONS.some(([id]:string[])=>id===x))).max(8).optional() }).strict().refine(v=>v.published!==undefined||v.sections!==undefined).parse(await body(req)), p = await S.get('product', path[2]);
                 if (!p) fail('Không thấy sản phẩm.', 404);
-                if (v.published && (!p.available || p.posMissing)) fail('Sản phẩm không còn sẵn trong POS.', 409);
-                const result = await S.sql().prepare("UPDATE records SET data=json_set(data,'$.published',json(?),'$.websitePublished',json(?)),version=version+1,updated_at=? WHERE kind='product' AND id=? AND version=?").bind(String(v.published), String(v.published), Date.now(), p.id, p.version).run();
+                const published = v.published ?? (v.sections!.length > 0);
+                if (published && (!p.available || p.posMissing)) fail('Sản phẩm không còn sẵn trong POS.', 409);
+                const result = await S.sql().prepare("UPDATE records SET data=json_set(data,'$.published',json(?),'$.websitePublished',json(?),'$.displaySections',json(?)),version=version+1,updated_at=? WHERE kind='product' AND id=? AND version=?").bind(String(published), String(published), JSON.stringify(v.sections===undefined?p.displaySections||[]:[...new Set(v.sections)]), Date.now(), p.id, p.version).run();
                 if (result.meta.changes !== 1) fail('Dữ liệu vừa thay đổi; tải lại trước khi lưu.', 409);
                 await POS.refreshPhotoVisibility();
-                return response({ok:true,published:v.published,wroteToPOS:false});
+                return response({ok:true,published,sections:v.sections||p.displaySections||[],wroteToPOS:false});
             }
             if (method === 'POST' && path[1] === 'products') {
                 if (await POS.locked()) fail('Danh mục do POS quản lý. Sửa tại POS rồi đồng bộ lại.', 403);

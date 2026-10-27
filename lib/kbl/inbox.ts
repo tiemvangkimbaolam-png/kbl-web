@@ -1,27 +1,27 @@
-import { env } from 'cloudflare:workers';
+import {socialEnvironment} from './social-config';
 import * as S from './store';
 import { socialCredentials } from './social';
 import { verifyMeta,extractMessages,sendReplyOnce } from './inbox-core.mjs';
-const E=()=>env as any,reply=(v:any,status=200)=>Response.json(v,{status,headers:{'Cache-Control':'no-store'}});
+const reply=(v:any,status=200)=>Response.json(v,{status,headers:{'Cache-Control':'no-store'}});
 const valid=(v:string)=>/^[a-f0-9]{32}$/.test(v);
-const telegramSecret=async(id:string)=>{const master=E().KBL_INBOX_WEBHOOK_SECRET;if(typeof master!=='string'||master.length<32)throw Error('Chưa cấu hình KBL_INBOX_WEBHOOK_SECRET.');return S.sha(master+':telegram:'+id);};
+const telegramSecret=async(id:string)=>{const master=(await socialEnvironment()).KBL_INBOX_WEBHOOK_SECRET;if(typeof master!=='string'||master.length<32)throw Error('Chưa cấu hình KBL_INBOX_WEBHOOK_SECRET.');return S.sha(master+':telegram:'+id);};
 export async function handleInboxAdmin(req:Request,path:string[]){
  if(req.method==='GET')return reply({bindings:(await S.list('inbox-binding',100)).map(({id,enabled,platform,updatedAt}:any)=>({id,enabled,platform,updatedAt})),outbox:(await S.list('inbox-message',100)).map(({id,platform,status,reason,sentAt,receivedAt}:any)=>({id,platform,status,reason,sentAt,receivedAt})),supported:['facebook','instagram','telegram']});
  if(req.method!=='POST'||!valid(path[0]||''))return reply({message:'Không có chức năng này.'},404);
  const data:any=await req.json();if(typeof data.enabled!=='boolean'||data.confirmMessagingPermission!==true)return reply({message:'Xác nhận quyền tin nhắn và trạng thái bật/tắt.'},400);
  const auth=await socialCredentials(path[0]),platform=auth.connection.platform;
- if(data.enabled&&platform!=='telegram'&&(!E().KBL_META_WEBHOOK_VERIFY_TOKEN||!E().KBL_META_APP_SECRET))return reply({message:'Cần cấu hình Meta webhook verify token và App Secret trước khi bật.'},503);
+ if(data.enabled&&platform!=='telegram'&&(!(await socialEnvironment()).KBL_META_WEBHOOK_VERIFY_TOKEN||!(await socialEnvironment()).KBL_META_APP_SECRET))return reply({message:'Cần cấu hình Meta webhook verify token và App Secret trước khi bật.'},503);
  if(data.enabled&&platform==='telegram')await telegramSecret(path[0]);
  if(!['facebook','instagram','telegram'].includes(platform))return reply({message:'Chưa có bộ nhận/trả lời tin nhắn cho nền tảng này.'},409);
  await S.put('inbox-binding',path[0],{enabled:data.enabled,platform,targetId:auth.connection.targetId});
- const base=new URL(req.url).origin,secret=platform==='telegram'?await telegramSecret(path[0]):E().KBL_META_WEBHOOK_VERIFY_TOKEN;
+ const base=new URL(req.url).origin,secret=platform==='telegram'?await telegramSecret(path[0]):(await socialEnvironment()).KBL_META_WEBHOOK_VERIFY_TOKEN;
  return reply({success:true,callback:base+'/api/social-inbox/'+platform+'/'+path[0],verifyToken:secret,message:'Cần đăng ký webhook và quyền nhắn tin trên ứng dụng nền tảng; lưu tại đây chưa đăng ký webhook.'});
 }
 export async function handleInboxWebhook(req:Request,platform:string,connectionId:string){
  if(!valid(connectionId)||!['facebook','instagram','telegram'].includes(platform))return reply({message:'Not found'},404);
  const binding=await S.get('inbox-binding',connectionId);if(!binding?.enabled||binding.platform!==platform)return reply({message:'Not found'},404);
  if(req.method==='GET'&&platform!=='telegram'){
-  const u=new URL(req.url),token=E().KBL_META_WEBHOOK_VERIFY_TOKEN;
+  const u=new URL(req.url),token=(await socialEnvironment()).KBL_META_WEBHOOK_VERIFY_TOKEN;
   return token&&u.searchParams.get('hub.mode')==='subscribe'&&u.searchParams.get('hub.verify_token')===token?new Response(u.searchParams.get('hub.challenge')||'',{headers:{'Cache-Control':'no-store'}}):reply({message:'Forbidden'},403);
  }
  if(req.method!=='POST')return reply({message:'Method not allowed'},405);
@@ -29,7 +29,7 @@ export async function handleInboxWebhook(req:Request,platform:string,connectionI
  const raw=await req.text();if(raw.length>131072)return reply({message:'Payload too large'},413);
  if(platform==='telegram'){
   if(req.headers.get('x-telegram-bot-api-secret-token')!==await telegramSecret(connectionId))return reply({message:'Forbidden'},403);
- }else if(!await verifyMeta(raw,req.headers.get('x-hub-signature-256'),E().KBL_META_APP_SECRET))return reply({message:'Forbidden'},403);
+ }else if(!await verifyMeta(raw,req.headers.get('x-hub-signature-256'),(await socialEnvironment()).KBL_META_APP_SECRET))return reply({message:'Forbidden'},403);
  let data;try{data=JSON.parse(raw);}catch{return reply({message:'Invalid JSON'},400);}
  const total=await S.sql().prepare("SELECT COUNT(*) n FROM records WHERE kind='inbox-message'").first<any>();
  if(Number(total?.n)>=5000)return reply({message:'Hàng đợi tin nhắn đầy; chủ cần lưu trữ trước khi nhận thêm.'},507);
@@ -55,7 +55,7 @@ export async function processInboxReplies(){
   try{
    const auth=await socialCredentials(row.connectionId),token=auth.selected?.accessToken||auth.tokens.accessToken;
    await sendReplyOnce(row,consult.reply,{checkpoint:async(next:any)=>{await S.put('inbox-message',row.id,next);},request:async(text:string)=>{
-    const version=E().KBL_META_GRAPH_VERSION;if(row.platform!=='telegram'&&!/^v\d+\.\d+$/.test(version||''))throw Error('Graph version missing');
+    const version=(await socialEnvironment()).KBL_META_GRAPH_VERSION;if(row.platform!=='telegram'&&!/^v\d+\.\d+$/.test(version||''))throw Error('Graph version missing');
     const url=row.platform==='telegram'?'https://api.telegram.org/bot'+token+'/sendMessage':'https://graph.facebook.com/'+version+'/'+encodeURIComponent(binding.targetId)+'/messages';
     const body=row.platform==='telegram'?{chat_id:row.recipient,text,reply_parameters:{message_id:row.replyTo}}:{recipient:{id:row.recipient},message:{text},...(row.platform==='facebook'?{messaging_type:'RESPONSE'}:{})};
     const res=await fetch(url,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{'Content-Type':'application/json',...(row.platform==='telegram'?{}:{Authorization:'Bearer '+token})},body:JSON.stringify(body)});

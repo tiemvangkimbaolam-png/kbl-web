@@ -4,7 +4,16 @@
 
 Bộ source đã có Facebook Page, Instagram Professional qua Facebook Login, Threads, YouTube, TikTok Login Kit Web, Zalo OA OAuth v4 + PKCE; Telegram xác minh Bot Token + Chat ID. Mỗi lần kết nối có ID riêng, hỗ trợ nhiều tài khoản/đích; tối đa 100 kết nối. Facebook/Instagram trả danh sách đích, người quản trị phải chọn đúng Page/Instagram nếu có nhiều hơn một. Chọn một Page không tự cấp quyền các Page khác.
 
-## 1. Cấu hình Cloudflare
+## 1. Nhập và lưu ứng dụng ngay trong Admin (28/10/2026)
+
+Mở Admin → Kết nối: mỗi nền tảng OAuth có form App/Client ID, Secret, nút **Lưu ứng dụng**, callback và quyền. Facebook/Instagram dùng chung ứng dụng Meta; Graph API version lấy từ dashboard app. Sau Lưu, bấm **Thêm tài khoản**, OAuth rồi chọn đúng Page/kênh. ID nền tảng đích được đọc từ quyền đã cấp, không tự gõ một ID để vượt quyền.
+
+App Secret nhập tại đây được mã hóa AES-GCM trong D1 (record `social-app`), không trả lại giá trị bí mật cho trình duyệt. Ô Secret để trống giữ khóa đã lưu; đổi App ID phải nhập Secret tương ứng. Cấu hình đã lưu trong Admin được ưu tiên hơn biến ứng dụng trong Cloudflare. Nếu chưa lưu trong Admin thì dùng biến Cloudflare như cũ. Thay cấu hình trong khi OAuth đang chờ sẽ yêu cầu bắt đầu OAuth lại.
+
+Khóa mã hóa chủ vẫn ở Cloudflare: dùng `KBL_SOCIAL_ENCRYPTION_KEY`, hoặc dùng `KBL_PRICE_ENCRYPTION_KEY` đang có khi chưa cấu hình khóa mạng xã hội riêng. Giữ nguyên khóa đã dùng; thêm một khóa khác sau khi đã lưu token có thể làm mất khả năng giải mã. Không đưa khóa chủ vào D1 hoặc localStorage. Chỉ cần cấu hình khóa chủ một lần, không cần vào Cloudflare mỗi lần lưu App ID/Secret.
+
+## Cấu hình Cloudflare thay thế / tham khảo
+
 
 Giữ `KBL_AUTH_MODE=cloudflare-access`, OWNER_EMAIL, Team Domain và AUD của ứng dụng Admin. Bảo vệ `/admin*` và `/api/admin*`, gồm callback bên dưới. Callback GET vẫn cần phiên đúng tài khoản chủ và state một lần. Không tạo ngoại lệ công khai cho toàn bộ `/api/admin`.
 

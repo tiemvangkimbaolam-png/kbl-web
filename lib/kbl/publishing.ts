@@ -1,3 +1,4 @@
+import {socialEnvironment} from './social-config';
 import { env } from 'cloudflare:workers';
 import * as S from './store';
 import { socialCredentials } from './social';
@@ -32,7 +33,7 @@ export async function publishSocialStory(storyId:string,platform:string,connecti
   }
   const checkpoint=async(next:any)=>{await S.put('publishing-outbox',key,{storyId,platform,connectionId,fingerprint,mediaUrl,state:next});};
   await checkpoint(state);
-  const next=await advancePublication(state,{platform,token:auth.selected?.accessToken||auth.tokens.accessToken,targetId:auth.connection.targetId,graphVersion:(env as any).KBL_META_GRAPH_VERSION,mediaUrl,...input},{checkpoint,now:Date.now,request:providerRequest,readVideo:async()=>{if(!env.BUCKET)throw Error('Kho media chưa kết nối.');const obj=await env.BUCKET.get(asset.id);if(!obj)throw Error('Không đọc được video.');return new Uint8Array(await obj.arrayBuffer());}});
+  const next=await advancePublication(state,{platform,token:auth.selected?.accessToken||auth.tokens.accessToken,targetId:auth.connection.targetId,graphVersion:(await socialEnvironment()).KBL_META_GRAPH_VERSION,mediaUrl,...input},{checkpoint,now:Date.now,request:providerRequest,readVideo:async()=>{if(!env.BUCKET)throw Error('Kho media chưa kết nối.');const obj=await env.BUCKET.get(asset.id);if(!obj)throw Error('Không đọc được video.');return new Uint8Array(await obj.arrayBuffer());}});
   if(next.phase==='published'){
    await S.sql().prepare('INSERT OR IGNORE INTO receipts(id,story_id,platform,external_id,url,at) VALUES(?,?,?,?,?,?)').bind(storyId+':'+platform,storyId,platform,next.externalId,next.url,Date.now()).run();
    return{published:true,status:'published',externalId:next.externalId,url:next.url};

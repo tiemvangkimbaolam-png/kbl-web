@@ -22,3 +22,9 @@
 ## Chưa nghiệm thu
 
 Chưa có bằng chứng provider thật OAuth, tạo hình, dựng và đăng một tin hoàn chỉnh trong lần sửa này. App ID/Secret/quyền duyệt không thể sinh từ source. Chưa triển khai tự trả lời bình luận mọi nền tảng hoặc agent tự sửa website để tăng trưởng. Những yêu cầu này cần adapter, quyền tương ứng và nghiệm thu riêng.
+
+## Điều chỉnh theo ý chủ tiệm: chọn vị trí và lưu App trong Admin
+
+Mỗi sản phẩm có các lựa chọn: Nổi bật, Nhẫn, Dây, Mặt dây, Bông tai, Lắc tay, Vòng, Sản phẩm 999.9 / 980. Mặc định không tự đưa toàn bộ kho vào Nổi bật. Tất cả là hợp các sản phẩm đã được xếp vị trí, không phải toàn bộ danh sách POS. Lựa chọn lưu tại `displaySections` và tồn tại qua snapshot POS. Không sửa loại sản phẩm, trọng lượng hoặc công thức POS. Hàng không còn sẵn vẫn bị loại khỏi trưng bày.
+
+Các form App/Client ID và Secret có trong Admin, thay cho hướng dẫn bắt người dùng vào Cloudflare cho từng ứng dụng. Bí mật mã hóa trên server, có thể dùng khóa giá hiện có làm khóa chủ khi chưa có khóa social riêng. Việc lưu ứng dụng vẫn khác với OAuth và xác minh một bài đăng thật. Xem SOCIAL_CONNECTIONS.md.

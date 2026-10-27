@@ -134,5 +134,39 @@ test('website display toggle persists over POS resync and cannot invent stock or
 
 test('OAuth setup diagnostics show exact missing variable names and callbacks, never secrets',async()=>{
  const r=await call('admin/social/providers');assert.equal(r.status,200);
- const facebook=r.data.providers.find(p=>p.id==='facebook');assert.ok(facebook.missing.includes('KBL_META_APP_ID'));assert.ok(facebook.missing.includes('KBL_SOCIAL_ENCRYPTION_KEY'));assert.equal(facebook.callback,'https://tiemvangkimbaolam.id.vn/api/admin/social/oauth/facebook/callback');assert.equal(facebook.configured,false);
+ const facebook=r.data.providers.find(p=>p.id==='facebook');assert.ok(facebook.missing.includes('KBL_META_APP_ID'));assert.equal(r.data.encryptionReady,true);assert.equal(facebook.missing.includes('KBL_SOCIAL_ENCRYPTION_KEY'),false);assert.equal(facebook.callback,'https://tiemvangkimbaolam.id.vn/api/admin/social/oauth/facebook/callback');assert.equal(facebook.configured,false);
+});
+
+test('curation is explicit, per section and durable across POS snapshots; featured never defaults to all inventory',async()=>{
+ const {inProductSection}=await import('../lib/kbl/product-placement.mjs');
+ const p=C.inventory(inventory,price)[0];await call('worker/pos-snapshot','POST',{products:[p],complete:true,revision:12},wh);
+ let row=(await call('admin/state')).data.products.find(p=>p.id===productId);
+ assert.equal(inProductSection(row,'featured'),false);assert.equal(inProductSection(row,'all'),false);
+ assert.equal((await call('admin/products/'+productId+'/display','PATCH',{sections:['featured','ring']})).status,200);
+ await call('worker/pos-snapshot','POST',{products:[p],complete:true,revision:13},wh);
+ row=(await call('admin/state')).data.products.find(p=>p.id===productId);assert.deepEqual(row.displaySections,['featured','ring']);assert.equal(inProductSection(row,'featured'),true);assert.equal(inProductSection(row,'ring'),true);assert.equal(inProductSection(row,'necklace'),false);
+ assert.equal((await call('admin/products/'+productId+'/display','PATCH',{sections:['invented']})).status,422);
+ await call('admin/products/'+productId+'/display','PATCH',{sections:['ring']});row=(await call('admin/state')).data.products.find(p=>p.id===productId);assert.equal(inProductSection(row,'featured'),false);assert.equal(inProductSection(row,'all'),true);
+ await call('admin/products/'+productId+'/display','PATCH',{sections:[]});row=(await call('admin/state')).data.products.find(p=>p.id===productId);assert.equal(row.published,false);assert.equal(inProductSection(row,'all'),false);
+});
+
+test('Admin application form persists encrypted secrets, shares Meta settings, preserves blank secret and starts actual OAuth URL builder',async()=>{
+ const data={clientId:'fixture-meta-app-id',clientSecret:'PRIVATE-META-APP-SECRET',graphVersion:'v24.0'};
+ assert.equal((await call('admin/social/applications/facebook','POST',data,{})).status,401);
+ let r=await call('admin/social/applications/facebook','POST',data);assert.equal(r.status,200,JSON.stringify(r.data));assert.equal(r.data.saved,true);
+ const raw=db.prepare("SELECT data FROM records WHERE kind='social-app' AND id='facebook'").get().data;assert.equal(raw.includes(data.clientSecret),false);assert.ok(JSON.parse(raw).vault.cipher);
+ r=await call('admin/social/providers');let fb=r.data.providers.find(p=>p.id==='facebook'),ig=r.data.providers.find(p=>p.id==='instagram');assert.equal(fb.configured,true);assert.equal(fb.application.clientId,data.clientId);assert.equal(ig.application.clientId,data.clientId);assert.equal(JSON.stringify(r.data).includes(data.clientSecret),false);
+ assert.equal((await call('admin/social/applications/facebook','POST',{clientId:data.clientId,graphVersion:'v24.0'})).status,200);
+ assert.equal((await call('admin/social/applications/facebook','POST',{clientId:'different-app',graphVersion:'v24.0'})).status,400);
+ assert.equal((await call('admin/social/applications/facebook','POST',{...data,graphVersion:'invalid'})).status,503);
+ const response=await handle(new Request('https://tiemvangkimbaolam.id.vn/api/admin/social/oauth/facebook/start',{method:'POST',headers:owner,body:JSON.stringify({})}));assert.equal(response.status,200);const oauth=await response.json(),url=new URL(oauth.authorizeUrl);assert.equal(url.hostname,'www.facebook.com');assert.equal(url.searchParams.get('client_id'),data.clientId);assert.equal(url.searchParams.get('redirect_uri'),'https://tiemvangkimbaolam.id.vn/api/admin/social/oauth/facebook/callback');assert.equal(oauth.authorizeUrl.includes(data.clientSecret),false);
+ await call('admin/social/applications/facebook','POST',{...data,clientSecret:'PRIVATE-ROTATED-SECRET'});
+ const callback=await handle(new Request('https://tiemvangkimbaolam.id.vn/api/admin/social/oauth/facebook/callback?state='+url.searchParams.get('state')+'&code=fixture-code',{headers:owner}));assert.equal(callback.status,409);assert.equal(JSON.stringify(await callback.json()).includes('PRIVATE-ROTATED-SECRET'),false);
+});
+
+test('actual application form SSR never embeds a saved secret and renders editable platform IDs',async()=>{
+ await build({entryPoints:['app/components/social-app-form.tsx'],bundle:true,platform:'node',format:'esm',outfile:'.sites-runtime/social-app-form-ssr.mjs',external:['react','react-dom','react-dom/server','lucide-react']});
+ const {default:Form}=await import(path.resolve('.sites-runtime/social-app-form-ssr.mjs')+'?'+Date.now()),{createElement}=await import('react'),{renderToStaticMarkup}=await import('react-dom/server');
+ const html=renderToStaticMarkup(createElement(Form,{provider:{id:'youtube',label:'YouTube',application:{clientId:'public-client-fixture',hasSecret:true,clientSecret:'PRIVATE-MUST-NOT-RENDER'},callback:'https://kbl.test/callback',scopes:[]},encryptionReady:true,onSaved:async()=>{}}));
+ assert.ok(html.includes('Client ID'));assert.ok(html.includes('Lưu ứng dụng'));assert.ok(html.includes('public-client-fixture'));assert.ok(!html.includes('PRIVATE-MUST-NOT-RENDER'));assert.ok(html.includes('type="password"'));
 });
