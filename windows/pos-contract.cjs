@@ -28,7 +28,13 @@ function inventory(input, priceValues = {}) {
     // renderer.js inventorySellPrice/inventorySellWage + Math.round(netLy / 100 * rate + wage).
     const price = rate ? Math.round(netLy / 100 * rate + wage) : null;
     const category = /bông|hoa tai/i.test(name) ? 'bong-tai' : /nhẫn/i.test(name) ? 'nhan' : /dây|chuyền/i.test(name) ? 'day-chuyen' : /lắc|vòng/i.test(name) ? 'lac-vong' : 'khac';
-    return { sku, name, category, purity: purity === '9999' ? '999.9' : purity, weight: netLy / 100 * 3.75, price, available: str(p.status, 60) === 'Đang bán', published: true, imageIds: [], description: '', posGoldRate: rate || null, posWorkmanship: wage };
+    const posDetails = { netWeightChi: netLy / 100 };
+    for (const [field, key] of [['grossLy','grossWeightChi'], ['gemLy','stoneWeightChi']]) {
+      if (p[field] !== undefined && p[field] !== null && p[field] !== '' && typeof p[field] !== 'boolean') {
+        const n = Number(p[field]); if (Number.isFinite(n) && n >= 0 && n <= 1e7) posDetails[key] = n / 100;
+      }
+    }
+    return { sku, name, category, posDetails, purity: purity === '9999' ? '999.9' : purity, weight: netLy / 100 * 3.75, price, available: str(p.status, 60) === 'Đang bán', published: true, imageIds: [], description: '', posGoldRate: rate || null, posWorkmanship: wage };
   }), p => p.sku);
 }
 function pawn(input) {

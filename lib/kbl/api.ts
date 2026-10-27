@@ -8,6 +8,7 @@ import * as S from './store';
 import * as P from './pipeline';
 import * as POS from './pos';
 import { admin, worker } from './auth';
+import { assistantState } from './assistant-state.mjs';
 import { readWorldMarket } from './market.mjs';
 import { bindingHealth } from './health.mjs';
 import { accountInput, productInput, text, money, fail, httpsURL, PROVIDER_URLS } from './domain.mjs';
@@ -18,6 +19,10 @@ async function body(req: Request, max = 100000) { if (!req.headers.get('content-
     fail('Dữ liệu quá lớn.', 413); return JSON.parse(v); }
 async function rate(req: Request, scope: string, max = 12) { const key = await S.sha((req.headers.get('cf-connecting-ip') || 'unknown') + ':' + scope + ':' + Math.floor(Date.now() / 3600000)); const r = await S.sql().prepare('INSERT INTO records(kind,id,data,created_at,updated_at) VALUES(\'rate\',?,\'1\',?,?) ON CONFLICT(kind,id) DO UPDATE SET data=CAST(CAST(records.data AS INTEGER)+1 AS TEXT) RETURNING data').bind(key, Date.now(), Date.now()).first<any>(); if (Number(r.data) > max)
     fail('Đã nhận nhiều yêu cầu; thử lại sau.', 429); }
+async function readAssistantState(cfg?: any) {
+    const [settings, accounts, workers] = await Promise.all([cfg || S.settings(), S.list('account', 20), S.list('worker', 20)]);
+    return assistantState(settings, accounts, workers);
+}
 async function assetResponse(req: Request, aid: string) { const a = await S.sql().prepare('SELECT * FROM assets WHERE id=? AND deleted_at IS NULL').bind(aid).first<any>(); if (!a)
     fail('File không còn trên máy chủ.', 404); if (!a.public)
     await admin(req); const data = await env.BUCKET?.get(aid); if (!data)
@@ -79,7 +84,7 @@ export async function handle(req: Request): Promise<Response> {
             if (method === 'GET' && path[1] === 'catalog') {
                 const cfg = await S.settings();
                 const posBound = await POS.locked(), cloudPrice = await publicCloudPrices();
-                return response({ cloudPrice, products: (await S.list('product', 500)).filter((p: any) => p.published && p.available && (!posBound || p.source === 'pos')), articles: await S.list('article', 30), prices: cloudPrice.active ? cloudPrice.prices : (await S.list('price', 40)).filter((p: any) => !posBound || p.id.startsWith('pos-')), company: { name: cfg.companyName, phone: cfg.phone, address: cfg.address, hours: cfg.hours }, posBound, connected: true });
+                return response({ cloudPrice, assistant: await readAssistantState(cfg), products: (await S.list('product', 500)).filter((p: any) => p.published && p.available && (!posBound || p.source === 'pos')), articles: await S.list('article', 30), prices: cloudPrice.active ? cloudPrice.prices : (await S.list('price', 40)).filter((p: any) => !posBound || p.id.startsWith('pos-')), company: { name: cfg.companyName, phone: cfg.phone, address: cfg.address, hours: cfg.hours }, posBound, connected: true });
             }
             if (method === 'GET' && path[1] === 'article') {
                 const a = await S.get('article', path[2]);
@@ -110,14 +115,27 @@ export async function handle(req: Request): Promise<Response> {
             if (method === 'POST' && path[1] === 'consult') {
                 await rate(req, 'consult', 15);
                 const v = await body(req), question = text(v.question, 2000, 3), threadId = S.id(), token = S.randomToken();
-                await S.put('consultation', threadId, { question, reply: null, tokenHash: await S.sha(token), status: 'awaiting-reply' });
-                return response({ id: threadId, token, message: 'Đã nhận câu hỏi. Tư vấn viên sẽ trả lời tại cuộc trò chuyện này.' }, 201);
+                let productId: string | null = null;
+                if (v.productId !== undefined && v.productId !== null) {
+                    const product = await S.get('product', text(v.productId, 100));
+                    if (!product?.published || !product.available || (await POS.locked() && product.source !== 'pos')) fail('Sản phẩm vừa thay đổi; tải lại trước khi hỏi.', 409);
+                    productId = product.id;
+                }
+                const assistant = await readAssistantState();
+                await S.put('consultation', threadId, { question, productId, reply: null, tokenHash: await S.sha(token), status: 'awaiting-reply' });
+                let queued = false;
+                if (assistant.enabled) {
+                    try { await P.ensureJob(threadId, 'consult'); queued = true; }
+                    catch { /* Saved privately; the scheduled tick can recover its idempotent job. */ }
+                }
+                return response({ id: threadId, token, queued, assistant, message: 'Đã lưu câu hỏi. ' + assistant.message }, 201);
             }
             if (method === 'GET' && path[1] === 'consult' && path[2]) {
                 const c = await S.get('consultation', path[2]);
                 if (!c || await S.sha(req.headers.get('x-kbl-chat-token') || '') !== c.tokenHash)
                     fail('Không tìm thấy cuộc trò chuyện.', 404);
-                return response({ question: c.question, reply: c.reply, status: c.status });
+                const assistant = await readAssistantState();
+                return response({ question: c.question, reply: c.reply, status: c.status, assistant, message: c.reply ? undefined : 'Đã lưu câu hỏi. ' + assistant.message });
             }
         }
         if (path[0] === 'admin') {

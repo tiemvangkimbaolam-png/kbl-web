@@ -148,3 +148,19 @@ html,body{overflow-x:clip;min-width:0}*{box-sizing:border-box}body{margin:0;back
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:opacity 100ms!important}}
 .brand strong,.brand span{white-space:nowrap}
 @media(max-width:399px){.masthead .brand{gap:8px}.masthead .brand img{width:32px;height:32px}.masthead .brand strong{font-size:14px}.masthead .brand span{font-size:7px;letter-spacing:.09em}.masthead .nav-actions{gap:5px}.hero .row{gap:12px}}
+
+/* Product detail scope; preserve the restored home and receipt/print layouts. */
+.kbl-product-detail{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:24px;min-width:0;align-items:start}
+.kbl-product-gallery{margin:0;min-width:0}
+.kbl-product-gallery>a{display:block}
+.kbl-product-gallery>a>img{width:100%;height:auto;max-height:540px;object-fit:contain;border:1px solid var(--color-line,#d9e5ec);border-radius:12px;background:#fff}
+.kbl-product-gallery figcaption{font-size:12px;line-height:1.5;color:var(--color-ink-2,#586775);margin-top:8px}
+.kbl-product-thumbnails{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.kbl-product-thumbnails button{border:2px solid transparent;padding:2px;border-radius:8px;background:#fff}
+.kbl-product-thumbnails button[aria-pressed=true]{border-color:#006fb3}
+.kbl-product-thumbnails img{width:60px;height:60px;object-fit:contain;border-radius:5px}
+.kbl-product-no-image{display:grid;gap:12px;place-content:center;justify-items:center;min-height:220px;background:#f3f7fa;border-radius:12px;color:#586775;text-align:center;padding:20px}
+.kbl-product-facts{margin:0;display:grid;gap:0;min-width:0}
+.kbl-product-facts>div{display:flex;gap:16px;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e1e9ee}
+.kbl-product-facts dt{font-size:13px;color:#586775}.kbl-product-facts dd{margin:0;text-align:right;font-size:14px;font-weight:600;overflow-wrap:anywhere}
+.kbl-product-total{font-size:1.6rem;margin-top:5px;color:#006fb3}

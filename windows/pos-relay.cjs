@@ -144,7 +144,7 @@ function create({ ledger, bridge, config, now = Date.now }) {
         if (operation === 'inventory') {
             const products = C.inventory(input, ledger.get('pos-prices') || {});
             // Cache only the allowlisted projection needed to reprice on the next POS price update.
-            const raw = input.inventory.filter(p => p && p.webSyncReady !== false).map(p => Object.fromEntries(['code', 'name', 'type', 'weightLy', 'priceSell', 'sellWage', 'wage', 'status'].map(k => [k, p[k]])));
+            const raw = input.inventory.filter(p => p && p.webSyncReady !== false).map(p => Object.fromEntries(['code', 'name', 'type', 'weightLy', 'grossLy', 'gemLy', 'priceSell', 'sellWage', 'wage', 'status'].map(k => [k, p[k]])));
             ledger.set('pos-inventory', raw); ledger.set('pos-skus', products.map(p => p.sku));
             return enqueue('inventory', 'pos-snapshot', { complete: true, products });
         }

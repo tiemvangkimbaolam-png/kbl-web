@@ -1,6 +1,7 @@
 import * as S from './store';
 import { fail, productInput } from './domain.mjs';
 import C from '../../windows/pos-contract.cjs';
+import { publicProductDetails } from './product-view.mjs';
 
 export async function bind(workerId: string) {
     const at = Date.now();
@@ -58,7 +59,7 @@ export async function products(workerId: string, input: any) {
     const rows: Row[] = [];
     for (const p of input.products) {
         const value = productInput({ ...p, published: p.published !== false });
-        rows.push({ id: 'pos-' + await S.sha(value.sku), data: { ...value, imageIds: [], source: 'pos', posMissing: false } });
+        rows.push({ id: 'pos-' + await S.sha(value.sku), data: { ...value, ...publicProductDetails(p), imageIds: [], source: 'pos', posMissing: false } });
     }
     if (new Set(rows.map(p => p.id)).size !== rows.length) fail('Bản chụp có SKU bị trùng.');
     const result = await apply(workerId, 'product', rows, true, input.revision);
