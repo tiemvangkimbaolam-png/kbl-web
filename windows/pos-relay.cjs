@@ -40,7 +40,7 @@ function cloudPriceConfig(input) {
         spreads[code] = n;
     }
     const pollMs = c.pollMs === undefined ? 60000 : c.pollMs;
-    if (!Number.isSafeInteger(pollMs) || pollMs < 30000 || pollMs > 3600000) throw Error('Chu kỳ giá POS không hợp lệ.');
+    if (!Number.isSafeInteger(pollMs) || pollMs < 5000 || pollMs > 3600000) throw Error('Chu kỳ giá POS không hợp lệ.');
     return { enabled: true, symbol: 'BK', markupVnd: c.markupVnd, relayUrl: u.href, relayToken: c.relayToken.trim(), pollMs, spreads };
 }
 function settingsCloudPriceConfig(settings, priceValues) {
@@ -118,7 +118,25 @@ function create({ ledger, bridge, config, now = Date.now }) {
         }) };
     }
     function project(operation, input) {
-        if (operation === 'cloud-price-config') { const value = cloudPriceConfig(input); ledger.set('pos-cloud-price-config-error', ''); return enqueue('cloud-price-config', 'pos-cloud-price-config', { config: value }); }
+        if (operation === 'cloud-price-config') {
+            let candidate = input?.config;
+            if (candidate?.enabled === true && candidate.spreads === undefined) {
+                let settings = {}, prices = ledger.get('pos-prices') || {};
+                try {
+                    settings = readOnlyJSON(dataRoot(), 'settings.json');
+                    try { prices = C.prices({ prices: settings }).values; } catch {}
+                } catch {}
+                const spreads = {};
+                for (const code of C.GOLD) {
+                    const explicit = settings['spread_' + code], buy = prices['price_buy_' + code], sell = prices['price_sell_' + code];
+                    spreads[code] = explicit !== undefined ? explicit : typeof buy === 'number' && typeof sell === 'number' ? sell - buy : undefined;
+                }
+                candidate = { ...candidate, spreads };
+            }
+            const value = cloudPriceConfig({ config: candidate });
+            ledger.set('pos-cloud-price-config-error', '');
+            return enqueue('cloud-price-config', 'pos-cloud-price-config', { config: value });
+        }
         if (operation === 'prices') {
             const p = C.prices(input); ledger.set('pos-prices', p.values);
             return enqueue('prices', 'pos-prices', { prices: p.values, observedAt: now() });

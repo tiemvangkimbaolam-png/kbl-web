@@ -59,3 +59,15 @@ test('cloud config handoff is independent of inventory errors and explicit disab
   assert.match(relay.view().cloudPriceHandoff.lastError,/^$/);
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test('legacy POS POST without spreads accepts 12-second polling only after deriving six spreads from actual cached prices',async()=>{
+ const l=ledger(),calls=[];
+ l.set('pos-prices',Object.fromEntries(GOLD.flatMap((c,i)=>[['price_buy_'+c,1000000],['price_sell_'+c,1000100+i]])));
+ const relay=create({ledger:l,config:{...config,posDataDir:path.join(os.tmpdir(),'missing-pos-'+Date.now())},now:()=>1000,bridge:{async request(route,method,data){calls.push({route,data});return {success:true};}}});
+ const {spreads,...legacy}=active;
+ const result=await relay.accept('cloud-price-config',{config:{...legacy,pollMs:12000}});
+ assert.equal(result.status,200);assert.deepEqual(calls[0].data.config.spreads,active.spreads);assert.equal(calls[0].data.config.pollMs,12000);
+ assert.equal(JSON.stringify(relay.view()).includes(active.relayToken),false);
+ const empty=create({ledger:ledger(),config:{...config,posDataDir:path.join(os.tmpdir(),'missing-pos-'+Date.now())},bridge:{request(){throw Error('must not send');}}});
+ await assert.rejects(()=>empty.accept('cloud-price-config',{config:{...legacy,pollMs:12000}}),/chênh lệch/);
+});

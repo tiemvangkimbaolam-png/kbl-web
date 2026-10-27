@@ -122,7 +122,7 @@ export async function handle(req: Request): Promise<Response> {
         }
         if (path[0] === 'admin') {
             const actor = await admin(req);
-            if(path[1] === 'cloud-price') { if(method === 'GET') return response(await cloudPriceStatus()); if(method === 'POST' && path[2] === 'poll') return response(await pollCloudPrice()); }
+            if(path[1] === 'cloud-price') { if(method === 'GET') return response(await cloudPriceStatus()); if(method === 'POST' && path[2] === 'poll') { await rate(req,'cloud-price-poll',6); return response(await pollCloudPrice({force:true})); } }
             if(path[1] === 'inbox') return handleInboxAdmin(req,path.slice(2));
             if(path[1] === 'social') return handleSocialAdmin(req, path.slice(2), actor);
             if(path[1] === 'publication-config') {
