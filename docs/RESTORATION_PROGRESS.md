@@ -47,3 +47,9 @@ Deploy hiện cho phép staging workers.dev khi AUD trống, Admin vẫn khóa 5
 Đã thấy GitHub check Workers Builds: kbl-web-moi thành công tại commit 242629a768dafdf8ae3c78e7db5068d608400fb6; AUD đã cấu hình. HTTP health từ môi trường kiểm tra vẫn bị Cloudflare 403/1010, chưa đọc được trạng thái DB/R2 thật. Không thay DNS.
 
 Lưu thư mục POS hợp lệ giờ bật ngay đọc chỉ đọc giá/kho/ảnh, không cần POST đầu tiên nếu POS ghim URL cũ. Kiểm tra settings/inventory trước khi lưu; đường dẫn lỗi không thay lựa chọn cũ. Phiếu cầm/bảo hành vẫn cần POST riêng. Bộ test gộp 71/71 đạt sau khi cài đủ dependency.
+
+## Bộ source liên thông đầy đủ 27/10
+
+98/98 kiểm thử đạt, không bỏ qua; TypeScript, build Cloudflare, Wrangler dry-run và diff check đạt. Phòng R40/20 vị trí đã tích hợp tài nguyên thật; POSfullsource ghép base với sáu file mới nhất, chỉ thay kết nối, bỏ credential cũ và bốn addon phụ thiếu source, có manifest/proof công thức. OAuth6nền tảng + Telegrambot; publishing FB/IG/Threads/YT/Telegram; inbox FB/IG/Telegram có opt-in+webhookxácthực. TikTok/Zalo vẫn cần thao tác/quyền nền tảng; không có tuyên bố tài khoản thật đã đăng.
+
+Đóng ba ZIP nguồn riêng bằng scripts/package-suite.py. Source được lưu nhánh riêng kbl-full-suite-source, không cập nhật nhánh triển khai kbl-web-moi hoặc DNS trong bước giao source này. Bộ WEBSITE có cả source Windows/POS để chạy các test liên thông; package riêng dùng để cài từng thành phần. Không chứa token vận hành, dữ liệu khách hay Chrome profile.

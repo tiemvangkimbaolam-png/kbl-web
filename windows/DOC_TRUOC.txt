@@ -19,3 +19,8 @@ Chạy nền: CHAY_AN.vbs. Tự chạy khi đăng nhập Windows: mở PowerShel
 Tạo ảnh hỗ trợ adapter Gemini/ChatGPT. Duyệt ảnh hỗ trợ Gemini/Claude và đòi ảnh thật đính kèm. Grok có adapter văn bản ban đầu, cần kiểm tra selector trên tài khoản thật; không giao tạo ảnh cho Grok khi chưa có adapter ảnh. Các adapter phụ thuộc giao diện nhà cung cấp; kiểm thử giả lập không chứng minh tài khoản thật đã chạy.
 
 Video: Node Edge TTS xuất giọng và mốc chữ; bộ mới chỉ nhận mốc khớp lời đọc, không tự ước lượng toàn bộ phụ đề. FFmpeg ghép hai ảnh, giọng, phụ đề dọc 1080x1920. File gốc giữ ở Windows; website chỉ dọn video tạm khi đủ biên nhận. Hiện bộ xuất bản website có sẵn; Facebook/YouTube/Threads và các kênh khác chưa có quyền ứng dụng mới, không giả biên nhận.
+
+BỘ THIẾT LẬP BỔ SUNG:
+MO_CAU_HINH.cmd tự chạy worker nền, chờ cổng local sẵn sàng rồi mới mở trang thiết lập. CHAY_NEN.cmd chỉ chạy nền, không mở trình duyệt. BAT_TU_KHOI_DONG.cmd và BO_TU_KHOI_DONG.cmd bật/bỏ shortcut của tài khoản Windows hiện tại. Không cần quyền Administrator; không đổi chính sách ExecutionPolicy. Nếu PowerShell chặn script, Windows báo lỗi và không ghi nhận cài thành công.
+
+Launcher giữ một phiên mỗi cấu hình, không giết Chrome hay worker cũ. Worker lỗi sẽ thử lại tối đa 5 lượt rồi dừng; log tại LOCALAPPDATA\KBL-New\worker-ID\worker-console.log. Tắt nhận việc tại Admin trước khi bảo trì. Bỏ tự khởi động không xóa dữ liệu hoặc dừng tiến trình đang làm. Không đóng cửa sổ Chrome bằng dấu X nếu muốn tiếp tục nhận việc.

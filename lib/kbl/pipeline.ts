@@ -1,3 +1,6 @@
+import { publicationPlan } from './publication-plan';
+import { publishSocialStory } from './publishing';
+import { publicBase } from './social-core.mjs';
 import { env } from 'cloudflare:workers';
 import { sql, get, list, put, event, settings, sha, id, randomToken } from './store';
 import { STAGES, CAPABILITIES, LABELS, sourceURL, stripMarkup, validateResult, nextStage, fail } from './domain.mjs';
@@ -6,7 +9,7 @@ export const now = () => Date.now();
 export async function createStory(input: any, stableId?: string) { const storyId = stableId || id(); if (stableId && await get('story', storyId)) {
     await ensureJob(storyId, 'research');
     return storyId;
-} await put('story', storyId, { title: String(input.title || 'Bản tin vàng mới').slice(0, 200), topic: String(input.topic || 'Thông tin vàng và thị trường Việt Nam').slice(0, 2000), sourceUrl: input.sourceUrl ? sourceURL(input.sourceUrl) : null, platforms: ['website'], status: 'working', editionAt: now() }); await ensureJob(storyId, 'research'); await event('story-created', 'Đã đưa bản tin vào hàng đợi.', storyId); return storyId; }
+} await put('story', storyId, { title: String(input.title || 'Bản tin vàng mới').slice(0, 200), topic: String(input.topic || 'Thông tin vàng và thị trường Việt Nam').slice(0, 2000), sourceUrl: input.sourceUrl ? sourceURL(input.sourceUrl) : null, ...await publicationPlan(), status: 'working', editionAt: now() }); await ensureJob(storyId, 'research'); await event('story-created', 'Đã đưa bản tin vào hàng đợi.', storyId); return storyId; }
 export async function ensureJob(storyId: string, stage: string, exclude: string | null = null) {
     const at = now(), jobId = `KBL-${storyId}-${stage}`;
     await sql().prepare('INSERT OR IGNORE INTO jobs(id,story_id,stage,status,exclude_account,created_at,updated_at) VALUES(?,?,?,\'queued\',?,?,?)').bind(jobId, storyId, stage, exclude, at, at).run();
@@ -257,8 +260,12 @@ export async function advance(job: any) {
 }
 export async function publishWebsite(storyId: string) { const cfg = await settings(); if (!cfg.publicationEnabled)
     return { waiting: true, reason: 'Xuất bản đang tắt.' }; const story = await get('story', storyId), jobs = await jobsFor(storyId), out = (stage: string) => JSON.parse(jobs.find(j => j.stage === stage)?.result || '{}'); if (!STAGES.slice(0, -1).every(s => jobs.some(j => j.stage === s && j.status === 'complete')) || out('review').approved !== true || out('image-review').approved !== true)
-    return { waiting: true }; if (story.platforms.some((p: string) => p !== 'website'))
-    return { waiting: true, reason: 'Kênh mạng xã hội cần kết nối và biên nhận riêng.' }; const w = out('write'), images = out('image').rows, render = out('render'); const content = { headline: w.headline, summary: w.summary, script: w.script, sourceUrls: w.sourceUrls, images, videoId: render.videoId, editionAt: story.editionAt, conceptIllustration: true, publishedAt: now() }; await sql().prepare("INSERT OR IGNORE INTO records(kind,id,data,created_at,updated_at) VALUES('article',?,?,?,?)").bind(storyId, JSON.stringify(content), now(), now()).run(); await sql().batch([sql().prepare('UPDATE assets SET public=1 WHERE id IN (?,?)').bind(images[0].assetId, images[1].assetId), sql().prepare('INSERT OR IGNORE INTO receipts(id,story_id,platform,external_id,url,at) VALUES(?,?,?,?,?,?)').bind(storyId + ':website', storyId, 'website', storyId, '/tin-tuc/' + storyId, now()), sql().prepare('UPDATE jobs SET status=\'complete\',result=?,updated_at=? WHERE story_id=? AND stage=\'publish\'').bind(JSON.stringify({ platform: 'website', externalId: storyId, url: '/tin-tuc/' + storyId }), now(), storyId)]); await put('story', storyId, { ...story, status: 'published' }); await event('published', 'Đã xuất bản lên website.', storyId); await cleanup().catch(() => { }); return { published: true }; }
+    return { waiting: true }; const outputs=out('render');
+    for(const platform of story.platforms.filter((p:string)=>p!=='website')){
+        const connectionId=story.publicationConnections?.[platform];if(!connectionId)return {waiting:true,reason:'Chưa chọn tài khoản nhận bài '+platform};
+        const result=await publishSocialStory(storyId,platform,connectionId,{origin:publicBase(env),videoId:outputs.videoId,headline:out('write').headline,caption:out('write').summary});
+        if(!result.published)return {waiting:true,reason:platform+': '+(result.reason||result.status)};
+    } const w = out('write'), images = out('image').rows, render = out('render'); const content = { headline: w.headline, summary: w.summary, script: w.script, sourceUrls: w.sourceUrls, images, videoId: render.videoId, editionAt: story.editionAt, conceptIllustration: true, publishedAt: now() }; await sql().prepare("INSERT OR IGNORE INTO records(kind,id,data,created_at,updated_at) VALUES('article',?,?,?,?)").bind(storyId, JSON.stringify(content), now(), now()).run(); await sql().batch([sql().prepare('UPDATE assets SET public=1 WHERE id IN (?,?)').bind(images[0].assetId, images[1].assetId), sql().prepare('INSERT OR IGNORE INTO receipts(id,story_id,platform,external_id,url,at) VALUES(?,?,?,?,?,?)').bind(storyId + ':website', storyId, 'website', storyId, '/tin-tuc/' + storyId, now()), sql().prepare('UPDATE jobs SET status=\'complete\',result=?,updated_at=? WHERE story_id=? AND stage=\'publish\'').bind(JSON.stringify({ platform: 'website', externalId: storyId, url: '/tin-tuc/' + storyId }), now(), storyId)]); await put('story', storyId, { ...story, status: 'published' }); await event('published', 'Đã xuất bản lên website.', storyId); await cleanup().catch(() => { }); return { published: true }; }
 export async function tick() {
     const at = now();
     await sql().prepare('UPDATE jobs SET status=\'queued\',owner=NULL,lease_hash=NULL,lease_until=NULL,error=\'Hết lượt giữ việc trước khi gửi prompt.\' WHERE status=\'leased\' AND lease_until<?').bind(at).run();

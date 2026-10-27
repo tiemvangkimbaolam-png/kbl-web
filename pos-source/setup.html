@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thiết lập GOLD SHOP POS</title>
+<style>
+:root{font-family:"Segoe UI",Arial,sans-serif;color:#182230;background:#eef2f7}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(135deg,#eef2f7,#fff8df)}.wrap{width:min(980px,100%);background:#fff;border:1px solid #dbe2ea;border-radius:18px;box-shadow:0 24px 70px rgba(15,35,60,.16);overflow:hidden}.head{padding:24px 28px;background:#0b2240;color:#fff}.head h1{margin:0 0 6px;font-size:24px}.head p{margin:0;color:#d9e4f2;font-size:13px;line-height:1.5}.body{padding:26px 28px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}label{font-size:12px;font-weight:750;color:#25364b}input{width:100%;padding:11px 12px;border:1px solid #cfd8e3;border-radius:8px;font-size:14px;outline:none}input:focus{border-color:#0b5ed7;box-shadow:0 0 0 3px rgba(11,94,215,.10)}.note{font-size:11px;color:#64748b;line-height:1.5}.section{margin:22px 0 12px;padding-top:18px;border-top:1px solid #edf0f4;font-weight:800;color:#0b2240}.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}.btn{border:0;border-radius:9px;padding:11px 18px;font-weight:800;cursor:pointer}.primary{background:#0b2240;color:white}.secondary{background:#eef2f7;color:#26374b}.status{min-height:20px;margin-top:10px;font-size:12px;font-weight:700}.ok{color:#168b57}.err{color:#c62828}details{grid-column:1/-1;border:1px solid #e5e9ef;border-radius:10px;padding:12px 14px;background:#fafbfd}summary{cursor:pointer;font-weight:800;color:#44566c}@media(max-width:720px){.grid{grid-template-columns:1fr}.field.full,details{grid-column:1}.body{padding:20px}.head{padding:20px}}
+</style>
+<link id="kbl-jewel-theme" rel="stylesheet" href="kbl-jewel-ui.css" media="screen"><link id="kbl-commercial-adapter" rel="stylesheet" href="kbl-commercial-compat.css" media="screen"></head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>Thiết lập tiệm cho GOLD SHOP POS</h1>
+    <p>Lần đầu mở phần mềm, hãy nhập thông tin của tiệm. Các thông tin này sẽ tự dùng cho tiêu đề POS, hóa đơn, phiếu thu mua, phiếu cầm, tem và chứng từ in.</p>
+  </div>
+  <div class="body">
+    <div class="grid">
+      <div class="field"><label>Tên tiệm *</label><input id="shopName" autocomplete="organization" placeholder="Ví dụ: TIỆM VÀNG AN PHÚ"></div>
+      <div class="field"><label>Tên pháp lý / công ty *</label><input id="companyName" placeholder="Tên trên hóa đơn/chứng từ"></div>
+      <div class="field"><label>Mã số thuế</label><input id="taxCode" inputmode="numeric" placeholder="MST của đơn vị"></div>
+      <div class="field"><label>Số điện thoại *</label><input id="phone" placeholder="SĐT liên hệ của tiệm"></div>
+      <div class="field full"><label>Địa chỉ tiệm *</label><input id="address" placeholder="Địa chỉ dùng trên chứng từ"></div>
+      <div class="field"><label>Email</label><input id="email" type="email" placeholder="Email tiệm (nếu có)"></div>
+      <div class="field"><label>Website công khai</label><input id="publicWebUrl" type="url" placeholder="https://tenmiencuatiem.vn"></div>
+
+      <div class="section field full">AI Gemini</div>
+      <div class="field full">
+        <label>Gemini API Key</label>
+        <input id="geminiApiKey" type="password" autocomplete="off" placeholder="Dán Gemini API Key của tiệm">
+        <div class="note">Khóa được lưu cục bộ trên máy POS. Nếu để trống, các chức năng AI/OCR Gemini sẽ báo chưa cấu hình nhưng các nghiệp vụ bán hàng, kho, cầm đồ và tính toán vẫn hoạt động.</div>
+      </div>
+
+      <details>
+        <summary>Kết nối nâng cao (website / Google giá vàng)</summary>
+        <div class="grid" style="margin-top:14px">
+          <div class="field full"><label>Mã đồng bộ website</label><input id="webSyncToken" type="password" placeholder="Token đồng bộ website (nếu dùng)"></div>
+          <div class="field full"><label>Google Price Relay URL</label><input id="googlePriceRelayUrl" type="url" value="" placeholder="https://script.google.com/macros/s/.../exec"></div>
+          <div class="field full"><label>Google Price Relay Token</label><input id="googlePriceRelayToken" type="password" placeholder="Token relay (nếu dùng)"></div>
+        </div>
+      </details>
+    </div>
+
+    <div id="status" class="status"></div>
+    <div class="actions">
+      <button class="btn secondary" id="backBtn" type="button" style="display:none">Quay lại POS</button>
+      <button class="btn primary" id="saveBtn" type="button">Lưu thiết lập & mở POS</button>
+    </div>
+  </div>
+</div>
+<script>
+const { ipcRenderer } = require('electron');
+const ids = ['shopName','companyName','taxCode','phone','address','email','publicWebUrl','geminiApiKey','webSyncToken','googlePriceRelayUrl','googlePriceRelayToken'];
+const qs = new URLSearchParams(location.search);
+const editMode = qs.get('edit') === '1';
+if (editMode) document.getElementById('backBtn').style.display = 'inline-block';
+
+function setStatus(message, ok=false){ const el=document.getElementById('status'); el.textContent=message||''; el.className='status '+(ok?'ok':'err'); }
+function readForm(){ const out={}; ids.forEach(id=>out[id]=String(document.getElementById(id).value||'').trim()); return out; }
+function fill(data){ ids.forEach(id=>{ if(document.getElementById(id) && data && data[id] !== undefined) document.getElementById(id).value=data[id]||''; }); }
+
+(async()=>{
+  try { fill(await ipcRenderer.invoke('shop-config:get')); }
+  catch(e){ setStatus('Không đọc được cấu hình cũ: '+(e.message||e)); }
+})();
+
+document.getElementById('backBtn').onclick=()=>{ location.href='index.html'; };
+document.getElementById('saveBtn').onclick=async()=>{
+  setStatus('');
+  const data=readForm();
+  if(!data.shopName || !data.companyName || !data.phone || !data.address){ setStatus('Cần nhập đủ Tên tiệm, Tên pháp lý/công ty, SĐT và Địa chỉ.'); return; }
+  if(!data.geminiApiKey){
+    const go=confirm('Chưa nhập Gemini API Key. Các chức năng AI/OCR sẽ chưa dùng được. Vẫn lưu thiết lập?');
+    if(!go) return;
+  }
+  const btn=document.getElementById('saveBtn'); btn.disabled=true; btn.textContent='Đang lưu...';
+  try{
+    const result=await ipcRenderer.invoke('shop-config:save', data);
+    if(!result || !result.success) throw new Error(result && result.message || 'Không lưu được cấu hình.');
+    setStatus('Đã lưu. Đang mở POS...', true);
+    setTimeout(()=>{ location.href='index.html'; }, 250);
+  }catch(e){ setStatus(e.message||String(e)); btn.disabled=false; btn.textContent='Lưu thiết lập & mở POS'; }
+};
+</script>
+<script id="kbl-jewel-ui-runtime" src="kbl-jewel-ui.js"></script>
+<!-- Thương mại · chủ tiệm chuyển tài khoản. Chỉ giao diện, IPC xác nhận ở main.js. -->
+<button type="button" id="kbl-owner-switch-user" title="Đã lưu phiếu? Đăng xuất chủ và đăng nhập nhân viên" style="position:fixed;right:12px;bottom:12px;z-index:2147482000;background:#153c64;color:#fff;border:1px solid #c39a2f;box-shadow:0 3px 15px #0003;border-radius:11px;font:bold 12px Arial;padding:9px 11px;cursor:pointer">🔒 Đổi tài khoản</button>
+<script>document.getElementById('kbl-owner-switch-user')?.addEventListener('click',async()=>{try{await require('electron').ipcRenderer.invoke('commercial-access:logout-desktop')}catch(e){alert(e.message||'Không thể chuyển tài khoản')}})</script>
+</body>
+</html>

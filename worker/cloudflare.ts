@@ -1,3 +1,4 @@
+import { processInboxReplies } from '../lib/kbl/inbox';
 import app from './index';
 import { createAccessGate } from '../lib/kbl/cloudflare-access.mjs';
 import { runMaintenance } from '../lib/kbl/scheduled.mjs';
@@ -10,5 +11,5 @@ export default {
         if (checked instanceof Response) return checked;
         return app.fetch(checked, env, ctx);
     },
-    async scheduled() { await runMaintenance({ tick, cleanup, event }); }
+    async scheduled() { await runMaintenance({ tick: async()=>{try{await tick();}finally{await processInboxReplies();}}, cleanup, event }); }
 };

@@ -1,3 +1,4 @@
+import { publicationPlan } from './publication-plan';
 import { sql, get, list, settings, sha, id } from './store';
 import { goldSlot } from './domain.mjs';
 
@@ -39,7 +40,7 @@ export async function captureGoldSlot(at = Date.now()) {
     const storyId = (await sha('KBL-GOLD:' + slot)).slice(0, 32), marker = id();
     const label = new Date(at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
     const title = 'Bản tin giá vàng · ' + label;
-    const story = { title, topic: 'Bản tin giá vàng cửa hàng từ bản chụp POS chỉ đọc. Nêu đúng giá mua/bán đồng/chỉ, tuổi vàng, thời điểm quan sát. Không bịa lịch sử, nguyên nhân hoặc dự báo đầu tư. Giá đã chốt phải được giữ nguyên cho đến khi hoàn thành.', sourceUrl: PRICE_URL, platforms: ['website'], status: 'working', kind: 'gold', editionSlot: slot, editionAt: at, priceSnapshot: snapshot };
+    const story = { title, topic: 'Bản tin giá vàng cửa hàng từ bản chụp POS chỉ đọc. Nêu đúng giá mua/bán đồng/chỉ, tuổi vàng, thời điểm quan sát. Không bịa lịch sử, nguyên nhân hoặc dự báo đầu tư. Giá đã chốt phải được giữ nguyên cho đến khi hoàn thành.', sourceUrl: PRICE_URL, ...await publicationPlan(), status: 'working', kind: 'gold', editionSlot: slot, editionAt: at, priceSnapshot: snapshot };
     const excerpt = 'Bản chụp giá chỉ đọc do POS Kim Bảo Lâm đồng bộ, đơn vị đồng/chỉ. Quan sát lúc ' + new Date(snapshot.observedAt).toISOString() + '. ' + snapshot.rows.map((r: any) => `${r.label}: mua ${r.buy}, bán ${r.sell} ${r.unit}`).join('; ') + '. Không có dữ liệu so sánh lịch sử hoặc dự báo.';
     const research = { items: [{ title, url: PRICE_URL, excerpt, publishedAt: new Date(snapshot.observedAt).toISOString() }], evidenceKind: 'pos-price-snapshot', sourceEvidence: [{ kind: 'pos-price-snapshot', verifiedBy: 'pos-import-contract', url: PRICE_URL, contentHash: await sha(JSON.stringify(snapshot)), ...snapshot }], priceSnapshot: snapshot, capturedAt: at };
     const edition = { status: 'captured', slot, storyId, captureMarker: marker, priceSnapshot: snapshot };

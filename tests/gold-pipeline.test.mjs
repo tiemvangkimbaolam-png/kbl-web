@@ -196,3 +196,16 @@ test('gold story completes normal independent review, images and render after th
     assert.equal(db.prepare("SELECT COUNT(*) n FROM assets WHERE purpose IN('video-temp','audio','captions') AND deleted_at IS NOT NULL").get().n, 3);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM assets WHERE mime='image/png' AND deleted_at IS NULL AND public=1").get().n, 2);
 });
+
+test('new gold editions freeze selected publication connection without changing earlier captured stories', async () => {
+    const cfg=stored('settings','main');
+    const connection='a'.repeat(32);
+    db.prepare("UPDATE records SET data=? WHERE kind='settings' AND id='main'").run(JSON.stringify({...cfg,publicationConnections:{telegram:connection}}));
+    await price();const result=await G.captureGoldSlot(at);
+    assert.deepEqual(stored('story',result.storyId).platforms,['website','telegram']);
+    assert.equal(stored('story',result.storyId).publicationConnections.telegram,connection);
+    db.prepare("UPDATE records SET data=? WHERE kind='settings' AND id='main'").run(JSON.stringify({...cfg,publicationConnections:{}}));
+    const again=await G.captureGoldSlot(at);
+    assert.equal(again.storyId,result.storyId);
+    assert.equal(stored('story',result.storyId).publicationConnections.telegram,connection);
+});

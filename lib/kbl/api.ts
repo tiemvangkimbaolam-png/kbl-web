@@ -1,3 +1,6 @@
+import { handleInboxWebhook, handleInboxAdmin } from './inbox';
+import { servePublishingMedia, publishingStatus } from './publishing';
+import { handleSocialAdmin } from './social';
 import { env } from 'cloudflare:workers';
 import { z } from 'zod';
 import * as S from './store';
@@ -57,6 +60,8 @@ async function upload(req: Request, storyId: string | null, purpose: string) {
 export async function handle(req: Request): Promise<Response> {
     try {
         const u = new URL(req.url), path = u.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean), method = req.method;
+        if(path[0] === 'social-inbox' && path[1] && path[2]) return handleInboxWebhook(req,path[1],path[2]);
+        if(path[0] === 'publishing-media' && path[1] && method === 'GET') return servePublishingMedia(path[1]);
         if (path[0] === 'health') {
             const health = await bindingHealth(env);
             return response({ ...health, version: '2.1.1', paidAIFallback: false }, health.ok ? 200 : 503);
@@ -115,7 +120,17 @@ export async function handle(req: Request): Promise<Response> {
             }
         }
         if (path[0] === 'admin') {
-            await admin(req);
+            const actor = await admin(req);
+            if(path[1] === 'inbox') return handleInboxAdmin(req,path.slice(2));
+            if(path[1] === 'social') return handleSocialAdmin(req, path.slice(2), actor);
+            if(path[1] === 'publication-config') {
+                if(method === 'GET') return response({connections:(await S.settings()).publicationConnections||{},outbox:await publishingStatus()});
+                if(method === 'POST') {
+                    const input=z.record(z.enum(['facebook','instagram','threads','youtube','tiktok','telegram','zalo']),z.string().regex(/^[a-f0-9]{32}$/)).parse((await body(req)).connections);
+                    for(const [platform,id] of Object.entries(input)){const row=await S.get('social-connection',id);if(row?.platform!==platform||row?.status!=='connected'||!row?.targetId)fail('Kết nối chưa sẵn sàng hoặc chưa chọn đích.');}
+                    await S.put('settings','main',{...await S.settings(),publicationConnections:input});return response({ok:true});
+                }
+            }
             if (method === 'GET' && path[1] === 'state') {
                 const [cfg, accounts, workers, products, stories, prices, orders, consultations, channels, commands, jobs, events, receipts, storage, editions] = await Promise.all([S.settings(), S.list('account', 20), S.list('worker', 20), S.list('product', 500), S.list('story', 80), S.list('price', 40), S.list('order', 100), S.list('consultation', 100), S.list('channel', 20), S.list('command', 30), S.sql().prepare('SELECT id,story_id,stage,status,owner,exclude_account,lease_until,attempt,error,created_at,updated_at FROM jobs ORDER BY created_at DESC LIMIT 250').all(), S.sql().prepare('SELECT * FROM events ORDER BY id DESC LIMIT 80').all(), S.sql().prepare('SELECT * FROM receipts ORDER BY at DESC LIMIT 100').all(), S.sql().prepare('SELECT COALESCE(SUM(bytes),0) bytes,COUNT(*) files FROM assets WHERE deleted_at IS NULL').first(), S.sql().prepare('SELECT * FROM editions ORDER BY created_at DESC LIMIT 12').all()]);
                 return response({ settings: cfg, accounts, workers, products, stories, prices, orders, consultations: consultations.map(({ tokenHash, ...v }: any) => v), channels, commands, jobs: jobs.results, events: events.results, receipts: receipts.results, storage, editions: editions.results, posBound: await POS.locked(), posSync: await S.list('pos-sync', 10), serverTime: Date.now() });
