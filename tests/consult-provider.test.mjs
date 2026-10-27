@@ -1,0 +1,11 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';import fs from 'node:fs';import {displayGoldPrices} from '../lib/kbl/display-prices.mjs';
+const require=createRequire(import.meta.url),{build}=createRequire(fs.realpathSync('node_modules/wrangler/package.json'))('esbuild');
+test('public gold selection uses explicit purity, never first-three positions',()=>{const rows=['9999','980','750','610'].map(code=>({id:'cloud-'+code,code,buy:1,sell:2}));assert.deepEqual(displayGoldPrices(rows).map(x=>x.label),['Vàng 999.9','Vàng 980','Vàng 610']);assert.equal(displayGoldPrices([{label:'Vàng 750'}]).length,0);});
+test('API consultation calls Groq and falls back to Gemini without exposing keys',async()=>{
+ globalThis.__CONSULT_ENV={GROQ_API_KEY:'test-secret-groq',GEMINI_API_KEY:'test-secret-gemini'};
+ await build({entryPoints:['lib/kbl/consult-provider.ts'],bundle:true,platform:'node',format:'esm',outfile:'.sites-runtime/consult-provider-test.mjs',plugins:[{name:'env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env=globalThis.__CONSULT_ENV;'}));}}]});
+ const m=await import('../.sites-runtime/consult-provider-test.mjs?'+Date.now());let calls=[];
+ const out=await m.consultProvider('Dữ liệu công khai',async(url,opts)=>{calls.push({url,opts});return calls.length===1?new Response('private error',{status:429}):Response.json({candidates:[{content:{parts:[{text:'Xin chào từ Gemini'}]}}]});});
+ assert.equal(m.apiConsultReady(),true);assert.equal(out.reply,'Xin chào từ Gemini');assert.equal(calls.length,2);assert.equal(calls[0].opts.headers.Authorization,'Bearer test-secret-groq');assert.equal(calls[1].opts.headers['x-goog-api-key'],'test-secret-gemini');assert(!JSON.stringify(out).includes('secret'));assert(!calls[1].url.includes('test-secret'));
+ const failed=await m.consultProvider('test',async()=>new Response('private secret',{status:401}));assert.equal(failed,null);
+});

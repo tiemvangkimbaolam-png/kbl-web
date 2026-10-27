@@ -1,3 +1,4 @@
+import { apiConsultReady, consultProvider } from './consult-provider';
 import { configureCloudPrice, pollCloudPrice, cloudPriceStatus, publicCloudPrices } from './cloud-price';
 import { handleInboxWebhook, handleInboxAdmin } from './inbox';
 import { servePublishingMedia, publishingStatus } from './publishing';
@@ -21,6 +22,7 @@ async function rate(req: Request, scope: string, max = 12) { const key = await S
     fail('Đã nhận nhiều yêu cầu; thử lại sau.', 429); }
 async function readAssistantState(cfg?: any) {
     const [settings, accounts, workers] = await Promise.all([cfg || S.settings(), S.list('account', 20), S.list('worker', 20)]);
+    if (apiConsultReady() && settings.autoConsult !== false) return { enabled: true, available: true, state: 'ready', message: 'Đã cấu hình AI tư vấn qua máy chủ.' };
     return assistantState(settings, accounts, workers);
 }
 async function assetResponse(req: Request, aid: string) { const a = await S.sql().prepare('SELECT * FROM assets WHERE id=? AND deleted_at IS NULL').bind(aid).first<any>(); if (!a)
@@ -124,6 +126,15 @@ export async function handle(req: Request): Promise<Response> {
                 const assistant = await readAssistantState();
                 await S.put('consultation', threadId, { question, productId, reply: null, tokenHash: await S.sha(token), status: 'awaiting-reply' });
                 let queued = false;
+                if (apiConsultReady() && assistant.enabled) {
+                    const task = await P.promptFor({ id: 'consult-'+threadId, story_id: threadId, stage: 'consult', attempt: 0 });
+                    const answer = await consultProvider(task.prompt);
+                    if (answer) {
+                        const saved = await S.get('consultation', threadId);
+                        await S.put('consultation', threadId, { ...saved, ...answer, replySource: 'ai-api', status: 'answered', answeredAt: Date.now() });
+                        return response({ id: threadId, token, queued: false, assistant, message: 'AI đã trả lời.' }, 201);
+                    }
+                }
                 if (assistant.enabled) {
                     try { await P.ensureJob(threadId, 'consult'); queued = true; }
                     catch { /* Saved privately; the scheduled tick can recover its idempotent job. */ }

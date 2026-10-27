@@ -24,6 +24,7 @@ export default function ProductDetails({ product: p, onAsk, onReserve }: { produ
                 {facts.stoneWeightChi !== null && <div><dt>Trọng lượng hột/đá</dt><dd>{weight(facts.stoneWeightChi)}</dd></div>}
                 {facts.posGoldRate !== undefined && <div><dt>Đơn giá vàng POS</dt><dd>{cash(facts.posGoldRate)} / chỉ</dd></div>}
                 {facts.posWorkmanship !== undefined && <div><dt>Tiền công bán</dt><dd>{cash(facts.posWorkmanship)}</dd></div>}
+                <div><dt>Nguồn gốc / xuất xứ</dt><dd>Vui lòng xem tem và hồ sơ sản phẩm tại cửa hàng.</dd></div>
                 <div><dt>Tình trạng</dt><dd>{available ? 'Đang trưng bày' : 'Cần kiểm tra lại tại cửa hàng'}</dd></div>
             </dl>
             <div><p className="small muted">Giá tham khảo của sản phẩm</p><h3 className="kbl-product-total">{cash(p.price)}</h3></div>
