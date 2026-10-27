@@ -111,12 +111,9 @@ async function quietWindow(windowId){
   if(!aiTabs.length)throw Error('Cửa sổ này chưa có tab AI. Mở tiện ích từ tab AI cần thu nhỏ.');
   let target=windowId;
   if(tabs.some(t=>!ai(t)&&!String(t.url||'').startsWith(chrome.runtime.getURL('')))){
-   const separate=await chrome.windows.create({tabId:aiTabs[0].id,type:'normal',focused:false});
-   if(!Number.isInteger(separate?.id))throw Error('Chrome chưa tạo được cửa sổ AI riêng.');
-   target=separate.id;
-   if(aiTabs.length>1)await chrome.tabs.move(aiTabs.slice(1).map(t=>t.id),{windowId:target,index:-1});
+   throw Error('Cửa sổ có tab khác ngoài AI; giữ nguyên tab và cửa sổ. Chỉ thu nhỏ cửa sổ AI riêng đã có.');
   }
-  // Recheck after moving tabs: never minimize a window that acquired a user's unrelated tab.
+  // Recheck before hiding: never move tabs or create another window here.
   const members=await chrome.tabs.query({windowId:target});
   if(!members.length||members.some(t=>!ai(t)&&!String(t.url||'').startsWith(chrome.runtime.getURL(''))))throw Error('Cửa sổ đã thay đổi; chưa thu nhỏ để tránh ảnh hưởng tab khác.');
   const hidden=await hideWindow(target);

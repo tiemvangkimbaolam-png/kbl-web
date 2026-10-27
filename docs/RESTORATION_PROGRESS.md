@@ -10,6 +10,12 @@ Mục tiêu: website trên Cloudflare, POS là nguồn chỉ đọc, Windows ch�
 
 ## Công việc đang xử lý
 
+Mốc API đã lưu lên GitHub: `c43ed2b4757ce4ea5cb259780f1b51767017290e`. Bốn test API/SQLite của checkout hiện tại đạt: probe schema/R2, ảnh muộn đúng lease, retry có xác nhận và audit, cron vẫn dọn độc lập khi tick lỗi.
+
+Đã kiểm tra riêng phần UI: 5 test Node, TypeScript toàn source và diff check đạt. Đã kiểm tra riêng phần Windows: 5 test; gồm bridge/hub/SQLite thật trong fixture, restart sau cảnh đầu, ACK mất, lease local cũ, CommonJS và FFmpeg dựng MP4 dọc 1080×1920 với audio tổng hợp. Không phải phiên Windows/Chrome/TTS thật. Chờ chạy gộp sau khi phần POS và pipeline hoàn tất.
+
+Phần POS đã qua 13 test riêng, TypeScript, cú pháp relay và diff check: phân biệt ACK theo worker/token; giữ ACK khi chỉ đổi hostname; watermark chung cho tồn kho và sự kiện bán/đổi trả; tối đa 5 lượt thử tải ảnh mỗi vòng và xoay SKU để không bỏ đói. Không sửa POS gốc/công thức. Source và ZIP Windows đang được lưu lên GitHub trước bước kiểm tra gộp.
+
 - Giữ prompt/schema/nonce/lease qua restart; nhận ảnh trả muộn đúng lượt; cache render theo nội dung; khởi động CommonJS Windows đúng.
 - Phân phối theo khả năng; thử độc lập các nguồn tin; sửa nội dung/ảnh sau duyệt với lịch sử kết quả, không gửi lại prompt chưa rõ trạng thái.
 - Đồng bộ ACK ảnh theo định danh backend; chống giao dịch POS cũ đảo tồn kho mới; giới hạn số lượt tải ảnh lỗi.

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ShoppingBag, Search, Menu, ArrowUpRight, ArrowRight, MessageCircle, RefreshCw, Minus, Plus, X, Check, ShieldCheck, Clock3, Image as ImageIcon } from 'lucide-react';
 import { api, Brand, Modal, Empty, Badge, cash, date } from './ui';
 import ReferenceHome from './reference-home';
+import { savedCart } from './public-state.mjs';
 import ReferenceTryOn from './reference-home/try-on';
 const CATS = [['all', 'Tất cả'], ['nhan', 'Nhẫn'], ['bong-tai', 'Bông tai'], ['day-chuyen', 'Dây chuyền'], ['lac-vong', 'Lắc & Vòng'], ['da-quy', 'Đá quý']];
 export default function Storefront({ reference = false }: { reference?: boolean }) {
@@ -22,10 +23,10 @@ export default function Storefront({ reference = false }: { reference?: boolean 
         setError(e.message);
     } }
     useEffect(() => { load(); try {
-        setCart(JSON.parse(localStorage.getItem('kbl-cart-v2') || '[]'));
+        setCart(savedCart(localStorage.getItem('kbl-cart-v2')));
     }
     catch { } const refresh = setInterval(() => { if (!document.hidden) void load(); }, 60000); return () => clearInterval(refresh); }, []);
-    useEffect(() => { localStorage.setItem('kbl-cart-v2', JSON.stringify(cart)); }, [cart]);
+    useEffect(() => { try { localStorage.setItem('kbl-cart-v2', JSON.stringify(cart)); } catch { /* Private mode may deny storage; current cart still works. */ } }, [cart]);
     useEffect(() => { if (!chatState?.token)
         return; const timer = setInterval(async () => { try {
         const r = await fetch('/api/public/consult/' + chatState.id, { headers: { 'x-kbl-chat-token': chatState.token } });

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KBL · Windows mới",
-  "version": "2.0.0",
+  "version": "2.1.1",
   "minimum_chrome_version": "120",
   "description": "Cầu nối chatbox trên Chrome với KBL Windows; phiên đăng nhập giữ trong hồ sơ Chrome.",
   "permissions": [

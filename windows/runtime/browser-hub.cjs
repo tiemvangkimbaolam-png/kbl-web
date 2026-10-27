@@ -236,7 +236,7 @@ function createHub({bridge,dataDir,now=Date.now}) {
         // Save bytes before network upload; retry the same result without asking the model again.
         const f=path.join(dataDir,r.id+'-'+r.rows.length+'.json');fs.writeFileSync(f,JSON.stringify(body),{mode:0o600});
         const img=await bridge.image(r.jobId,{base64:body.base64,mime:body.mime});if(img.id!==sha)throw fault('IMAGE_RECEIPT','Biên nhận ảnh sai hash.');
-        r.rows.push({assetId:sha,subject:r.sceneSubject,prompt:r.scenePrompt});r.acceptedNonces||={};r.acceptedNonces[body.nonce]=digest;fs.rmSync(f,{force:true});
+        r.rows.push({assetId:sha,caption:String(r.sceneSubject||'Ảnh minh họa bản tin').slice(0,500)});r.acceptedNonces||={};r.acceptedNonces[body.nonce]=digest;fs.rmSync(f,{force:true});
         if(r.rows.length<2){await prepare(r,job);return {stored:true,status:r.status,...(r.status==='dispatched'&&r.kind==='images'&&r.task?.nonce!==body.nonce?{nextTask:r.task}:{})};}
         r.raw={rows:r.rows};r.transcriptHash=hash(body.transcript);
       } else {
@@ -251,13 +251,11 @@ function createHub({bridge,dataDir,now=Date.now}) {
     const a=state.accounts.find(a=>a.id===r.accountId);
     if(!r.submission){r.submission={result:JSON.stringify(r.raw),modelLabel:a.provider+' web UI — model unverified'+(r.reasonPreviewAudit?'; research reason preview; full original retained locally':'')+(r.huntFilterAudit?'; hunt '+r.huntFilterAudit.acceptedCount+'/'+r.sourceResult.items.length+' schema-valid':''),reviewConfirmed:['review','image-review'].includes(r.kind),browserExecution:{protocol:PROTOCOL,runId:r.id,completed:true,accountTagHash:a.accountTagHash,transcriptHash:r.transcriptHash,schemaHash:hash(r.schema),resultHash:hash(r.raw),attachments:r.task.attachmentHashes}};save();}
     const local=bridge.view(),claim=local.claims?.[r.jobId],pending=local.outbox?.some(o=>o.jobId===r.jobId&&!['confirmed','discarded'].includes(o.status));
-    if(local.claims&&!pending&&(!claim||claim.until<=now())){
-      const job=await bridge.getJob(r.jobId);
-      if(job.expiresAt<=now()||!['waiting','working'].includes(job.status))throw fault('JOB_ENDED','Việc đã kết thúc; giữ kết quả local, chưa nộp lại.');
-      if(job.assignedAccount&&job.assignedAccount!==r.accountId)throw fault('LEASE_ACCOUNT','Việc đang thuộc hồ sơ khác; giữ kết quả, chưa đổi tài khoản.');
-      if(hash(job.schema)!==hash(r.schema))throw fault('JOB_CHANGED','Schema việc đã đổi; giữ kết quả local, chưa tự nộp.');
-      await bridge.claim(r.jobId,r.accountId);
-    }
+    const confirmed=local.outbox?.filter(o=>o.jobId===r.jobId&&o.status==='confirmed').at(-1);
+    if(confirmed){r.status='confirmed';r.message=confirmed.message||'Server đã lưu kết quả.';save();return;}
+    // A local clock/lease timeout never authorizes another model request. The
+    // original server lease is required to reconcile a collected result.
+    if(local.claims&&!pending&&!claim)throw fault('LEASE_MISSING','Thiếu mã lượt gốc; giữ kết quả local để đối chiếu, chưa gửi prompt mới.');
     const s=await bridge.submit(r.jobId,r.submission),receipt=s.outbox.filter(x=>x.jobId===r.jobId).at(-1);r.status=receipt?.status==='confirmed'?'confirmed':receipt?.status==='attention'?'attention':'awaiting-receipt';r.message=receipt?.message||'Đang chờ biên nhận KBL.';save();
   }
   function failure(a,body){const r=runFor(a,body.runId);if(body.nonce!==r.task?.nonce)throw fault('STALE_REPLY','Lỗi không thuộc lượt hiện tại.');if(!['confirmed','awaiting-receipt','collected'].includes(r.status)){r.status='attention';r.code=require('./operations42.cjs').codes.includes(body.code)?body.code:'UI_NEEDS_REVIEW';r.message=String(body.message||'Giao diện chưa đáp ứng').slice(0,250);if(body.code==='QUOTA'){a.blocked=true;r.message='Hết lượt miễn phí; hồ sơ dừng, không đổi tài khoản hoặc gọi API.';}save();}return {stored:true};}

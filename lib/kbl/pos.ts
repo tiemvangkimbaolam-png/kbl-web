@@ -10,6 +10,10 @@ export async function bind(workerId: string) {
 }
 export async function locked() { return !!await S.get('pos-binding', 'main'); }
 type Row = { id: string; data: any };
+// Inventory and transaction events share the relay's monotonic sequence.
+// The legacy per-product marker participates so upgrading cannot admit an old event.
+const stockGuard = "NOT EXISTS(SELECT 1 FROM records WHERE ((kind='pos-stock' AND id='main') OR (kind='pos-sync' AND id='product')) AND ((? IS NOT NULL AND COALESCE(json_extract(data,'$.revision'),0)>=?) OR (? IS NULL AND COALESCE(json_extract(data,'$.revision'),0)>0)))";
+const revisionOf = (input: any) => { const r = input.revision; if (r !== undefined && (!Number.isSafeInteger(r) || r < 1)) fail('Thiếu số thứ tự bản chụp POS.'); return r as number | undefined; };
 async function existingRows(kind: string, ids: string[]) {
     const found = await S.sql().prepare('SELECT id,data FROM records WHERE kind=? AND id IN(SELECT value FROM json_each(?))').bind(kind, JSON.stringify(ids)).all<any>();
     return new Map(found.results.map(r => [r.id, JSON.parse(r.data)]));
@@ -26,13 +30,14 @@ async function apply(workerId: string, kind: string, rows: Row[], complete: bool
     const at = Date.now(), marker = S.id(), incoming = JSON.stringify(rows), ids = JSON.stringify(rows.map(r => r.id)), cap = kind === 'product' ? 500 : 20000;
     // Each D1 batch is a transaction. The marker guards all writes, including a
     // concurrent newer revision or quota failure. No partial snapshot hides stock.
-    const conditions = "(SELECT COUNT(*) FROM records WHERE kind=?)+(SELECT COUNT(*) FROM json_each(?) p WHERE NOT EXISTS(SELECT 1 FROM records r WHERE r.kind=? AND r.id=json_extract(p.value,'$.id')))<=? AND (? IS NULL OR NOT EXISTS(SELECT 1 FROM records WHERE kind='pos-sync' AND id=? AND json_extract(data,'$.revision')>=?))";
+    const conditions = "(SELECT COUNT(*) FROM records WHERE kind=?)+(SELECT COUNT(*) FROM json_each(?) p WHERE NOT EXISTS(SELECT 1 FROM records r WHERE r.kind=? AND r.id=json_extract(p.value,'$.id')))<=? AND (? IS NULL OR NOT EXISTS(SELECT 1 FROM records WHERE kind='pos-sync' AND id=? AND json_extract(data,'$.revision')>=?))" + (kind === 'product' ? ' AND ' + stockGuard : '');
     const statements = [
-        S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'pos-import',?,'{}',?,? WHERE " + conditions).bind(marker, at, at, kind, incoming, kind, cap, revision ?? null, kind, revision ?? null),
+        S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'pos-import',?,'{}',?,? WHERE " + conditions).bind(marker, at, at, kind, incoming, kind, cap, revision ?? null, kind, revision ?? null, ...(kind === 'product' ? [revision ?? null, revision ?? null, revision ?? null] : [])),
         S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT ?,json_extract(p.value,'$.id'),json_extract(p.value,'$.data'),?,? FROM json_each(?) p WHERE EXISTS(SELECT 1 FROM records WHERE kind='pos-import' AND id=?) ON CONFLICT(kind,id) DO UPDATE SET data=" + (kind === 'product' ? "json_set(excluded.data,'$.imageIds',json(COALESCE(json_extract(records.data,'$.imageIds'),'[]')))" : 'excluded.data') + ",version=records.version+1,updated_at=excluded.updated_at").bind(kind, at, at, incoming, marker)
     ];
     if (complete) statements.push(S.sql().prepare("UPDATE records SET data=json_set(data,'$.posMissing',json('true')" + (kind === 'product' ? ",'$.available',json('false')" : '') + "),version=version+1,updated_at=? WHERE kind=? AND json_extract(data,'$.source')='pos' AND id NOT IN(SELECT value FROM json_each(?)) AND EXISTS(SELECT 1 FROM records WHERE kind='pos-import' AND id=?)").bind(at, kind, ids, marker));
     statements.push(S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'pos-sync',?,?,?,? WHERE EXISTS(SELECT 1 FROM records WHERE kind='pos-import' AND id=?) ON CONFLICT(kind,id) DO UPDATE SET data=excluded.data,version=records.version+1,updated_at=excluded.updated_at").bind(kind, JSON.stringify({ revision: revision ?? 0, digest, count: rows.length, receivedAt: at, workerId }), at, at, marker));
+    if (kind === 'product') statements.push(S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'pos-stock','main',?,?,? WHERE EXISTS(SELECT 1 FROM records WHERE kind='pos-import' AND id=?) ON CONFLICT(kind,id) DO UPDATE SET data=excluded.data,version=records.version+1,updated_at=excluded.updated_at").bind(JSON.stringify({ revision: revision ?? 0, digest, workerId, operation: 'snapshot' }), at, at, marker));
     statements.push(S.sql().prepare("DELETE FROM records WHERE kind='pos-import' AND id=?").bind(marker));
     let result;
     try { result = await S.sql().batch(statements); }
@@ -40,6 +45,10 @@ async function apply(workerId: string, kind: string, rows: Row[], complete: bool
     if (result[0].meta.changes !== 1) {
         const live = await S.get('pos-sync', kind);
         if (revision !== undefined && live?.revision >= revision) fail('Bản chụp mới hơn vừa được nhận. Không đổi dữ liệu.', 409);
+        if (kind === 'product') {
+            const stock = await S.get('pos-stock', 'main');
+            if ((stock?.revision > 0 && (revision === undefined || stock.revision >= revision)) || (live?.revision > 0 && revision === undefined)) fail('Kho POS đã có sự kiện mới hơn; cần bản chụp có số thứ tự mới.', 409);
+        }
         fail('Bản chụp vượt hạn mức. Không đổi dữ liệu.', 507);
     }
     return { success: true, count: rows.length, wroteToPOS: false };
@@ -128,12 +137,23 @@ export async function attachPhoto(workerId: string, sku: string, assetId: string
     return { success: true, assetId, sku };
 }
 export async function transaction(workerId: string, input: any) {
-    const p = C.transaction(input);
+    const p = C.transaction(input), revision = revisionOf(input);
     // Hide affected stock conservatively. A later full POS snapshot alone can
     // make a returned item available again; do not infer stock from financials.
     await bind(workerId);
     const ids = await Promise.all(p.skus.map(async (s: string) => 'pos-' + await S.sha(s)));
-    await S.sql().prepare("UPDATE records SET data=json_set(data,'$.available',json('false')),version=version+1,updated_at=? WHERE kind='product' AND id IN(SELECT value FROM json_each(?)) AND json_extract(data,'$.source')='pos'").bind(Date.now(), JSON.stringify(ids)).run();
-    if (p.eventType !== 'sale') await S.sql().prepare("UPDATE records SET data=json_set(data,'$.posStatus',?),version=version+1,updated_at=? WHERE kind='pos-warranty' AND json_extract(data,'$.invoiceId')=? AND json_extract(data,'$.productSku') IN(SELECT value FROM json_each(?))").bind(p.eventType === 'return' ? 'returned' : 'canceled', Date.now(), p.originalTransactionId || p.invoiceId, JSON.stringify(p.skus)).run();
-    return { success: true, count: ids.length, wroteToPOS: false };
+    const at = Date.now(), marker = S.id(), digest = await S.sha(JSON.stringify(p)), old = await S.get('pos-stock', 'main'), oldSnapshot = await S.get('pos-sync', 'product');
+    if (revision === undefined && Math.max(old?.revision || 0, oldSnapshot?.revision || 0) > 0) fail('Sự kiện POS cần số thứ tự để không ghi đè kho mới hơn.', 409);
+    if (revision !== undefined && old?.revision === revision && old.digest !== digest) fail('Cùng số thứ tự POS nhưng khác nội dung; cần đối chiếu.', 409);
+    const statements = [
+        S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'pos-import',?,'{}',?,? WHERE " + stockGuard).bind(marker, at, at, revision ?? null, revision ?? null, revision ?? null),
+        S.sql().prepare("UPDATE records SET data=json_set(data,'$.available',json('false')),version=version+1,updated_at=? WHERE kind='product' AND id IN(SELECT value FROM json_each(?)) AND json_extract(data,'$.source')='pos' AND EXISTS(SELECT 1 FROM records WHERE kind='pos-import' AND id=?)").bind(at, JSON.stringify(ids), marker),
+        S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'pos-stock','main',?,?,? WHERE EXISTS(SELECT 1 FROM records WHERE kind='pos-import' AND id=?) ON CONFLICT(kind,id) DO UPDATE SET data=excluded.data,version=records.version+1,updated_at=excluded.updated_at").bind(JSON.stringify({ revision: revision ?? 0, digest, workerId, operation: 'transaction' }), at, at, marker)
+    ];
+    // A historical return may still annotate its receipt, but cannot hide stock
+    // from a newer complete inventory snapshot or reverse a later receipt event.
+    if (p.eventType !== 'sale') statements.push(S.sql().prepare("UPDATE records SET data=json_set(data,'$.posStatus',?,'$.posEventRevision',?),version=version+1,updated_at=? WHERE kind='pos-warranty' AND json_extract(data,'$.invoiceId')=? AND json_extract(data,'$.productSku') IN(SELECT value FROM json_each(?)) AND ((? IS NOT NULL AND COALESCE(json_extract(data,'$.posEventRevision'),0)<?) OR (? IS NULL AND COALESCE(json_extract(data,'$.posEventRevision'),0)=0))").bind(p.eventType === 'return' ? 'returned' : 'canceled', revision ?? 0, at, p.originalTransactionId || p.invoiceId, JSON.stringify(p.skus), revision ?? null, revision ?? null, revision ?? null));
+    statements.push(S.sql().prepare("DELETE FROM records WHERE kind='pos-import' AND id=?").bind(marker));
+    const result = await S.sql().batch(statements);
+    return { success: true, count: ids.length, stockSkipped: result[0].meta.changes !== 1, wroteToPOS: false };
 }

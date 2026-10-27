@@ -1,15 +1,24 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import { X, PackageOpen, LoaderCircle } from 'lucide-react';
+import { readApiResponse } from './api-response.mjs';
 export const date = (v: any) => v ? new Date(v).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : 'Chưa có';
 export const cash = (v: any) => v === null || v === undefined ? 'Liên hệ báo giá' : new Intl.NumberFormat('vi-VN').format(v) + ' ₫';
-export async function api(path: string, method = 'GET', body?: any) { const r = await fetch('/api/' + path, { method, cache: 'no-store', headers: body instanceof Blob ? { 'Content-Type': body.type } : { 'Content-Type': 'application/json' }, ...(body !== undefined ? { body: body instanceof Blob ? body : JSON.stringify(body) } : {}) }); const value: any = await r.json(); if (!r.ok)
-    throw Error(value.error || 'Không kết nối được máy chủ.'); return value; }
+export async function api(path: string, method = 'GET', body?: any) {
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
+    try {
+        const r = await fetch('/api/' + path, { method, signal: controller.signal, cache: 'no-store', headers: body instanceof Blob ? { 'Content-Type': body.type } : { 'Content-Type': 'application/json' }, ...(body !== undefined ? { body: body instanceof Blob ? body : JSON.stringify(body) } : {}) });
+        return await readApiResponse(r);
+    } catch (e: any) {
+        if (e.name === 'AbortError') throw Error('Máy chủ chưa trả lời kịp. Giữ lượt đang làm và kiểm tra kết nối; không tự gửi prompt lần hai.');
+        throw e;
+    } finally { clearTimeout(timer); }
+}
 export function Brand() { return <a href="/" className="brand"><img src="/kbl-logo.png" alt="Kim Bảo Lâm" width="45" height="45"/><div><strong>KIM BẢO LÂM</strong><span>Vàng & Trang sức</span></div></a>; }
 export function Badge({ status, children }: {
     status?: string;
     children?: any;
-}) { const good = ['ready', 'online', 'complete', 'published', 'confirmed', 'answered', 'completed'].includes(status || ''), bad = ['attention', 'failed', 'rejected', 'canceled'].includes(status || ''), warn = ['working', 'running', 'leased', 'quota', 'challenge', 'blocked'].includes(status || ''); const names: any = { ready: 'Sẵn sàng', online: 'Đang kết nối', complete: 'Hoàn thành', published: 'Đã xuất bản', confirmed: 'Đã xác nhận', answered: 'Đã trả lời', completed: 'Đã hoàn tất', attention: 'Cần kiểm tra', failed: 'Lỗi', rejected: 'Không được duyệt', canceled: 'Đã hủy', working: 'Đang xử lý', running: 'Đang thực hiện', leased: 'Đã nhận việc', quota: 'Chờ hạn mức', challenge: 'Cần xác minh', blocked: 'Đang chặn', offline: 'Chưa kết nối', queued: 'Chờ nhận việc', new: 'Mới', pending: 'Chờ Windows', done: 'Đã thực hiện' }; return <span className={'pill ' + (good ? 'good' : bad ? 'bad' : warn ? 'warn' : '')}><i className="dot"/>{children || names[status || ''] || status || 'Chưa có'}</span>; }
+}) { const good = ['ready', 'online', 'complete', 'published', 'confirmed', 'answered', 'completed'].includes(status || ''), bad = ['attention', 'failed', 'rejected', 'canceled'].includes(status || ''), warn = ['working', 'running', 'leased', 'quota', 'challenge', 'blocked'].includes(status || ''); const names: any = { ready: 'Sẵn sàng', online: 'Đang kết nối', complete: 'Hoàn thành', published: 'Đã xuất bản', confirmed: 'Đã xác nhận', answered: 'Đã trả lời', completed: 'Đã hoàn tất', attention: 'Cần kiểm tra', failed: 'Lỗi', rejected: 'Không được duyệt', canceled: 'Đã hủy', working: 'Đang xử lý', running: 'Đang thực hiện', leased: 'Đã nhận việc', quota: 'Chờ hạn mức', challenge: 'Cần xác minh', blocked: 'Đang chặn', 'waiting-revision': 'Chờ sửa kết quả', 'waiting-reconnect': 'Chờ nối lại', expired: 'Lệnh hết hạn', offline: 'Chưa kết nối', queued: 'Chờ nhận việc', new: 'Mới', pending: 'Chờ Windows', done: 'Đã thực hiện' }; return <span className={'pill ' + (good ? 'good' : bad ? 'bad' : warn ? 'warn' : '')}><i className="dot"/>{children || names[status || ''] || status || 'Chưa có'}</span>; }
 export function Empty({ title, detail, action }: {
     title: string;
     detail?: string;

@@ -9,8 +9,8 @@ function readOnlyJSON(root, name, limit = 3 * 1024 * 1024) {
     try { const stat = fs.fstatSync(fd); if (!stat.isFile() || stat.size > limit) throw Error('File POS quá lớn hoặc không hợp lệ.'); return JSON.parse(fs.readFileSync(fd, 'utf8')); }
     finally { fs.closeSync(fd); }
 }
-function readPhoto(root, sku) {
-    const index = readOnlyJSON(root, path.join('product-photos', 'index.json')), row = index[hash(sku)];
+function readPhoto(root, sku, cachedIndex) {
+    const index = cachedIndex || readOnlyJSON(root, path.join('product-photos', 'index.json')), row = index[hash(sku)];
     if (!row) return null;
     if (row.code !== sku || !/^[a-f0-9]{64}\.jpg$/.test(row.file)) throw Error('Chỉ mục ảnh không khớp SKU.');
     const posRoot = fs.realpathSync(root), base = fs.realpathSync(path.join(posRoot, 'product-photos')), filename = path.join(base, row.file);
@@ -27,15 +27,33 @@ function readPhoto(root, sku) {
 function create({ ledger, bridge, config, now = Date.now }) {
     let flushing = false, photosBusy = false, nextLocalRead = 0;
     const queue = ledger.get('pos-outbox') || [], acknowledgements = ledger.get('pos-ack') || {};
+    // A hostname cutover keeps the same receipts. Changing the worker or its
+    // token must not make a different backend inherit old upload confirmations.
+    const scope = hash({ id: config.id || null, token: config.token || null });
+    const previousScope = ledger.get('pos-backend-scope');
+    const changedBackend = previousScope !== scope;
+    ledger.set('pos-backend-scope', scope);
+    const currentBackend = () => ledger.get('pos-backend-scope') === scope;
     const relayToken = ledger.get('pos-relay-token') || crypto.randomBytes(32).toString('hex');
     ledger.set('pos-relay-token', relayToken);
-    const save = () => { ledger.set('pos-outbox', queue); ledger.set('pos-ack', acknowledgements); };
+    const save = () => { if (currentBackend()) { ledger.set('pos-outbox', queue); ledger.set('pos-ack', acknowledgements); } };
+    for (const row of queue) row.nextAt = 0; // Restart retries durable work immediately.
+    if (changedBackend) {
+        for (const key of Object.keys(acknowledgements)) delete acknowledgements[key];
+        ledger.set('pos-photo-sent', {});
+        ledger.set('pos-last-success', 0);
+    }
     function dataRoot() { return ledger.get('pos-data-dir') || config.posDataDir || process.env.KBL_POS_DATA_DIR || path.join(process.env.APPDATA || process.env.LOCALAPPDATA || process.env.USERPROFILE || os.homedir(), 'KimBaoLam_POS_TichHop', 'data'); }
     function credentials() { return { url: 'http://127.0.0.1:39878', token: relayToken, dataDir: dataRoot(), ...view() }; }
     function setDataDir(dir) { if (!path.isAbsolute(dir) || !fs.statSync(dir).isDirectory()) throw Error('Chọn đúng thư mục data của POS trên máy này.'); ledger.set('pos-data-dir', fs.realpathSync(dir)); return { success: true }; }
     function auth(token) { return typeof token === 'string' && /^[a-f0-9]{64}$/.test(token) && crypto.timingSafeEqual(Buffer.from(token), Buffer.from(relayToken)); }
     function view() { return { pending: queue.length, photoPending: ledger.get('pos-photo-pending') || 0, lastSuccess: ledger.get('pos-last-success') || 0, lastError: ledger.get('pos-last-error') || '' }; }
     function enqueue(key, endpoint, data) {
+        if (['prices', 'inventory', 'pawn'].includes(key)) {
+            const snapshots = ledger.get('pos-snapshots') || {};
+            snapshots[key] = { endpoint, data };
+            ledger.set('pos-snapshots', snapshots);
+        }
         const digest = hash(data), old = queue.find(x => x.key === key);
         if (old?.digest === digest) return old;
         const ack = acknowledgements[key];
@@ -85,12 +103,13 @@ function create({ ledger, bridge, config, now = Date.now }) {
         const p = C.transaction(input); return enqueue('transaction:' + hash(p.invoiceId + ':' + p.eventType), 'pos-transaction', p);
     }
     async function flush() {
-        if (flushing) return; flushing = true;
+        if (flushing || !currentBackend()) return; flushing = true;
         try {
             for (const row of [...queue].sort((a,b) => a.seq - b.seq)) {
                 if (row.nextAt > now()) continue;
                 try {
                     const result = await bridge.request('/api/worker/' + row.endpoint, 'POST', row.data);
+                    if (!currentBackend()) return;
                     if (result.success !== true && result.ok !== true) throw Error('Website chưa xác nhận lưu POS.');
                     const current = queue.find(x => x.key === row.key);
                     if (current?.seq === row.seq) queue.splice(queue.indexOf(current), 1);
@@ -98,6 +117,7 @@ function create({ ledger, bridge, config, now = Date.now }) {
                     for (const k of Object.keys(acknowledgements).sort((a,b) => acknowledgements[b].at - acknowledgements[a].at).slice(100)) delete acknowledgements[k];
                     ledger.set('pos-last-success', now()); ledger.set('pos-last-error', ''); save();
                 } catch (e) {
+                    if (!currentBackend()) return;
                     row.nextAt = now() + 60000; row.error = String(e.message).slice(0, 250);
                     ledger.set('pos-last-error', row.error); save();
                 }
@@ -119,22 +139,38 @@ function create({ ledger, bridge, config, now = Date.now }) {
         return { status: 503, body: { success: false, queued: true, message: 'Đã giữ tại Windows; website chưa xác nhận. Tự gửi lại khi có kết nối.' } };
     }
     async function syncPhotos() {
-        if (photosBusy) return; photosBusy = true;
-        const sent = ledger.get('pos-photo-sent') || {}, skus = ledger.get('pos-skus') || []; let pending = 0, uploaded = 0;
+        if (photosBusy || !currentBackend()) return; photosBusy = true;
+        const sent = ledger.get('pos-photo-sent') || {}, skus = ledger.get('pos-skus') || [];
+        let pending = 0, attempts = 0;
         try {
-            for (const sku of skus) {
-                let counted = false;
+            if (!skus.length) return;
+            // Read the index once and use its content-addressed name to skip
+            // already acknowledged files without rereading every JPEG.
+            const index = readOnlyJSON(dataRoot(), path.join('product-photos', 'index.json'));
+            const needsUpload = sku => {
+                const row = index[hash(sku)];
+                return !!row && !(row.code === sku && /^[a-f0-9]{64}\.jpg$/.test(row.file) && sent[sku] === row.file.slice(0, -4));
+            };
+            pending = skus.filter(needsUpload).length;
+            const start = (Number(ledger.get('pos-photo-cursor')) || 0) % skus.length;
+            for (let offset = 0; offset < skus.length && attempts < 5; offset++) {
+                const idx = (start + offset) % skus.length, sku = skus[idx];
+                if (!needsUpload(sku)) continue;
+                attempts++;
+                ledger.set('pos-photo-cursor', (idx + 1) % skus.length);
                 try {
-                    const photo = readPhoto(dataRoot(), sku); if (!photo || sent[sku] === photo.hash) continue;
-                    pending++; counted = true; if (uploaded >= 5) continue;
+                    const photo = readPhoto(dataRoot(), sku, index); if (!photo) continue;
                     const result = await bridge.request('/api/worker/pos-photo?sku=' + encodeURIComponent(sku), 'POST', photo.bytes, { 'Content-Type': 'image/jpeg' });
+                    if (!currentBackend()) return;
                     if (result.success !== true || result.assetId !== photo.hash) throw Error('Website chưa xác nhận ảnh đúng hash.');
-                    sent[sku] = photo.hash; pending--; uploaded++; ledger.set('pos-photo-sent', sent);
+                    sent[sku] = photo.hash; pending--; ledger.set('pos-photo-sent', sent);
                 } catch (e) {
-                    if (e.code === 'ENOENT') continue; if (!counted) pending++; ledger.set('pos-last-error', 'Ảnh POS: ' + String(e.message).slice(0, 220));
+                    if (!currentBackend()) return;
+                    ledger.set('pos-last-error', 'Ảnh POS: ' + String(e.message).slice(0, 220));
                 }
             }
-        } finally { ledger.set('pos-photo-pending', pending); photosBusy = false; }
+        } catch (e) { if (currentBackend() && e.code !== 'ENOENT') ledger.set('pos-last-error', 'Ảnh POS: ' + String(e.message).slice(0, 220)); }
+        finally { if (currentBackend()) ledger.set('pos-photo-pending', pending); photosBusy = false; }
     }
     function syncLocalSnapshot() {
         if (!ledger.get('pos-relay-active') || now() < nextLocalRead) return;
@@ -147,6 +183,24 @@ function create({ ledger, bridge, config, now = Date.now }) {
             project('inventory', { mode: 'snapshot', inventory: readOnlyJSON(dataRoot(), 'inventory_db.json') });
         } catch (e) { ledger.set('pos-last-error', 'Đọc POS: ' + String(e.message).slice(0, 220)); }
     }
+    if (changedBackend) {
+        const snapshots = ledger.get('pos-snapshots') || {};
+        for (const key of ['prices', 'inventory', 'pawn']) {
+            const saved = snapshots[key];
+            if (saved && !queue.some(row => row.key === key)) enqueue(key, saved.endpoint, saved.data);
+        }
+        // Compatibility with pre-scope ledgers: replay safe cached stock and
+        // pawns, but never give cached gold prices a fabricated fresh timestamp.
+        if (!snapshots.inventory && !queue.some(row => row.key === 'inventory')) {
+            const cached = ledger.get('pos-inventory');
+            if (cached) project('inventory', { inventory: cached, mode: 'snapshot' });
+        }
+        if (!snapshots.pawn && !queue.some(row => row.key === 'pawn')) {
+            const cached = ledger.get('pos-pawn-cache');
+            if (cached?.records) enqueue('pawn', 'pos-pawn', { records: cached.records, mode: cached.full ? 'snapshot' : 'delta' });
+        }
+    }
+    save();
     return { accept, auth, view, credentials, setDataDir, syncLocalSnapshot, flush, syncPhotos };
 }
 module.exports = { create, readPhoto, readOnlyJSON };

@@ -5,6 +5,7 @@ const protocol = 'gemini-browser-news-v1';
 function create({ config, ledger }) {
     let remote = { jobs: [], settings: {} }, online = false, lastError = '', cache = new Map(), hub;
     const claims = ledger.get('claims') || {}, outbox = ledger.get('outbox') || [];
+    for (const [id, claim] of Object.entries(claims)) if (claim.job) cache.set(id, claim.job);
     const save = () => { ledger.set('claims', claims); ledger.set('outbox', outbox); };
     async function request(route, method = 'GET', data, headers = {}) { if (!route.startsWith('/api/'))
         throw Error('Endpoint ngoài giao thức.'); const r = await fetch(config.serverUrl + route, { method, redirect: 'error', signal: AbortSignal.timeout(25000), headers: { 'x-kbl-worker-token': config.token, ...(config.serviceAccessBearer ? { 'OAI-Sites-Authorization': 'Bearer ' + config.serviceAccessBearer } : {}), ...(data !== undefined && !Buffer.isBuffer(data) ? { 'Content-Type': 'application/json' } : {}), ...headers }, ...(data !== undefined ? { body: Buffer.isBuffer(data) ? data : JSON.stringify(data) } : {}) }); if (!r.ok) {
@@ -18,6 +19,7 @@ function create({ config, ledger }) {
         remote = r;
         for (const j of r.jobs) {
             const c = claims[j.id];
+            if (c && j.owner === c.accountId && ['leased', 'running', 'attention'].includes(j.status) && Number(j.lease_until) > Number(c.until || 0)) c.until = Number(j.lease_until);
             if (c && j.exclude_account === c.accountId && j.status === 'queued') {
                 const affected = outbox.filter(p => p.jobId === j.id && p.body);
                 ledger.set('retired-outbox:' + j.id + ':' + Date.now(), affected);
@@ -30,6 +32,8 @@ function create({ config, ledger }) {
             }
         }
         cache = new Map(r.jobs.map(j => [j.id, { ...cache.get(j.id), ...mapJob(j) }]));
+        for (const [id, claim] of Object.entries(claims)) if (cache.has(id)) claim.job = cache.get(id);
+        save();
         online = true;
         lastError = '';
         await flush();
@@ -41,11 +45,11 @@ function create({ config, ledger }) {
     function view() { return { connected: online, lastError, paidFallback: false, health: { browserProtocol: protocol }, server: { mode: remote.settings.teamEnabled ? 'active' : 'paused', accounts: ledger.get('accounts') || [], jobs: [...cache.values()] }, claims: Object.fromEntries(Object.entries(claims).map(([id, c]) => [id, { accountId: c.accountId, until: c.until }])), outbox: outbox.map(({ body, ...r }) => r) }; }
     async function getJob(id) { if (!cache.has(id)) {
         const r = await request('/api/worker/job-details/' + encodeURIComponent(id));
-        cache.set(id, mapJob(r.job));
+        cache.set(id, { ...claims[id]?.job, ...mapJob(r.job) });
     } const j = cache.get(id); if (!j)
         throw Error('Không có công việc.'); return j; }
     async function claim(id, accountId) { const r = await request('/api/worker/claim', 'POST', { accountId, jobId: id }); if (!r.job || r.job.id !== id)
-        throw Error('Hàng đợi vừa thay đổi; chưa gửi prompt.'); const context = r.job.context, src = context.outputs?.research?.sourceEvidence?.[0], doc = { ...context, source: src ? { url: src.url } : undefined, sourceEvidence: src ? { ...src, protocol: 'kbl-source-snapshot-v1', status: 'retrieved', requestedUrl: src.url } : undefined, news: context.outputs?.write || { headline: context.story?.title, summary: context.story?.topic }, suggestedConcepts: ['Minh họa bối cảnh kinh tế và vàng, bố cục tổng thể.', 'Minh họa chi tiết liên quan bản tin với bố cục khác.'] }; const prompt = r.job.prompt.split('\n\nHỒ SƠ DỮ LIỆU:')[0] + '\n\nHỒ SƠ DỮ LIỆU:\n' + JSON.stringify(doc) + '\n\nSCHEMA JSON:\n' + JSON.stringify(r.job.schema); const job = { ...(await getJob(id)), schema: r.job.schema, prompt }; cache.set(id, job); claims[id] = { token: r.lease, until: r.leaseUntil, accountId }; save(); return job; }
+        throw Error('Hàng đợi vừa thay đổi; chưa gửi prompt.'); const context = r.job.context, src = context.outputs?.research?.sourceEvidence?.[0], doc = { ...context, source: src ? { url: src.url } : undefined, sourceEvidence: src ? { ...src, protocol: 'kbl-source-snapshot-v1', status: 'retrieved', requestedUrl: src.url } : undefined, news: context.outputs?.write || { headline: context.story?.title, summary: context.story?.topic }, suggestedConcepts: ['Minh họa bối cảnh kinh tế và vàng, bố cục tổng thể.', 'Minh họa chi tiết liên quan bản tin với bố cục khác.'] }; const prompt = r.job.prompt.split('\n\nHỒ SƠ DỮ LIỆU:')[0] + '\n\nHỒ SƠ DỮ LIỆU:\n' + JSON.stringify(doc) + '\n\nSCHEMA JSON:\n' + JSON.stringify(r.job.schema); const job = { ...(await getJob(id)), schema: r.job.schema, prompt }; cache.set(id, job); claims[id] = { token: r.lease, until: r.leaseUntil, accountId, job }; save(); return job; }
     async function dispatch(id) { const c = claims[id]; if (c)
         await request('/api/worker/jobs/' + id + '/dispatch', 'POST', { lease: c.token }); }
     async function submit(id, body) { if (!outbox.some(p => p.jobId === id && p.body)) {

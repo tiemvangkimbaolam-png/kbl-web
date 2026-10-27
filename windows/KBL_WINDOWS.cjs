@@ -17,6 +17,16 @@ bridge.attachHub(hub);
 const pos = require('./pos-relay.cjs').create({ config, ledger, bridge });
 const secret = crypto.randomBytes(32).toString('hex'), PORT = 39878;
 let syncing = false, rendering = false, renderStatus = 'Chưa kiểm tra công cụ dựng.', capabilities = [], renderActive = ledger.get('render-active');
+let toolCheckAt = 0;
+function refreshRenderTools() {
+    if (rendering || Date.now() - toolCheckAt < 60000) return;
+    toolCheckAt = Date.now();
+    try {
+        const pre = require('./render.cjs').preflight(config);
+        capabilities = pre.ready ? ['browser', 'render', 'pos-readonly'] : ['browser', 'pos-readonly'];
+        renderStatus = pre.ready ? 'FFmpeg và Node Edge TTS đã phát hiện; dịch vụ giọng đọc thật chưa được xác minh.' : 'Chưa đủ FFmpeg/ffprobe/node-edge-tts; chưa nhận việc dựng video. Tự kiểm tra lại sau một phút.';
+    } catch (error) { capabilities = ['browser', 'pos-readonly']; renderStatus = String(error.message).slice(0, 400); }
+}
 const htmlEscape = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function chromePath() { return [path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe'), path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'Google', 'Chrome', 'Application', 'chrome.exe'), path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe')].find(f => fs.existsSync(f)); }
 async function openAccount(a, commandId, background = false) { const visible = ledger.get('visible-until') || {}; visible[a.id] = background ? 0 : Date.now() + 300000; ledger.set('visible-until', visible); if (a.online && hub.requestLogin(a.id, commandId))
@@ -97,7 +107,7 @@ const server = http.createServer(async (req, res) => {
             return send(404, { success: false });
         }
         if (u.pathname === '/integration/health')
-            return send(200, { protocol: 'kbl-chrome-bridge-v1', release: '2.1.0' });
+            return send(200, { protocol: 'kbl-chrome-bridge-v1', release: '2.1.1' });
         if (!u.pathname.startsWith('/browser/'))
             return send(404, { success: false });
         const eid = req.headers['x-kbl-extension-id'];
@@ -183,8 +193,9 @@ async function tick() {
         return;
     syncing = true;
     try {
+        refreshRenderTools();
         const hv = hub.view(), accounts = hv.accounts.map(a => ({ id: a.id, status: a.online ? (a.blocked ? 'quota' : hv.runs.some(r => r.accountId === a.id && !['confirmed', 'expired'].includes(r.status)) ? 'working' : a.ready ? 'ready' : 'attention') : 'offline', message: hv.runs.filter(r => r.accountId === a.id).at(-1)?.message || '' }));
-        const r = await bridge.request('/api/worker/heartbeat', 'POST', { version: '2.1.0', capabilities, renderStatus, posStatus: pos.view(), accounts, activeJobIds: [...hv.runs.filter(x => !['confirmed', 'expired'].includes(x.status)).map(x => x.jobId), ...(renderActive ? [renderActive.job.id] : [])] });
+        const r = await bridge.request('/api/worker/heartbeat', 'POST', { version: '2.1.1', capabilities, renderStatus, posStatus: pos.view(), accounts, activeJobIds: [...hv.runs.filter(x => !['confirmed', 'expired'].includes(x.status)).map(x => x.jobId), ...(renderActive ? [renderActive.job.id] : [])] });
         bridge.setAccounts(r.accounts);
         hub.reconcile(r.accounts);
         await bridge.sync();
@@ -260,4 +271,4 @@ async function tick() {
     renderTick().catch(() => { });
 }
 server.on('error', e => { console.error(e.code === 'EADDRINUSE' ? 'KBL mới đã chạy ở cổng 39878. Không mở thêm bản thứ hai.' : e.message); process.exitCode = 1; });
-server.listen(PORT, '127.0.0.1', () => { console.log('KBL Windows 2.1 · ' + config.serverUrl); console.log('Thiết lập: http://127.0.0.1:' + PORT); console.log('Không dùng dữ liệu/phiên công việc của bộ cũ. Đăng nhập AI vẫn nằm trong Chrome.'); const pre = require('./render.cjs').preflight(config); capabilities = pre.ready ? ['browser', 'render', 'pos-readonly'] : ['browser', 'pos-readonly']; renderStatus = pre.ready ? 'FFmpeg và Node Edge TTS đã phát hiện; dịch vụ giọng đọc thật chưa được xác minh.' : 'Chưa đủ FFmpeg/ffprobe/node-edge-tts; chưa nhận việc dựng video.'; tick(); setInterval(tick, 15000); const posTick = () => { pos.syncLocalSnapshot(); pos.flush().catch(() => {}); pos.syncPhotos().catch(() => {}); }; posTick(); setInterval(posTick, 15000); });
+server.listen(PORT, '127.0.0.1', () => { console.log('KBL Windows 2.1.1 · ' + config.serverUrl); console.log('Thiết lập: http://127.0.0.1:' + PORT); console.log('Không dùng dữ liệu/phiên công việc của bộ cũ. Đăng nhập AI vẫn nằm trong Chrome.'); refreshRenderTools(); tick(); setInterval(tick, 15000); const posTick = () => { pos.syncLocalSnapshot(); pos.flush().catch(() => {}); pos.syncPhotos().catch(() => {}); }; posTick(); setInterval(posTick, 15000); });

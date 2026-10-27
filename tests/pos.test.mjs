@@ -16,9 +16,16 @@ async function call(route, body, headers = workerHeaders, method = body === unde
     const r = await handle(new Request('https://kbl.test/api/' + route, { method, headers, ...(body !== undefined ? { body: Buffer.isBuffer(body) ? body : JSON.stringify(body) } : {}) }));
     return { status: r.status, body: r.headers.get('content-type')?.includes('json') ? await r.json() : Buffer.from(await r.arrayBuffer()) };
 }
+let fixtureSequence = 0;
+const nextStockRevision = () => Number(db.prepare("SELECT COALESCE(MAX(CAST(json_extract(data,'$.revision') AS INTEGER)),0) n FROM records WHERE kind IN('pos-sync','pos-stock')").get().n) + 1;
 const ledger = () => {
     const sql = new DatabaseSync(':memory:'); sql.exec('CREATE TABLE kv(k TEXT PRIMARY KEY,v TEXT)');
-    return { get(k) { const r = sql.prepare('SELECT v FROM kv WHERE k=?').get(k); return r ? JSON.parse(r.v) : null; }, set(k,v) { sql.prepare('INSERT INTO kv VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run(k,JSON.stringify(v)); } };
+    const result = { get(k) { const r = sql.prepare('SELECT v FROM kv WHERE k=?').get(k); return r ? JSON.parse(r.v) : null; }, set(k,v) { sql.prepare('INSERT INTO kv VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run(k,JSON.stringify(v)); } };
+    // Test relays share one server worker, so simulate the persisted sequence a
+    // real worker retains rather than inventing a fresh counter for each test.
+    fixtureSequence = Math.max(fixtureSequence + 100, nextStockRevision());
+    result.set('pos-sequence', fixtureSequence);
+    return result;
 };
 const price = { price_buy_9999: 13700000, price_sell_9999: 14000000 };
 const product = (code='SKU-01',extra={}) => ({ code, name: 'Nhẫn kiểm thử', type: '9999', weightLy: 123.4, sellWage: 123456, status: 'Đang bán', purchaseCost: 999, profit: 888, cccd: 'NEVER-SEND', ...extra });
@@ -68,7 +75,7 @@ test('real photo index uses SKU and SHA, ignores original image; metadata refres
     a.deepEqual(readPhoto(root,'SKU-01').bytes,bytes);
     const l=ledger();l.set('pos-skus',['SKU-01']);const relay=create({ledger:l,bridge:nativeBridge,config:{serverUrl:'https://kbl.test',posDataDir:root}});await relay.syncPhotos();
     let c=(await call('public/catalog',undefined,{})).body;a.deepEqual(c.products[0].imageIds,[digest]);a.equal((await call('media/'+digest,undefined,{})).status,200);
-    await call('worker/pos-snapshot',{complete:true,products:C.inventory({mode:'snapshot',inventory:[product()]},price)});
+    a.equal((await call('worker/pos-snapshot',{complete:true,revision:nextStockRevision(),products:C.inventory({mode:'snapshot',inventory:[product()]},price)})).status,200);
     await call('admin/cleanup',{},owner);c=(await call('public/catalog',undefined,{})).body;a.deepEqual(c.products[0].imageIds,[digest]);a.ok(files.has(digest));
     a.equal(hash(fs.readFileSync(path.join(root,'product-photos','index.json'))),before);
     index[hash('SKU-01')].file='../outside.jpg';fs.writeFileSync(path.join(root,'product-photos','index.json'),JSON.stringify(index));a.throws(()=>readPhoto(root,'SKU-01'));
@@ -93,7 +100,7 @@ test('warranty retries keep one QR, concurrent conflict cannot rewrite it, old s
     const collision=[{...warranty().items[0],productSku:'NEW-A'},{...warranty().items[0],productSku:'NEW-B',publicToken:savedToken}];
     a.equal((await call('worker/pos-warranty',warranty('COLLISION',collision))).status,409);
     a.equal(db.prepare("SELECT COUNT(*) n FROM records WHERE kind='pos-warranty' AND json_extract(data,'$.invoiceId')='COLLISION'").get().n,0);
-    a.equal((await call('worker/pos-transaction',{eventType:'return',invoiceId:'RET-01',originalTransactionId:'HD-OLD',skus:['SKU-01'],realizedProfit:999})).status,200);
+    a.equal((await call('worker/pos-transaction',{eventType:'return',invoiceId:'RET-01',originalTransactionId:'HD-OLD',skus:['SKU-01'],realizedProfit:999,revision:nextStockRevision()})).status,200);
     a.equal((await call('public/pos-receipt',undefined,{'x-kbl-receipt-token':savedToken})).body.record.posStatus,'returned');
 });
 test('offline relay is durable and returns non-2xx; reconnect flushes without a second POS mutation',async()=>{
@@ -120,7 +127,7 @@ test('an older in-flight acknowledgement never drops a newer coalesced snapshot;
 test('product and warranty quotas reject the whole batch, retaining existing inventory and receipts',async()=>{
     const countBefore=db.prepare("SELECT COUNT(*) n FROM records WHERE kind='product'").get().n;
     const incoming=C.inventory({mode:'snapshot',inventory:Array.from({length:500},(_,i)=>product('QUOTA-'+i))},price);
-    a.equal((await call('worker/pos-snapshot',{complete:true,products:incoming})).status,507);
+    a.equal((await call('worker/pos-snapshot',{complete:true,revision:nextStockRevision(),products:incoming})).status,507);
     a.equal(db.prepare("SELECT COUNT(*) n FROM records WHERE kind='product'").get().n,countBefore);
     const warrantyCount=db.prepare("SELECT COUNT(*) n FROM records WHERE kind='pos-warranty'").get().n;
     db.prepare("WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<?) INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'pos-warranty','quota-'||x,'{}',0,0 FROM n").run(19999-warrantyCount);
@@ -128,6 +135,28 @@ test('product and warranty quotas reject the whole batch, retaining existing inv
     a.equal((await call('worker/pos-warranty',warranty('QUOTA-INVOICE',items))).status,409);
     a.equal(db.prepare("SELECT COUNT(*) n FROM records WHERE kind='pos-warranty' AND json_extract(data,'$.invoiceId')='QUOTA-INVOICE'").get().n,0);
     db.prepare("DELETE FROM records WHERE kind='pos-warranty' AND id LIKE 'quota-%'").run();
+});
+test('stock snapshot and sale events share one atomic revision order, while receipt annotations retain their own order',async()=>{
+    const sku='STOCK-ORDER', rows=C.inventory({mode:'snapshot',inventory:[product(sku)]},price), revision=nextStockRevision();
+    const snapshot=n=>call('worker/pos-snapshot',{complete:true,products:rows,revision:n});
+    const event=(n,eventType='sale')=>call('worker/pos-transaction',{eventType,invoiceId:'STOCK-EVENT-'+n,originalTransactionId:'STOCK-INVOICE',skus:[sku],revision:n});
+    a.equal((await snapshot(revision)).status,200);
+    a.equal((await call('worker/pos-warranty',warranty('STOCK-INVOICE',[{...warranty().items[0],productSku:sku}]))).status,200);
+    a.equal((await event(revision+1)).status,200);
+    let state=(await call('admin/state',undefined,owner)).body;
+    a.equal(state.products.find(p=>p.sku===sku).available,false);
+    // Lost ACK for the old exact snapshot is harmless; it cannot resurrect stock.
+    const replay=await snapshot(revision);a.equal(replay.status,200);a.equal(replay.body.duplicate,true);
+    state=(await call('admin/state',undefined,owner)).body;a.equal(state.products.find(p=>p.sku===sku).available,false);
+    a.equal((await snapshot(revision+4)).status,200);
+    const delayed=await event(revision+2,'return');a.equal(delayed.status,200);a.equal(delayed.body.stockSkipped,true);
+    state=(await call('admin/state',undefined,owner)).body;a.equal(state.products.find(p=>p.sku===sku).available,true);
+    const id=hash('STOCK-INVOICE\n'+sku), row=()=>JSON.parse(db.prepare("SELECT data FROM records WHERE kind='pos-warranty' AND id=?").get(id).data);
+    a.equal(row().posStatus,'returned');
+    await event(revision+1,'delete');a.equal(row().posStatus,'returned');
+    a.equal((await call('worker/pos-transaction',{eventType:'sale',invoiceId:'NO-REV',skus:[sku]})).status,409);
+    a.equal((await call('worker/pos-snapshot',{complete:true,products:rows})).status,409);
+    const stale=await call('worker/pos-snapshot',{complete:true,products:[{...rows[0],name:'stale replacement'}],revision:revision+3});a.equal(stale.status,409);
 });
 test('maximum receipt batches stay bounded in database queries and retain every exact POS amount',async()=>{
     const records=Array.from({length:500},(_,i)=>pawn('BULK-'+i,'bulk-pawn-token-'+String(i).padStart(16,'0')));
