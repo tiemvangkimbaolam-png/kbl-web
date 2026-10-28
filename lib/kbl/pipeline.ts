@@ -48,6 +48,7 @@ export async function promptFor(job: any) {
     if (job.stage === 'consult') {
         const c = await get('consultation', job.story_id);
         context.question = c?.question;
+        context.history = c?.history || [];
         const bound = !!await get('pos-binding', 'main'), catalog = (await list('product', 500)).filter((p: any) => p.published && p.available && (!bound || p.source === 'pos'));
         const selected = c?.productId ? catalog.find((p: any) => p.id === c.productId) : null;
         context.products = (selected ? [selected, ...catalog.filter((p: any) => p.id !== selected.id).slice(0, 49)] : catalog.slice(0, 50)).map((p: any) => ({ name: p.name, sku: p.sku, purity: p.purity, price: p.price, weight: p.weight, description: p.description || '', syncedAt: p.updatedAt, ...publicProductDetails(p) }));

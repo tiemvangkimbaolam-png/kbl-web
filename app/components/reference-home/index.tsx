@@ -1,6 +1,7 @@
 'use client';
 import {inProductSection} from '@/lib/kbl/product-placement.mjs';
 import { displayGoldPrices } from '@/lib/kbl/display-prices.mjs';
+import PriceHistory from '../price-history';
 import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import template from './template';
@@ -8,7 +9,7 @@ import { estimatePawn, ringSize, perChi } from './tools.mjs';
 import { cash, date } from '../ui';
 
 const CATEGORIES: Record<string,string[]>={ring:['nhan'],necklace:['day-chuyen'],pendant:['mat-day'],earring:['bong-tai'],bracelet:['lac-vong'],bangle:['lac-vong'], 'gold-group':[]};
-type Props={data:any;error:string;onReload:()=>void;onProduct:(p:any)=>void;onCart:()=>void;onAsk:(question?:string)=>void;onTry:(p?:any)=>void;cartCount:number;};
+type Props={onFeedback:()=>void;data:any;error:string;onReload:()=>void;onProduct:(p:any)=>void;onCart:()=>void;onAsk:(question?:string)=>void;onTry:(p?:any)=>void;cartCount:number;};
 
 const StaticMarkup=memo(function StaticMarkup({nodeRef}:{nodeRef:React.RefObject<HTMLDivElement|null>}) {return <div ref={nodeRef} dangerouslySetInnerHTML={{__html:template}}/>;});
 export default function ReferenceHome(props:Props) {
@@ -24,7 +25,8 @@ export default function ReferenceHome(props:Props) {
     const detailBoard=q('price-board'),toolbar=detailBoard?.querySelector('.price-board-toolbar');
     if(detailBoard&&!q('reference-world-data')){const slot=document.createElement('div');slot.id='reference-world-data';slot.className='reference-market-grid';detailBoard.insertBefore(slot,toolbar?.nextSibling||null);}
     const mapping:Record<string,HTMLElement>={};
-    ['price-grid','product-grid-available','price-table-body','reference-world-data'].forEach(id=>{const n=q(id);if(n){n.replaceChildren();mapping[id]=n;}});
+    ['price-grid','product-grid-available'].forEach(id=>{const n=q(id);if(n){n.replaceChildren();mapping[id]=n;}});
+    if(detailBoard){detailBoard.replaceChildren();mapping['price-board']=detailBoard;}
     setHosts(mapping);
     try{setFavorite(JSON.parse(localStorage.getItem('kbl-favorites-v2')||'[]'));}catch{}
     const utilities=r.querySelector('.header-utilities');
@@ -60,7 +62,8 @@ export default function ReferenceHome(props:Props) {
     function click(e:MouseEvent){const el=(e.target as Element).closest<HTMLElement>('a,button');if(!el)return;
       if(el.closest('#kbl-n10-1-intro')){dismissIntro();return;}
       if(el.matches('[data-reference-cart]')||el.getAttribute('href')==='#gio-hang'){e.preventDefault();current.current.onCart();return;}
-      if(el.matches('[data-open-message],[data-open-booking],[data-open-feedback]')){e.preventDefault();current.current.onAsk(el.matches('[data-open-booking]')?'Tôi muốn đặt lịch đến tiệm. ':el.matches('[data-open-feedback]')?'Tôi muốn góp ý: ':'');return;}
+      if(el.matches('[data-open-feedback]')){e.preventDefault();current.current.onFeedback();return;}
+      if(el.matches('[data-open-message],[data-open-booking]')){e.preventDefault();current.current.onAsk(el.matches('[data-open-booking]')?'Tôi muốn đặt lịch đến tiệm. ':el.matches('[data-open-feedback]')?'Tôi muốn góp ý: ':'');return;}
       if(el.matches('[data-open-tryon]')){e.preventDefault();current.current.onTry();return;}
       if(el.id==='kbl-ai-launcher'||el.id==='floating-contact-toggle'){const dock=q('floating-contact-menu');dock?.classList.toggle('show');q('floating-contact')?.classList.toggle('open');el.setAttribute('aria-expanded',String(dock?.classList.contains('show')));return;}
       if(el.id==='menu-toggle'){const nav=q('main-nav');nav?.classList.toggle('open');el.setAttribute('aria-expanded',String(nav?.classList.contains('open')));return;}
@@ -83,7 +86,7 @@ export default function ReferenceHome(props:Props) {
     r.addEventListener('click',click); r.addEventListener('input',input);r.addEventListener('submit',submit);
     q('product-empty-available')?.classList.add('hidden');
     const refLane=r.querySelector<HTMLElement>('.product-lane--reference');if(refLane)refLane.hidden=true;
-    const board=q('price-board'); if(board){const note=document.createElement('p');note.className='reference-source-note';note.textContent='Bảng giá mới chưa có lịch sử POS. Bấm Làm mới để đọc lại dữ liệu cửa hàng đã công bố.';board.appendChild(note);}
+
     const map=q('shop-map');if(map){map.replaceChildren();const a=document.createElement('a');a.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent('Tiệm vàng Kim Bảo Lâm 59/1 Nguyễn Thị Tươi Tân Đông Hiệp');a.target='_blank';a.rel='noopener noreferrer';a.textContent='⌖ Mở bản đồ chỉ đường';map.appendChild(a);}
     return()=>{r.removeEventListener('click',click);r.removeEventListener('input',input);r.removeEventListener('submit',submit);clearTimeout(introTimer);dismissIntro();layout.remove();document.body.classList.remove('kbl-home-57109','kbl-ui-polish-v53','kbl-reference-home');};
   },[]);
@@ -95,6 +98,7 @@ export default function ReferenceHome(props:Props) {
   return <>
     <link rel="stylesheet" href="/reference-home/original.css"/><link rel="stylesheet" href="/reference-home/patch.css"/>
     <StaticMarkup nodeRef={root}/>
+    {hosts['price-board']&&createPortal(<PriceHistory/>,hosts['price-board'])}
     {hosts['price-grid']&&createPortal(prices.length?displayGoldPrices(prices).map((p:any)=><article className="price-card" key={p.id}><div className="price-card-head"><h3>{p.label.replace('9999','999.9')}</h3><span className="gold-badge">◆</span></div><div className="price-card-values"><div className="price-value"><span>Mua vào</span><strong>{cash(perChi(p.buy,p.unit))}</strong></div><div className="price-value"><span>Bán ra</span><strong>{cash(perChi(p.sell,p.unit))}</strong></div></div>{p.stale && <div className="price-card-foot">Giá lưu — cần xác nhận tại tiệm</div>}</article>):<div className="reference-price-empty">{props.error||'Chưa có giá được công bố. Bảng giá sẽ xuất hiện khi cửa hàng chốt dữ liệu thật.'}<button className="btn btn-soft" onClick={props.onReload}>Làm mới</button></div>,hosts['price-grid'])}
     {hosts['price-table-body']&&createPortal(prices.map((p:any)=><tr key={p.id}><td>{p.label}</td><td>{cash(perChi(p.buy,p.unit))}</td><td>{cash(perChi(p.sell,p.unit))}</td><td>{p.label}</td><td>đồng/chỉ</td><td>{date(p.capturedAt)}</td></tr>),hosts['price-table-body'])}
     {hosts['reference-world-data']&&createPortal(<><article><small>GIÁ VÀNG THẾ GIỚI · XAU/USD</small><strong>{market?.available?Number(market.xauUsd).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' USD':'—'}</strong><span>{market?.goldUpdatedAt||market?.error||'Đang đọc nguồn tham khảo…'}</span><a href="https://giavang.org/the-gioi/" target="_blank" rel="noopener noreferrer">Nguồn giavang.org ↗</a></article><article><small>TỶ GIÁ VIETCOMBANK · USD BÁN RA</small><strong>{market?.vcb?.available?cash(market.vcb.usdSell):'—'}</strong><span>{market?.vcb?.updatedAt||'Chưa đọc được tỷ giá nguồn.'}</span><a href="https://www.vietcombank.com.vn/KHCN/Cong-cu-tien-ich/Ty-gia?devicechannel=default" target="_blank" rel="noopener noreferrer">Nguồn Vietcombank ↗</a></article><article><small>QUY ĐỔI THAM KHẢO · 24K</small><strong>{market?.conversion?cash(market.conversion.luong24kVnd):'—'} / lượng</strong><span>{market?.conversion?cash(market.conversion.chi24kVnd):'—'} / chỉ</span><span>Không phải giá mua/bán của Kim Bảo Lâm.</span>{market?.stale&&<span>Bản lưu tạm · chờ làm mới nguồn.</span>}</article></>,hosts['reference-world-data'])}

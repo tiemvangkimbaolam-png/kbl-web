@@ -4,8 +4,8 @@ import { X, PackageOpen, LoaderCircle } from 'lucide-react';
 import { readApiResponse } from './api-response.mjs';
 export const date = (v: any) => v ? new Date(v).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : 'Chưa có';
 export const cash = (v: any) => v === null || v === undefined ? 'Liên hệ báo giá' : new Intl.NumberFormat('vi-VN').format(v) + ' ₫';
-export async function api(path: string, method = 'GET', body?: any) {
-    const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
+export async function api(path: string, method = 'GET', body?: any, timeoutMs = 20000) {
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(), Math.min(180000,Math.max(1000,timeoutMs)));
     try {
         const r = await fetch('/api/' + path, { method, signal: controller.signal, cache: 'no-store', headers: body instanceof Blob ? { 'Content-Type': body.type } : { 'Content-Type': 'application/json' }, ...(body !== undefined ? { body: body instanceof Blob ? body : JSON.stringify(body) } : {}) });
         return await readApiResponse(r);

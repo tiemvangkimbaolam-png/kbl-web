@@ -41,3 +41,12 @@ Các kết nối thật, kênh xuất bản công khai, nguồn giá, tiếng n�
 ## Tham khảo thị trường công khai
 
 GET /api/public/market trả XAU/USD từ giavang.org và tỷ giá bán ra USD của VCB khi đọc được nguồn. Trả available=false, số giá null khi không có nguồn/bản lưu hợp lệ; bản lưu cũ có stale=true và giữ fetchedAt gốc. Chỉ quy đổi tham khảo 24K, không dùng thay giá cửa hàng hoặc POS. Không dùng endpoint này làm bằng chứng đã vận hành cảnh báo biến động 50 USD hoặc tự xuất bản tin.
+
+
+## Khách hàng và dịch vụ ảnh (28/10/2026)
+
+Auth khách là session riêng __Host-kbl_customer; không thay Cloudflare Access của Admin và không tự nối dữ liệu POS chỉ bằng số điện thoại. Session token chỉ lưu hash; mật khẩu không thể đọc lại. Reset cần OTP hoặc staff xác minh và mã một lần. Trưng bày/giá/công thức POS không thay đổi.
+
+Quota thử ảnh là server-authoritative (5 ban đầu, thêm qua Admin sau đối chiếu mua); requestId idempotent và reserve nguyên tử. Ảnh khách cần consent và riêng tư theo customerId; kết quả 7 ngày, đầu vào không lưu bền. Provider chưa rõ kết quả không tự gọi lại hoặc hoàn lượt; staff đối soát trước. Lỗi đã xác nhận không có ảnh được hoàn lượt.
+
+Lịch sử tiệm khóa bản chụp thật mốc 13 giờ theo giờ Việt Nam; không dựng giá lịch sử. Feedback không phải consultation; Telegram có outbox và biên nhận riêng.

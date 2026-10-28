@@ -1,3 +1,8 @@
+import {handleCustomer} from './customer';
+import {handleTryOn} from './tryon';
+import {handleCustomerAdmin} from './customer-admin';
+import {submitFeedback} from './feedback';
+import {readPriceHistory} from './price-history';
 import {DISPLAY_SECTIONS} from './product-placement.mjs';
 import { apiConsultReady, consultProvider } from './consult-provider';
 import { configureCloudPrice, pollCloudPrice, cloudPriceStatus, publicCloudPrices } from './cloud-price';
@@ -82,6 +87,10 @@ export async function handle(req: Request): Promise<Response> {
             return response(await POS.lookup(req.headers.get('x-kbl-receipt-token') || u.searchParams.get('token') || ''), 200, { 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' });
         }
         if (path[0] === 'public') {
+            if(path[1]==='customer')return await handleCustomer(req,path.slice(2));
+            if(path[1]==='try-on')return await handleTryOn(req,path.slice(2));
+            if(path[1]==='feedback'&&method==='POST')return await submitFeedback(req);
+            if(path[1]==='price-history'&&method==='GET')return response(await readPriceHistory(Number(u.searchParams.get('days')||7)));
             if (method === 'GET' && path[1] === 'market')
                 return response(await readWorldMarket());
             if (method === 'GET' && path[1] === 'catalog') {
@@ -125,7 +134,8 @@ export async function handle(req: Request): Promise<Response> {
                     productId = product.id;
                 }
                 const assistant = await readAssistantState();
-                await S.put('consultation', threadId, { question, productId, reply: null, tokenHash: await S.sha(token), status: 'awaiting-reply' });
+                const history=z.array(z.object({role:z.enum(['user','assistant']),content:z.string().max(3000)})).max(12).parse(v.history||[]);
+                await S.put('consultation', threadId, { question, productId, history, reply: null, tokenHash: await S.sha(token), status: 'awaiting-reply' });
                 let queued = false;
                 if (apiConsultReady() && assistant.enabled) {
                     const original = await S.get('consultation',threadId);
@@ -135,7 +145,7 @@ export async function handle(req: Request): Promise<Response> {
                     if (answer) {
                         const saved = await S.get('consultation', threadId);
                         await S.put('consultation', threadId, { ...saved, ...answer, replySource: 'ai-api', status: 'answered', answeredAt: Date.now() });
-                        return response({ id: threadId, token, queued: false, assistant, message: 'AI đã trả lời.' }, 201);
+                        return response({ id: threadId, token, queued: false, assistant, reply:answer.reply,status:'answered',message:'AI đã trả lời.' },201);
                     }
                 }
                 const pendingQuestion = await S.get('consultation',threadId);
@@ -156,6 +166,7 @@ export async function handle(req: Request): Promise<Response> {
         }
         if (path[0] === 'admin') {
             const actor = await admin(req);
+            if(path[1]==='customers')return await handleCustomerAdmin(req,path.slice(2));
             if(path[1] === 'cloud-price') { if(method === 'GET') return response(await cloudPriceStatus()); if(method === 'POST' && path[2] === 'poll') { await rate(req,'cloud-price-poll',6); return response(await pollCloudPrice({force:true})); } }
             if(path[1] === 'inbox') return await handleInboxAdmin(req,path.slice(2));
             if(path[1] === 'social') return await handleSocialAdmin(req, path.slice(2), actor);
@@ -173,12 +184,13 @@ export async function handle(req: Request): Promise<Response> {
             }
             if (method === 'POST' && path[1] === 'settings') {
                 const v = await body(req), old = await S.settings();
-                const allowed = z.object({ teamEnabled: z.boolean().optional(), autoResearch: z.boolean().optional(), autoConsult: z.boolean().optional(), autoProducts: z.boolean().optional(), productHours: z.array(z.number().int().min(0).max(23)).min(1).max(6).optional(), publicationEnabled: z.boolean().optional(), storageLimitMB: z.number().int().min(32).max(2048).optional(), companyName: z.string().min(3).max(150).optional(), phone: z.string().max(30).optional(), address: z.string().max(300).optional(), hours: z.string().max(100).optional() }).strict().parse(v);
+                const allowed = z.object({ teamEnabled: z.boolean().optional(), autoResearch: z.boolean().optional(), autoConsult: z.boolean().optional(), autoProducts: z.boolean().optional(), feedbackConnectionId: z.string().regex(/^(?:[a-f0-9]{32})?$/).optional(), productHours: z.array(z.number().int().min(0).max(23)).min(1).max(6).optional(), publicationEnabled: z.boolean().optional(), storageLimitMB: z.number().int().min(32).max(2048).optional(), companyName: z.string().min(3).max(150).optional(), phone: z.string().max(30).optional(), address: z.string().max(300).optional(), hours: z.string().max(100).optional() }).strict().parse(v);
                 if (allowed.teamEnabled === true) {
                     const ac = await S.list('account', 20);
                     if (!ac.length)
                         fail('Thêm ít nhất một tài khoản AI trước khi bắt đầu.');
                 }
+                if(allowed.feedbackConnectionId){const conn=await S.get('social-connection',allowed.feedbackConnectionId);if(conn?.platform!=='telegram'||conn?.status!=='connected')fail('Chọn kết nối Telegram đã xác minh.');}
                 await S.put('settings', 'main', { ...old, ...allowed });
                 await S.event('settings-updated', 'Đã lưu cấu hình vận hành.');
                 return response({ ok: true });
