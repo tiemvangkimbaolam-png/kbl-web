@@ -54,14 +54,14 @@ export async function handleSocialAdmin(req:Request,path:string[],actor:{uid:str
    if(pending.owner!==actor.uid||pending.platform!==platform||pending.origin!==u.origin||pending.expiresAt<Date.now())fail('Phiên OAuth không khớp tài khoản/địa chỉ hoặc hết hạn.',403);
    if(pending.appHash&&pending.appHash!==await digest(JSON.stringify([config[registry[platform].client],config[registry[platform].secret],config.KBL_META_GRAPH_VERSION||''])))fail('Cấu hình ứng dụng đã đổi; bắt đầu OAuth lại.',409);
    const taken=await S.sql().prepare("DELETE FROM records WHERE kind='social-state' AND id=? RETURNING id").bind(stateId).first();if(!taken)fail('Callback này đã được xử lý.',409);
-   if(u.searchParams.has('error'))return Response.redirect(u.origin+'/admin?social=cancelled',303);
+   if(u.searchParams.has('error'))return Response.redirect(u.origin+'/admin/ket-noi?social=cancelled',303);
    const code=u.searchParams.get('code');if(!code||code.length>4096)fail('Chưa nhận được mã OAuth hợp lệ.');
    try{
     const tokens=await exchange(config,platform,{code,verifier:pending.verifier}),targets=await targetList(config,platform,tokens);
     const old=await S.get('social-connection',pending.id),target=targets.length===1?targets[0]:null;
     await saveSecret({id:pending.id,platform,label:pending.label,inboxRequested:pending.inboxRequested===true,status:target?'connected':'choose-target',targetId:target?.id||null,targetLabel:target?.label||null,expiresAt:tokens.expiresAt,scope:tokens.scope,connectedAt:Date.now(),lastError:null},{tokens,targets,selected:target},old?.version);
-    return Response.redirect(u.origin+'/admin?social=connected&connection='+pending.id,303);
-   }catch(error){return Response.redirect(u.origin+'/admin?social=failed',303);}
+    return Response.redirect(u.origin+'/admin/ket-noi?social=connected&connection='+pending.id,303);
+   }catch(error){return Response.redirect(u.origin+'/admin/ket-noi?social=failed',303);}
   }
  }
  if(path[0]==='targets'&&path[1]){

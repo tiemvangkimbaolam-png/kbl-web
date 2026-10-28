@@ -56,7 +56,7 @@ test('OAuth callback is one-time, bound to owner/platform/origin and secrets sta
  await assert.rejects(()=>call('oauth/threads/callback?state='+state+'&code=CODE'),/khớp/);
  oldFetch=globalThis.fetch;fetchCalls=[];globalThis.fetch=async(url,init)=>{fetchCalls.push({url,init});return String(url).includes('oauth2.googleapis.com')?json({access_token:'YT-PRIVATE',refresh_token:'YT-REFRESH',expires_in:3600,scope:'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly'}):json({items:[{id:'channel1',snippet:{title:'Store 1'}},{id:'channel2',snippet:{title:'Store 2'}}]});};
  try{
-  const callback=await call('oauth/youtube/callback?state='+state+'&code=CODE');assert.equal(callback.status,303);
+  const callback=await call('oauth/youtube/callback?state='+state+'&code=CODE');assert.equal(callback.status,303);assert.equal(new URL(callback.headers.get('location')).pathname,'/admin/ket-noi');
   await assert.rejects(()=>call('oauth/youtube/callback?state='+state+'&code=CODE'),/đã dùng/);assert.equal(fetchCalls.length,2);
   const status=await(await call('status')).json();assert.equal(status.connections[0].status,'choose-target');assert.equal(JSON.stringify(status).includes('YT-PRIVATE'),false);
   const choice=await(await call('targets/'+first.connectionId,{targetId:'channel2'})).json();assert.equal(choice.connection.targetId,'channel2');assert.equal(choice.connection.status,'connected');
@@ -90,3 +90,6 @@ test('customer reply permissions are opt-in and cannot be mistaken for granted s
  const row=publicConnection({id:'test',platform:'facebook',label:'Test',status:'connected',inboxRequested:true,scope:null});
  assert.equal(row.inboxRequested,true);assert.equal(row.scopeVerified,false);
 });
+
+test('OAuth start stays on the callback origin and wrong-host Admin must hand off before state is created',async()=>{const count=db.prepare("SELECT COUNT(*) n FROM records WHERE kind='social-state'").get().n;await assert.rejects(()=>handle(new Request('https://alias.test/api/admin/social/oauth/threads/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}),['oauth','threads','start'],actor),/đúng địa chỉ/);assert.equal(db.prepare("SELECT COUNT(*) n FROM records WHERE kind='social-state'").get().n,count);});
+test('cancelled provider authorization returns to the connections screen without exchanging a token',async()=>{const first=await(await call('oauth/threads/start',{})).json(),state=new URL(first.authorizeUrl).searchParams.get('state');const cancelled=await call('oauth/threads/callback?state='+state+'&error=access_denied');assert.equal(cancelled.status,303);const url=new URL(cancelled.headers.get('location'));assert.equal(url.pathname,'/admin/ket-noi');assert.equal(url.searchParams.get('social'),'cancelled');await assert.rejects(()=>call('oauth/threads/callback?state='+state+'&code=fixture'),/đã dùng/);});
