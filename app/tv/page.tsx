@@ -1,6 +1,77 @@
-'use client';
-import {useEffect,useState} from 'react';
-import {displayGoldPrices} from '@/lib/kbl/display-prices.mjs';
-import {cash,date} from '../components/ui';
-import {perChi} from '../components/reference-home/tools.mjs';
-export default function TV(){const [data,setData]=useState<any>(null),[error,setError]=useState(''),[full,setFull]=useState(false);useEffect(()=>{const c=new AbortController();async function load(){try{const r=await fetch('/api/public/catalog',{cache:'no-store',signal:c.signal});if(!r.ok)throw Error();setData(await r.json());setError('');}catch{if(!c.signal.aborted)setError('Chưa đọc được giá mới.');}}load();const t=setInterval(load,30000);const change=()=>setFull(!!document.fullscreenElement);document.addEventListener('fullscreenchange',change);return()=>{c.abort();clearInterval(t);document.removeEventListener('fullscreenchange',change);};},[]);const rows=displayGoldPrices(data?.prices||[]);return <main className="kbl-tv"><header><h1>{data?.company?.name||'TIỆM VÀNG KIM BẢO LÂM'}</h1><p className="kbl-tv-address">{data?.company?.address||'59/1 Nguyễn Thị Tươi, khu phố Tân Hiệp, Phường Tân Đông Hiệp, Thành phố Hồ Chí Minh, Việt Nam'}{data?.company?.phone?' · '+data.company.phone:''}</p><div className="kbl-tv-tools"><span>BẢNG GIÁ VÀNG · ĐỒNG / CHỈ</span><button onClick={async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else setError('Trình duyệt TV chưa hỗ trợ toàn màn hình; dùng nút phóng to của trình duyệt.');}catch{setError('Chưa bật được toàn màn hình; thử nút phóng to của trình duyệt TV.');}}}>{full?'Thoát toàn màn hình':'⛶ Toàn màn hình'}</button></div></header><table><thead><tr><th>Loại vàng</th><th>Mua vào</th><th>Bán ra</th></tr></thead><tbody>{rows.map((p:any)=><tr key={p.id}><th>{p.label}</th><td><strong>{cash(perChi(p.buy,p.unit))}</strong></td><td><strong>{cash(perChi(p.sell,p.unit))}</strong></td></tr>)}</tbody></table>{!rows.length&&<p>Chờ bảng giá đồng bộ từ cửa hàng.</p>}<footer><span>{error||''} {rows[0]?.capturedAt?'Cập nhật '+date(rows[0].capturedAt):''} {rows.some((p:any)=>p.stale)&&'Giá lưu — cần xác nhận tại tiệm.'}</span><a href="/">Về website</a></footer></main>;}
+"use client";
+import { useEffect, useState } from "react";
+import { TVBoard } from "../components/tv-board";
+import { defaultTVDesign, type TVDesign } from "@/lib/kbl/tv-design";
+export default function TV() {
+  const [catalog, setCatalog] = useState<any>(null),
+    [design, setDesign] = useState<TVDesign>(defaultTVDesign),
+    [error, setError] = useState(""),
+    [full, setFull] = useState(false);
+  useEffect(() => {
+    const c = new AbortController();
+    async function load() {
+      const results = await Promise.allSettled([
+        fetch("/api/public/catalog", {
+          cache: "no-store",
+          signal: c.signal,
+        }).then(async (r) => {
+          if (!r.ok) throw Error();
+          return r.json() as Promise<any>;
+        }),
+        fetch("/api/public/tv-design", {
+          cache: "no-store",
+          signal: c.signal,
+        }).then(async (r) => {
+          if (!r.ok) throw Error();
+          return r.json() as Promise<any>;
+        }),
+      ]);
+      if (c.signal.aborted) return;
+      let failed = false;
+      if (results[0].status === "fulfilled") setCatalog(results[0].value);
+      else failed = true;
+      if (results[1].status === "fulfilled") setDesign(results[1].value.design);
+      else failed = true;
+      setError(failed ? "Mất kết nối — đang giữ bản hiển thị đã nhận." : "");
+    }
+    load();
+    const t = setInterval(load, 30000),
+      change = () => setFull(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", change);
+    return () => {
+      c.abort();
+      clearInterval(t);
+      document.removeEventListener("fullscreenchange", change);
+    };
+  }, []);
+  async function fullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (document.documentElement.requestFullscreen)
+        await document.documentElement.requestFullscreen();
+      else
+        setError("Dùng nút phóng to của trình duyệt TV để mở toàn màn hình.");
+    } catch {
+      setError(
+        "Chưa bật được toàn màn hình. Hãy dùng nút phóng to của trình duyệt TV.",
+      );
+    }
+  }
+  return (
+    <main className="tv-screen" style={{ background: design.background }}>
+      <TVBoard design={design} catalog={catalog} />
+      <nav className="tv-screen-controls" aria-label="Điều khiển TV">
+        <button onClick={fullscreen}>
+          {full ? "Thoát toàn màn hình" : "⛶ Toàn màn hình"}
+        </button>
+        <a href="/admin/bang-gia">Chỉnh mẫu TV</a>
+        <a href="/">Website</a>
+      </nav>
+      {error && (
+        <p className="tv-screen-error" role="status">
+          {error}
+        </p>
+      )}
+    </main>
+  );
+}

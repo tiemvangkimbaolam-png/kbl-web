@@ -1,3 +1,4 @@
+import {readTVDesign,saveTVDesign} from './tv-design-api';
 import {handleCustomer} from './customer';
 import {handleTryOn} from './tryon';
 import {handleCustomerAdmin} from './customer-admin';
@@ -87,6 +88,7 @@ export async function handle(req: Request): Promise<Response> {
             return response(await POS.lookup(req.headers.get('x-kbl-receipt-token') || u.searchParams.get('token') || ''), 200, { 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' });
         }
         if (path[0] === 'public') {
+            if(path[1]==='tv-design'&&method==='GET')return response(await readTVDesign());
             if(path[1]==='customer')return await handleCustomer(req,path.slice(2));
             if(path[1]==='try-on')return await handleTryOn(req,path.slice(2));
             if(path[1]==='feedback'&&method==='POST')return await submitFeedback(req);
@@ -166,6 +168,7 @@ export async function handle(req: Request): Promise<Response> {
         }
         if (path[0] === 'admin') {
             const actor = await admin(req);
+            if(path[1]==='tv-design'){if(method==='GET')return response(await readTVDesign());if(method==='POST')return response(await saveTVDesign(await body(req,16000)));}
             if(path[1]==='customers')return await handleCustomerAdmin(req,path.slice(2));
             if(path[1] === 'cloud-price') { if(method === 'GET') return response(await cloudPriceStatus()); if(method === 'POST' && path[2] === 'poll') { await rate(req,'cloud-price-poll',6); return response(await pollCloudPrice({force:true})); } }
             if(path[1] === 'inbox') return await handleInboxAdmin(req,path.slice(2));

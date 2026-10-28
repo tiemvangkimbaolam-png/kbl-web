@@ -1,0 +1,9 @@
+# Thiết kế TV trong Admin
+
+Vào Admin → Bảng giá vàng → Thiết kế bảng giá TV. Khung 1600 × 900 (16:9) dùng cùng renderer với /tv. Chọn chữ trực tiếp hoặc chọn trong danh sách, chỉnh font, cỡ, đậm, màu, căn, nội dung tên/địa chỉ, vị trí và kích thước. Kéo thả một ô trong bảng sẽ di chuyển cả bảng. Có mẫu nền, hoàn tác/làm lại (40 bước), tải bản đã lưu; thay đổi chỉ áp dụng sau Lưu mẫu TV. Mở TV rồi bấm Toàn màn hình; TV tự đọc lại mẫu/giá mỗi 30 giây. Không hỗ trợ fullscreen thì dùng điều khiển trình duyệt TV. Khung tự co theo màn hình, có thể có khoảng trống khi tỷ lệ khác 16:9.
+
+Giá và các loại vàng 999.9, 980, 610 chỉ đọc từ nguồn công khai hiện tại; không có giá mẫu. Thiếu loại thì để trống, không dựng giá. Nếu chữ dài hơn ô thì tự co ngang để vừa, vì vậy tăng chiều rộng ô trước khi tăng cỡ quá lớn. Địa chỉ/tên để trống sẽ lấy cấu hình tiệm. Có thể tắt từng phần; chịu trách nhiệm nội dung tùy chỉnh. Không tải font ngoài, HTML, script hay ảnh nền tùy ý.
+
+GET /api/public/tv-design trả thiết kế và version; POST /api/admin/tv-design yêu cầu owner, JSON {design,version}. Lưu một record tv-design/main, kiểm tra schema nghiêm ngặt, tọa độ trong khung, font/color allowlist, giới hạn chuỗi. Version cũ trả 409, kể cả hai lần tạo đầu đồng thời; không tự ghi đè. Không đổi giá, nguồn POS, binding, OAuth hoặc khóa Cloudflare. Khi lỗi kết nối TV giữ bản đã nhận và hiển thị cảnh báo, không giả là dữ liệu mới. Trình sửa có cảnh báo khi rời trang còn thay đổi chưa lưu.
+
+Kiểm chứng 28/10/2026: API chạy mã thật trên SQLite/D1 adapter thử; kiểm tra owner, allowlist, giá không đổi, version cũ và tạo đồng thời. Browser Chromium với dữ liệu fixture kiểm tra chọn phần, chỉnh cỡ, kéo thả, hoàn tác/làm lại, lưu, mở TV, chữ giá không vượt ô và Fullscreen API. Các khung 320/375/414/768 không tràn ngang. Đây không phải kiểm tra trên TV vật lý của tiệm.
