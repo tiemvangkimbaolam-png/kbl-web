@@ -1,7 +1,6 @@
 'use client';
 import {inProductSection} from '@/lib/kbl/product-placement.mjs';
 import { displayGoldPrices } from '@/lib/kbl/display-prices.mjs';
-import TradingViewMarket from '../tradingview-market';
 import PriceHistory from '../price-history';
 import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -28,7 +27,6 @@ export default function ReferenceHome(props:Props) {
     const mapping:Record<string,HTMLElement>={};
     ['price-grid','product-grid-available'].forEach(id=>{const n=q(id);if(n){n.replaceChildren();mapping[id]=n;}});
     if(detailBoard){detailBoard.replaceChildren();mapping['price-board']=detailBoard;}
-    const xauNode=q('kbl-home-xau-price'),xauCard=xauNode?.closest<HTMLElement>('.kbl-home-world-gold');if(xauCard){xauCard.style.display='block';xauCard.replaceChildren();mapping['world-live']=xauCard;}
     setHosts(mapping);
     try{setFavorite(JSON.parse(localStorage.getItem('kbl-favorites-v2')||'[]'));}catch{}
     const utilities=r.querySelector('.header-utilities');
@@ -85,10 +83,11 @@ export default function ReferenceHome(props:Props) {
   useEffect(()=>{if(!root.current)return;const n=root.current.querySelector('#price-updated');if(n)n.textContent=prices.length?date(prices[0].capturedAt):props.error?'Không đọc được bảng giá':'Chưa có giá được công bố';},[props.data,props.error]);
   useEffect(()=>{try{localStorage.setItem('kbl-favorites-v2',JSON.stringify(favorite));}catch{}},[favorite]);
   useEffect(()=>{const n=document.getElementById('kbl-cart-link');if(n)n.setAttribute('aria-label',`Giỏ hàng · ${props.cartCount} sản phẩm`);},[props.cartCount]);
+  useEffect(()=>{const controller=new AbortController();let active=true;async function load(){try{const r=await fetch('/api/public/market',{cache:'no-store',signal:controller.signal});if(r.ok&&active)setMarket(await r.json());}catch{if(active)setMarket({available:false,error:'Chưa đọc được nguồn tham khảo.'});}}void load();const timer=setInterval(()=>{if(!document.hidden)void load();},60000);return()=>{active=false;controller.abort();clearInterval(timer);};},[]);
+  useEffect(()=>{if(!root.current||!market)return;const q=(id:string)=>root.current!.querySelector<HTMLElement>('#'+id),price=q('kbl-home-xau-price'),change=q('kbl-home-xau-change'),meta=q('kbl-home-xau-meta');if(price)price.textContent=market.available?'XAU/USD · $'+Number(market.xauUsd).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' / oz':'XAU/USD · —';if(change)change.textContent=market.changeAvailable?`${market.changeUsd>=0?'+':''}${market.changeUsd.toFixed(2)}$ · ${market.changePercent>=0?'+':''}${market.changePercent.toFixed(2)}%`:'';if(meta)meta.textContent=market.available?`${market.stale?'Bản lưu tạm · ':''}Nguồn hiển thị: ${market.goldUpdatedAt||'không ghi thời gian'}. Lấy lúc ${date(market.fetchedAt)} · Giá tham khảo.`:market.error||'Chưa có dữ liệu giá vàng thế giới.';},[market]);
   return <>
     <link rel="stylesheet" href="/reference-home/original.css"/><link rel="stylesheet" href="/reference-home/patch.css"/>
     <StaticMarkup nodeRef={root}/>
-    {hosts['world-live']&&createPortal(<><h3>Giá vàng thế giới · TradingView</h3><TradingViewMarket quote/><a href="#price-board">Xem biểu đồ & tỷ giá Vietcombank →</a></>,hosts['world-live'])}
     {hosts['price-board']&&createPortal(<PriceHistory/>,hosts['price-board'])}
     {hosts['price-grid']&&createPortal(prices.length?displayGoldPrices(prices).map((p:any)=><article className="price-card" key={p.id}><div className="price-card-head"><h3>{p.label.replace('9999','999.9')}</h3><span className="gold-badge">◆</span></div><div className="price-card-values"><div className="price-value"><span>Mua vào</span><strong>{cash(perChi(p.buy,p.unit))}</strong></div><div className="price-value"><span>Bán ra</span><strong>{cash(perChi(p.sell,p.unit))}</strong></div></div>{p.stale && <div className="price-card-foot">Giá lưu — cần xác nhận tại tiệm</div>}</article>):<div className="reference-price-empty">{props.error||'Chưa có giá được công bố. Bảng giá sẽ xuất hiện khi cửa hàng chốt dữ liệu thật.'}<button className="btn btn-soft" onClick={props.onReload}>Làm mới</button></div>,hosts['price-grid'])}
     {hosts['price-table-body']&&createPortal(prices.map((p:any)=><tr key={p.id}><td>{p.label}</td><td>{cash(perChi(p.buy,p.unit))}</td><td>{cash(perChi(p.sell,p.unit))}</td><td>{p.label}</td><td>đồng/chỉ</td><td>{date(p.capturedAt)}</td></tr>),hosts['price-table-body'])}
