@@ -18,7 +18,7 @@ import * as P from './pipeline';
 import * as POS from './pos';
 import { admin, worker } from './auth';
 import { assistantState } from './assistant-state.mjs';
-import { readWorldMarket } from './market.mjs';
+import { readVcbRate, readWorldMarket } from './market.mjs';
 import { bindingHealth } from './health.mjs';
 import { accountInput, productInput, text, money, fail, httpsURL, PROVIDER_URLS } from './domain.mjs';
 const response = (v: any, status = 200, headers: Record<string, string> = {}) => Response.json(v, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers } });
@@ -89,6 +89,7 @@ export async function handle(req: Request): Promise<Response> {
             return response(await POS.lookup(req.headers.get('x-kbl-receipt-token') || u.searchParams.get('token') || ''), 200, { 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' });
         }
         if (path[0] === 'public') {
+            if(path[1]==='fx'&&method==='GET')return response(await readVcbRate());
             if(path[1]==='traffic'&&method==='POST'){await rate(req,'traffic',120);return response(await recordTraffic(await body(req,1500)));}
             if(path[1]==='tv-design'&&method==='GET')return response(await readTVDesign());
             if(path[1]==='customer')return await handleCustomer(req,path.slice(2));

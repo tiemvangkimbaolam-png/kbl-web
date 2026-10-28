@@ -1,3 +1,4 @@
+import {createRequire} from 'node:module';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMarketReader,parseVcbUsd,parseWorldGold,marketNumber} from '../lib/kbl/market.mjs';
@@ -26,4 +27,11 @@ test('public reference fetch refuses unexpected redirects and overlarge response
   assert.equal((await redirect()).available,false);assert.equal(calls,2);
   const large=createMarketReader({fetcher:async()=>new Response('x'.repeat(650001))});
   assert.equal((await large()).available,false);
+});
+
+test('independent bank refresh never fetches gold, uses USD SELL, marks stale failures and expires cached bank data',async()=>{
+ const {createVcbReader,convertWorldGold}=await import('../lib/kbl/market.mjs');let now=0,calls=0,fail=false;const read=createVcbReader({clock:()=>now,fetcher:async url=>{assert(url.includes('vietcombank.com.vn'));calls++;if(fail)throw Error('bank unavailable');return new Response(fx);}});const first=await read();assert.equal(first.usdSell,26020);assert.equal(first.stale,false);await read();assert.equal(calls,1);now=61000;fail=true;const stale=await read();assert.equal(stale.stale,true);assert.equal(stale.fetchedAt,first.fetchedAt);now=7*3600000;assert.equal((await read()).available,false);assert.equal(convertWorldGold(null,26020),null);assert.equal(convertWorldGold(4000,0),null);assert.deepEqual(convertWorldGold(4000,26020),{luong24kVnd:Math.round(4000*26020*37.5/31.1034768),chi24kVnd:Math.round(4000*26020*3.75/31.1034768)});
+});
+test('world view uses official TradingView widgets and bank refresh, never labels external gold samples as TradingView quotes',()=>{
+ const fs=createRequire(import.meta.url)('node:fs');const view=fs.readFileSync('app/components/price-history.tsx','utf8'),widget=fs.readFileSync('app/components/tradingview-market.tsx','utf8');assert(view.includes('<TradingViewMarket/>'));assert(view.includes("api('public/fx')"));assert(!view.includes('history?.world'));assert(!view.includes('giavang.org'));assert(widget.includes('OANDA:XAUUSD'));assert(widget.includes('s3.tradingview.com'));assert(view.includes('không phải luồng quy đổi tự động'));
 });
