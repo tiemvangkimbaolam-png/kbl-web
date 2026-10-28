@@ -28,3 +28,5 @@ Tests dùng D1/SQLite, provider Gemini/Meta giả lập với payload có nhãn 
 Kiểm chứng bản này: 166/166 kiểm thử qua; TypeScript --noEmit và build Cloudflare thành công. FFmpeg đã dựng cả video ba cảnh/sản phẩm và bộ hai cảnh; caption và biên nhận ảnh kiểm tra bằng provider fixture.
 
 Tương thích hàng đợi cũ: outbox đã gửi trước cập nhật giữ caption/video/fingerprint cũ; không chuyển một lượt đang publish thành album mới. Kết quả render cũ thiếu poster JPEG tiếp tục video; bản render mới có poster sẽ đi theo nhánh ảnh.
+
+Script cập nhật kiểm tra local health release2.2.0 trước khi báo khởi động xong. Nếu worker được mở trực tiếp bằng BAT_DAU.cmd, cần Ctrl+C cửa sổ đó trước; không tự dừng một tiến trình có đường dẫn chưa xác minh. Kiểm tra startup chưa phải biên nhận dựng/đăng thành công.

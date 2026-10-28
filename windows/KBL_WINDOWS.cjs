@@ -107,7 +107,7 @@ const server = http.createServer(async (req, res) => {
             return send(404, { success: false });
         }
         if (u.pathname === '/integration/health')
-            return send(200, { protocol: 'kbl-chrome-bridge-v1', release: '2.1.1' });
+            return send(200, { protocol: 'kbl-chrome-bridge-v1', release: '2.2.0' });
         if (!u.pathname.startsWith('/browser/'))
             return send(404, { success: false });
         const eid = req.headers['x-kbl-extension-id'];
