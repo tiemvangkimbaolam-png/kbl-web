@@ -1,2 +1,2 @@
-import PublicData from '@/app/components/public-data';
-export default function Page() { return <PublicData kind="news"/>; }
+import PublicData from '@/app/components/public-data';import {publicCatalog} from '@/lib/kbl/public-catalog';import {pageSEO} from '@/lib/kbl/seo';
+export const dynamic='force-dynamic';export const metadata=pageSEO('Bản tin thị trường vàng | Kim Bảo Lâm','Bản tin vàng có nguồn tham khảo, thời điểm và hình minh họa được ghi rõ.','/tin-tuc');export default async function Page(){return <PublicData kind="news" initialData={await publicCatalog()}/>;}

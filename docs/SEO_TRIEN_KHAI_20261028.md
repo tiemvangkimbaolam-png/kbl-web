@@ -1,0 +1,9 @@
+# SEO, khả năng đọc nội dung và đo tương tác — 28/10/2026
+
+Đã thực hiện: robots mở riêng ảnh và dữ liệu công khai cần render, vẫn chặn private API; canonical/OG/Twitter theo từng trang; sitemap sản phẩm, bài viết, trang danh mục có mẫu và phân trang; HTML ban đầu của bảng giá/danh mục, nội dung khám phá trên trang chủ; liên kết sản phẩm thật thay chỉ mở modal; trang giới thiệu và JewelryStore schema lấy dữ liệu cửa hàng; Article metadata/schema và breadcrumb, không tạo tác giả hoặc review giả; sản phẩm thiếu không trả soft404. TV/Admin/QA noindex. workers.dev thêm X-Robots-Tag noindex, domain chính là URL chuẩn.
+
+Mục Admin → SEO & lượt truy cập đọc thống kê riêng tư. Bộ đếm ghi ngày UTC/loại hành động/nhóm nguồn, không lưu đường dẫn, query, IP, mã phiếu hoặc định danh khách trong bảng traffic. Chỉ chạy trên domain chính và các trang công khai cho phép, tôn trọng DNT; giữ tổng hợp60 ngày. Rate-limit dùng cơ chế chống spam sẵn có (không phải bảng thống kê). Không dùng cookie, không tự cài GA4/Ads. Có công bố bổ sung trong chính sách bảo mật. Đây là số lượt sự kiện, chưa phải người duy nhất, doanh số hoặc bằng chứng chuyển đổi thật.
+
+Kiểm chứng: 152/152 tests đạt; TypeScript và build Cloudflare đạt. Test SQL/API/SSR kiểm tra public allowlist, loại dữ liệu POS riêng, schema, canonical, sitemap và thống kê. Workerd local HTTP với fixture: /, /bang-gia, /tin-tuc, /gioi-thieu, /san-pham/nhan, /vi/san-pham/SEO-001, sitemap.xml và robots.txt trả200; HTML có sản phẩm và canonical trước JavaScript; thiếu sản phẩm404; Admin còn auth; Host workers.dev nhận noindex. Không dùng fixture trên production, không ghi dữ liệu POS thật. Chưa có số liệu Search Console, Core Web Vitals thực địa hoặc bằng chứng Google lập chỉ mục.
+
+Việc cần chủ tiệm: xem SEO_VIEC_CHU_TIEM_CAN_LAM.md và checklist trong Admin. Không đổi OAuth, khóa, DNS, Access hoặc bộ Windows/POS; không mở dữ liệu khách và không tự đăng bài, gửi tin nhắn, mua quảng cáo hoặc đánh giá giả.

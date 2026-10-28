@@ -1,3 +1,4 @@
-import Storefront from './components/storefront';
-export const metadata = { title: 'Kim Bảo Lâm | Vàng chuẩn giá thật' };
-export default function Home() { return <Storefront reference />; }
+import Storefront from './components/storefront';import {CategoryLinks,ProductLinks} from './components/seo-catalog';import {publicCatalog} from '@/lib/kbl/public-catalog';import {BASE,jsonLD,storeLD,pageSEO} from '@/lib/kbl/seo';import {inProductSection} from '@/lib/kbl/product-placement.mjs';
+export const dynamic='force-dynamic';
+export const metadata=pageSEO('Tiệm Vàng Kim Bảo Lâm | Giá vàng & trang sức tại tiệm','Xem bảng giá vàng 999.9, 980, 610, trang sức đang trưng bày và thông tin liên hệ Tiệm Vàng Kim Bảo Lâm. Giá và tồn kho được xác nhận tại cửa hàng.','/');
+export default async function Home(){const data=await publicCatalog();return <><Storefront reference initialData={data}/><section className="wrap seo-discovery"><h2>Khám phá trang sức Kim Bảo Lâm</h2><CategoryLinks/><ProductLinks products={data.products.filter(p=>inProductSection(p,'featured')).slice(0,8)}/><p>Giá tham khảo theo dữ liệu cửa hàng đồng bộ; xác nhận lại trước giao dịch.</p><a href="/gioi-thieu">Địa chỉ, liên hệ và thông tin cửa hàng →</a></section><script type="application/ld+json" dangerouslySetInnerHTML={{__html:jsonLD(storeLD(data.company))}}/></>;}

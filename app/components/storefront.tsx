@@ -10,12 +10,12 @@ import ReferenceTryOn from './reference-home/try-on';
 import ProductDetails from './product-details';
 import { findPublicProduct, productInquiry } from '@/lib/kbl/product-view.mjs';
 const CATS = [['all', 'Tất cả'], ['nhan', 'Nhẫn'], ['bong-tai', 'Bông tai'], ['day-chuyen', 'Dây chuyền'], ['lac-vong', 'Lắc & Vòng'], ['da-quy', 'Đá quý']];
-export default function Storefront({ reference = false }: { reference?: boolean }) {
+export default function Storefront({ reference = false, initialData=null }: { reference?: boolean; initialData?: any }) {
     const [feedback,setFeedback]=useState(false);
     const [tryOn, setTryOn] = useState<any>(undefined);
     const deepLinkApplied = useRef(false), catalogSequence = useRef(0);
     const [chatProductId, setChatProductId] = useState<string | null>(null);
-    const [data, setData] = useState<any>(null), [error, setError] = useState(''), [search, setSearch] = useState(''), [cat, setCat] = useState('all'), [menu, setMenu] = useState(false), [cart, setCart] = useState<any[]>([]), [modal, setModal] = useState(''), [busy, setBusy] = useState(false), [receipt, setReceipt] = useState<any>(null), [chat, setChat] = useState(false), [chatState, setChatState] = useState<any>(null), [question, setQuestion] = useState(''), [chatError, setChatError] = useState(''), [detail, setDetail] = useState<any>(null);
+    const [data, setData] = useState<any>(initialData), [error, setError] = useState(''), [search, setSearch] = useState(''), [cat, setCat] = useState('all'), [menu, setMenu] = useState(false), [cart, setCart] = useState<any[]>([]), [modal, setModal] = useState(''), [busy, setBusy] = useState(false), [receipt, setReceipt] = useState<any>(null), [chat, setChat] = useState(false), [chatState, setChatState] = useState<any>(null), [question, setQuestion] = useState(''), [chatError, setChatError] = useState(''), [detail, setDetail] = useState<any>(null);
     async function load() { const sequence = ++catalogSequence.current; try {
         const catalog = await api('public/catalog');
         if (sequence !== catalogSequence.current) return;

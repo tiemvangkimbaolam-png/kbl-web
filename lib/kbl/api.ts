@@ -1,3 +1,4 @@
+import {recordTraffic,trafficSummary} from './traffic';
 import {readTVDesign,saveTVDesign} from './tv-design-api';
 import {handleCustomer} from './customer';
 import {handleTryOn} from './tryon';
@@ -88,6 +89,7 @@ export async function handle(req: Request): Promise<Response> {
             return response(await POS.lookup(req.headers.get('x-kbl-receipt-token') || u.searchParams.get('token') || ''), 200, { 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' });
         }
         if (path[0] === 'public') {
+            if(path[1]==='traffic'&&method==='POST'){await rate(req,'traffic',120);return response(await recordTraffic(await body(req,1500)));}
             if(path[1]==='tv-design'&&method==='GET')return response(await readTVDesign());
             if(path[1]==='customer')return await handleCustomer(req,path.slice(2));
             if(path[1]==='try-on')return await handleTryOn(req,path.slice(2));
@@ -168,6 +170,7 @@ export async function handle(req: Request): Promise<Response> {
         }
         if (path[0] === 'admin') {
             const actor = await admin(req);
+            if(path[1]==='seo-status'&&method==='GET')return response(await trafficSummary());
             if(path[1]==='tv-image'&&method==='POST'){
                 const mime=(req.headers.get('content-type')||'').split(';')[0];if(!['image/png','image/jpeg','image/webp'].includes(mime))fail('Chỉ nhận ảnh PNG, JPG hoặc WebP.',415);
                 if(Number(req.headers.get('content-length')||0)>1500000)fail('Ảnh TV tối đa 1,5 MB.',413);
