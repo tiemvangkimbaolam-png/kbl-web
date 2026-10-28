@@ -23,7 +23,7 @@ function refreshRenderTools() {
     toolCheckAt = Date.now();
     try {
         const pre = require('./render.cjs').preflight(config);
-        capabilities = pre.ready ? ['browser', 'render', 'pos-readonly'] : ['browser', 'pos-readonly'];
+        capabilities = pre.ready ? ['browser', 'render','image', 'pos-readonly'] : ['browser', 'pos-readonly'];
         renderStatus = pre.ready ? 'FFmpeg và Node Edge TTS đã phát hiện; dịch vụ giọng đọc thật chưa được xác minh.' : 'Chưa đủ FFmpeg/ffprobe/node-edge-tts; chưa nhận việc dựng video. Tự kiểm tra lại sau một phút.';
     } catch (error) { capabilities = ['browser', 'pos-readonly']; renderStatus = String(error.message).slice(0, 400); }
 }
@@ -159,7 +159,7 @@ const server = http.createServer(async (req, res) => {
 async function renderTick() { if (rendering || !capabilities.includes('render') || Date.now() < (ledger.get('render-next-at') || 0))
     return; rendering = true; try {
     if (!renderActive) {
-        const r = await bridge.request('/api/worker/claim', 'POST', { capabilities: ['render'] });
+        const r = await bridge.request('/api/worker/claim', 'POST', { capabilities: ['render','image'] });
         if (!r.job)
             return;
         renderActive = r;
@@ -168,7 +168,7 @@ async function renderTick() { if (rendering || !capabilities.includes('render') 
     const { job, lease } = renderActive;
     await bridge.request('/api/worker/jobs/' + job.id + '/dispatch', 'POST', { lease });
     if (!renderActive.result) {
-        renderActive.result = await require('./render.cjs').render({ job, lease, bridge, config, workDir: path.join(dataDir, 'render') });
+        renderActive.result = await (job.stage==='image'?require('./cards.cjs').createGoldImages:require('./render.cjs').render)({ job, lease, bridge, config, workDir: path.join(dataDir, 'render') });
         ledger.set('render-active', renderActive);
     }
     const r = await bridge.request('/api/worker/jobs/' + job.id + '/complete', 'POST', { lease, result: renderActive.result });
@@ -195,7 +195,7 @@ async function tick() {
     try {
         refreshRenderTools();
         const hv = hub.view(), accounts = hv.accounts.map(a => ({ id: a.id, status: a.online ? (a.blocked ? 'quota' : hv.runs.some(r => r.accountId === a.id && !['confirmed', 'expired'].includes(r.status)) ? 'working' : a.ready ? 'ready' : 'attention') : 'offline', message: hv.runs.filter(r => r.accountId === a.id).at(-1)?.message || '' }));
-        const r = await bridge.request('/api/worker/heartbeat', 'POST', { version: '2.1.1', capabilities, renderStatus, posStatus: pos.view(), accounts, activeJobIds: [...hv.runs.filter(x => !['confirmed', 'expired'].includes(x.status)).map(x => x.jobId), ...(renderActive ? [renderActive.job.id] : [])] });
+        const r = await bridge.request('/api/worker/heartbeat', 'POST', { version: '2.2.0', capabilities, renderStatus, posStatus: pos.view(), accounts, activeJobIds: [...hv.runs.filter(x => !['confirmed', 'expired'].includes(x.status)).map(x => x.jobId), ...(renderActive ? [renderActive.job.id] : [])] });
         bridge.setAccounts(r.accounts);
         hub.reconcile(r.accounts);
         await bridge.sync();

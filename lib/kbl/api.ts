@@ -353,7 +353,7 @@ export async function handle(req: Request): Promise<Response> {
             if (method === 'POST' && path[1] === 'heartbeat') {
                 const v = await body(req), old = await S.get('worker', wid);
                 const posStatus = v.posStatus && typeof v.posStatus === 'object' ? { pending: Math.max(0, Math.min(100, Number(v.posStatus.pending) || 0)), photoPending: Math.max(0, Math.min(500, Number(v.posStatus.photoPending) || 0)), lastSuccess: Number(v.posStatus.lastSuccess) || 0, lastError: String(v.posStatus.lastError || '').slice(0, 250) } : undefined;
-                await S.put('worker', wid, { ...old, status: 'online', lastSeen: Date.now(), capabilities: Array.isArray(v.capabilities) ? v.capabilities.filter((x: any) => ['render', 'publish', 'browser', 'pos-readonly'].includes(x)) : [], version: String(v.version || '').slice(0, 50), renderStatus: String(v.renderStatus || '').slice(0, 400), posStatus });
+                await S.put('worker', wid, { ...old, status: 'online', lastSeen: Date.now(), capabilities: Array.isArray(v.capabilities) ? v.capabilities.filter((x: any) => ['render','image', 'publish', 'browser', 'pos-readonly'].includes(x)) : [], version: String(v.version || '').slice(0, 50), renderStatus: String(v.renderStatus || '').slice(0, 400), posStatus });
                 const reports = Array.isArray(v.accounts) ? v.accounts.slice(0, 20).map((a: any) => ({ id: String(a.id), status: ['ready', 'working', 'quota', 'challenge', 'attention', 'offline'].includes(a.status) ? a.status : 'offline', message: String(a.message || '').slice(0, 300) })) : [];
                 const encoded = JSON.stringify(reports);
                 await S.sql().prepare("UPDATE records SET data=json_set(data,'$.workerId',?,'$.lastSeen',?,'$.status',(SELECT json_extract(j.value,'$.status') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id),'$.message',(SELECT json_extract(j.value,'$.message') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id)),version=version+1,updated_at=? WHERE kind='account' AND id IN (SELECT json_extract(value,'$.id') FROM json_each(?)) AND (json_extract(data,'$.workerId') IS NULL OR json_extract(data,'$.workerId')=?)").bind(wid, Date.now(), encoded, encoded, Date.now(), encoded, wid).run();
@@ -382,7 +382,7 @@ export async function handle(req: Request): Promise<Response> {
             }
             if (method === 'POST' && path[1] === 'claim') {
                 const v = await body(req);
-                return response(await P.claim(wid, v.accountId || null, Array.isArray(v.capabilities) ? v.capabilities.filter((x: any) => ['render'].includes(x)) : [], v.jobId));
+                return response(await P.claim(wid, v.accountId || null, Array.isArray(v.capabilities) ? v.capabilities.filter((x: any) => ['render','image'].includes(x)) : [], v.jobId));
             }
             if (path[1] === 'jobs' && path[2]) {
                 const v = method === 'GET' ? null : await body(req), lease = req.headers.get('x-kbl-job-lease') || v?.lease || '', job = await P.ownedJob(wid, path[2], lease);
@@ -412,14 +412,14 @@ export async function handle(req: Request): Promise<Response> {
                 const storyId = u.searchParams.get('storyId'), purpose = u.searchParams.get('purpose') || 'news-image', jid = req.headers.get('x-kbl-job-id') || '', lease = req.headers.get('x-kbl-job-lease') || '', job = await P.ownedJob(wid, jid, lease);
                 if (job.story_id !== storyId || !['leased', 'running', 'attention'].includes(job.status))
                     fail('File không thuộc lượt đang giữ.', 409);
-                const allowed = job.stage === 'image' ? ['news-image'] : job.stage === 'render' ? ['video-temp', 'audio', 'captions'] : [];
+                const allowed = job.stage === 'image' ? ['news-image'] : job.stage === 'render' ? ['video-temp', 'audio', 'captions','social-card'] : [];
                 if (!allowed.includes(purpose))
                     fail('File không đúng bước đang thực hiện.');
                 return response(await upload(req, storyId, purpose));
             }
             if (method === 'GET' && path[1] === 'assets' && path[2]) {
                 const job = await P.ownedJob(wid, u.searchParams.get('jobId') || '', req.headers.get('x-kbl-job-lease') || ''), a = await S.sql().prepare('SELECT * FROM assets WHERE id=? AND deleted_at IS NULL').bind(path[2]).first<any>(), story = await S.get('story',job.story_id);
-                const originalProductPhoto = story?.kind === 'product' && a?.purpose === 'product' && story.productSnapshot?.imageIds?.includes(path[2]);
+                const originalProductPhoto = story?.kind === 'product' && a?.purpose === 'product' && (story.productSnapshots||[story.productSnapshot]).some((p:any)=>p?.imageIds?.includes(path[2]));
                 if (!a || (a.story_id !== job.story_id && !originalProductPhoto))
                     fail('Ảnh không thuộc bản tin.', 404);
                 const f = await env.BUCKET?.get(a.id);

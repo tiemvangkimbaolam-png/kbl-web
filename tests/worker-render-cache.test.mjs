@@ -39,6 +39,16 @@ test('actual FFmpeg fixture render validates portrait/audio, reuses matching cac
         assert.equal(hash(fs.readFileSync(original)), originalHash);
         job.context.outputs.write.script = 'Fixture narration one with timed words'; fs.appendFileSync(original, Buffer.from('fixture corruption'));
         await assert.rejects(render(), /cache.*hash/);
-        assert.ok(fs.existsSync(original)); assert.equal(uploads.length, 9);
+        assert.ok(fs.existsSync(original)); assert.equal(uploads.length, 15);assert.equal(uploads.filter(x=>x.route.includes('purpose=social-card')).length,6);assert.equal(first.posterIds.length,2);
+        const third = path.join(dir, 'green.png'); run(['-f', 'lavfi', '-i', 'color=c=green:s=64x64', '-frames:v', '1', '-threads', '1', third]);
+        const thirdBytes = fs.readFileSync(third); scenes.push({bytes:thirdBytes,id:hash(thirdBytes)});
+        job.storyId = 'product-three-scene-fixture';
+        job.context.story = {kind:'product',editionAt:Date.parse('2026-10-28T01:00:00Z'),productSnapshots:scenes.map((s,i)=>({sku:'FIXTURE-'+i,name:'Mẫu kiểm thử '+i,purity:'610',weight:1,price:1234500+i,imageIds:[s.id]}))};
+        job.context.company = {name:'KIM BẢO LÂM',address:'Địa chỉ kiểm thử',phone:'0900000000'};
+        job.context.outputs.image.rows = scenes.map(s=>({assetId:s.id,caption:'Fixture only'}));
+        const productVideo = await render();
+        assert.equal(productVideo.posterIds.length,3); assert.equal(new Set(productVideo.posterIds).size,3);
+        assert.equal(productVideo.width,1080); assert.equal(productVideo.height,1920);
+        assert.equal(uploads.length,21);
     } finally { voice.available = originalAvailable; voice.prepare = originalPrepare; fs.rmSync(dir, { recursive: true, force: true }); }
 });

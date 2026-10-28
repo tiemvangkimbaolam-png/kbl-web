@@ -1,27 +1,24 @@
-import {sql,get,list,settings,sha} from './store';
-import {publicationPlan} from './publication-plan';
-// POS snapshots and original photo hashes are frozen; no AI redraw of real goods.
+import {sql,get,list,settings,sha} from './store';import {publicationPlan} from './publication-plan';import {productsOf,POST_HOURS} from './social-caption.mjs';
 export async function captureProductSlot(at=Date.now()){
  const cfg=await settings() as any;if(!cfg.teamEnabled||!cfg.autoProducts)return {waiting:true};
- const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(new Date(at)),v=(k:string)=>parts.find(x=>x.type===k)?.value;
- const hour=Number(v('hour'));if(!(cfg.productHours||[10,16]).includes(hour))return {waiting:true};
- const slot=`${v('year')}-${v('month')}-${v('day')}-${hour}`,sid=(await sha('KBL-PRODUCT:'+slot)).slice(0,32);
- if(await get('story',sid))return {duplicate:true,storyId:sid};
+ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(new Date(at)),v=(k:string)=>parts.find(x=>x.type===k)?.value,hour=Number(v('hour'));if(!POST_HOURS.includes(hour))return {waiting:true};
+ const slot=`${v('year')}-${v('month')}-${v('day')}-${hour}`,sid=(await sha('KBL-PRODUCT:'+slot)).slice(0,32);if(await get('story',sid))return {duplicate:true,storyId:sid};
  const sync=await get('pos-sync','product');if(!sync||at-sync.receivedAt>300000||sync.receivedAt>at+60000)return {waiting:true,reason:'Chờ kho POS mới trong 5 phút.'};
- const candidates=(await list('product',500)).filter((p:any)=>p.source==='pos'&&p.published&&p.available&&!p.posMissing&&p.price>0&&p.imageIds?.length>=2);
- const history=await list('product-edition',500),used=new Set(history.map((r:any)=>r.productId));
- const p=candidates.find((r:any)=>!used.has(r.id))||candidates[0];if(!p)return {waiting:true,reason:'Chờ sản phẩm còn hàng và ít nhất hai góc ảnh thật.'};
- const photos=p.imageIds.slice(0,2);for(const aid of photos){const asset=await sql().prepare("SELECT id FROM assets WHERE id=? AND purpose='product' AND deleted_at IS NULL AND mime LIKE 'image/%'").bind(aid).first();if(!asset)return {waiting:true,reason:'Ảnh POS chưa đủ biên nhận.'};}
- const url='https://tiemvangkimbaolam.id.vn/vi/san-pham/'+encodeURIComponent(p.sku),snapshot={id:p.id,sku:p.sku,name:p.name,purity:p.purity,weight:p.weight,price:p.price,imageIds:photos,capturedAt:at};
- const story={title:'Sản phẩm tại tiệm: '+p.name,topic:'Giới thiệu sản phẩm POS theo dữ liệu chốt. Không bịa xuất xứ, ưu đãi hoặc chứng nhận. Giữ nguyên mẫu và ảnh thật; giá có thời điểm.',sourceUrl:url,...await publicationPlan(),status:'working',kind:'product',editionAt:at,productSnapshot:snapshot};
- const result={items:[{title:story.title,url,excerpt:JSON.stringify(snapshot),publishedAt:new Date(at).toISOString()}],evidenceKind:'pos-product-snapshot',capturedAt:at};
- await sql().batch([
-  sql().prepare("INSERT OR IGNORE INTO records(kind,id,data,created_at,updated_at) VALUES('story',?,?,?,?)").bind(sid,JSON.stringify(story),at,at),
-  sql().prepare("INSERT OR IGNORE INTO records(kind,id,data,created_at,updated_at) VALUES('product-edition',?,?,?,?)").bind(sid,JSON.stringify({productId:p.id,slot}),at,at),
-  sql().prepare("INSERT OR IGNORE INTO jobs(id,story_id,stage,status,owner,result,result_hash,created_at,updated_at) VALUES(?,?,'research','complete','pos-product',?,?,?,?)").bind(`KBL-${sid}-research`,sid,JSON.stringify(result),await sha(JSON.stringify(result)),at,at)
- ]);return {captured:true,storyId:sid};
+ const rows=(await sql().prepare("SELECT id,data FROM records p WHERE kind='product' AND NOT EXISTS(SELECT 1 FROM records u WHERE u.kind='product-used' AND u.id=p.id) AND NOT EXISTS(SELECT 1 FROM records e WHERE e.kind='product-edition' AND (json_extract(e.data,'$.productId')=p.id OR EXISTS(SELECT 1 FROM json_each(json_extract(e.data,'$.productIds')) j WHERE j.value=p.id))) ORDER BY created_at,id").all<any>()).results.map(x=>({...JSON.parse(x.data),id:x.id}));
+ const selected=rows.filter((p:any)=>p.source==='pos'&&p.published&&p.available&&!p.posMissing&&p.price>0&&p.imageIds?.length>=1).filter((p:any,i:number,all:any[])=>all.findIndex(r=>r.imageIds[0]===p.imageIds[0])===i).slice(0,3);if(selected.length!==3)return {waiting:true,reason:'Chờ đủ 3 sản phẩm mới, còn hàng, đã trưng bày và có ảnh thật. Không đăng lại món cũ.'};
+ const snapshots=selected.map((p:any)=>({id:p.id,sku:p.sku,name:p.name,purity:p.purity,weight:p.weight,price:p.price,imageIds:[p.imageIds[0]],capturedAt:at}));if(new Set(snapshots.map(p=>p.imageIds[0])).size!==3)return {waiting:true,reason:'Ba sản phẩm cần ảnh thật riêng biệt.'};
+ for(const p of snapshots){const asset=await sql().prepare("SELECT id FROM assets WHERE id=? AND purpose='product' AND deleted_at IS NULL AND mime LIKE 'image/%'").bind(p.imageIds[0]).first();if(!asset)return {waiting:true,reason:'Ảnh POS chưa đủ biên nhận.'};}
+ const story={title:'Ba mẫu trang sức tại Kim Bảo Lâm',topic:'Giới thiệu đúng 3 SKU trong productSnapshots, đọc tên, tuổi vàng, trọng lượng, giá tham khảo từng món. Không bịa nguồn gốc/ưu đãi. Ảnh thật nguyên bản, không vẽ lại.',sourceUrl:'https://tiemvangkimbaolam.id.vn/san-pham/tat-ca',...await publicationPlan(),status:'working',kind:'product',editionAt:at,productSnapshots:snapshots,productSnapshot:snapshots[0],mediaPlan:{youtube:'video',facebook:'images',instagram:'images',threads:'images'}};
+ story.platforms=story.platforms.filter((p:string)=>['website','facebook','instagram','threads','youtube'].includes(p));
+ const result={items:snapshots.map(p=>({title:p.name,url:'https://tiemvangkimbaolam.id.vn/vi/san-pham/'+encodeURIComponent(p.sku),excerpt:JSON.stringify(p),publishedAt:new Date(at).toISOString()})),evidenceKind:'pos-product-snapshot',capturedAt:at};
+ // A single atomic statement reserves all three SKU keys or reserves none.
+ const marker=await sha('reserve:'+sid),used=JSON.stringify(snapshots.map(p=>p.id)),guard="(SELECT COUNT(*) FROM records WHERE kind='product-used' AND json_extract(data,'$.marker')=?)=3";
+ const saved=await sql().batch([
+ sql().prepare("WITH eligible AS MATERIALIZED (SELECT value FROM json_each(?) WHERE (SELECT COUNT(*) FROM records WHERE kind='story')<1000 AND NOT EXISTS(SELECT 1 FROM records WHERE kind='product-used' AND id IN (SELECT value FROM json_each(?)))) INSERT OR IGNORE INTO records(kind,id,data,created_at,updated_at) SELECT 'product-used',value,?,?,? FROM eligible").bind(used,used,JSON.stringify({storyId:sid,slot,marker,status:'reserved'}),at,at),
+ sql().prepare("INSERT OR IGNORE INTO records(kind,id,data,created_at,updated_at) SELECT 'story',?,?,?,? WHERE "+guard).bind(sid,JSON.stringify(story),at,at,marker),
+ sql().prepare("INSERT OR IGNORE INTO records(kind,id,data,created_at,updated_at) SELECT 'product-edition',?,?,?,? WHERE "+guard).bind(sid,JSON.stringify({productIds:snapshots.map(p=>p.id),slot}),at,at,marker),
+ sql().prepare("INSERT OR IGNORE INTO jobs(id,story_id,stage,status,owner,result,result_hash,created_at,updated_at) SELECT ?,?,'research','complete','pos-product',?,?,?,? WHERE "+guard).bind(`KBL-${sid}-research`,sid,JSON.stringify(result),await sha(JSON.stringify(result)),at,at,marker)
+ ]);if(saved[1].meta.changes!==1)return (await get('story',sid))?{duplicate:true,storyId:sid}:{waiting:true,reason:'SKU vừa được lượt khác giữ.'};
+ return {captured:true,storyId:sid};
 }
-export async function productImages(story:any,at=Date.now()){
- const rows=story.productSnapshot.imageIds.map((assetId:string)=>({assetId,caption:'Ảnh gốc sản phẩm '+story.productSnapshot.sku})),result={rows};
- await sql().prepare("INSERT OR IGNORE INTO jobs(id,story_id,stage,status,owner,result,result_hash,created_at,updated_at) VALUES(?,?,'image','complete','pos-original-photos',?,?,?,?)").bind(`KBL-${story.id}-image`,story.id,JSON.stringify(result),await sha(JSON.stringify(result)),at,at).run();
-}
+export async function productImages(story:any,at=Date.now()){const rows=story.productSnapshots?productsOf(story).map((p:any)=>({assetId:p.imageIds[0],caption:'Ảnh gốc '+p.name+' · '+p.sku})):story.productSnapshot.imageIds.map((assetId:string)=>({assetId,caption:'Ảnh gốc '+story.productSnapshot.sku})),result={rows};await sql().prepare("INSERT OR IGNORE INTO jobs(id,story_id,stage,status,owner,result,result_hash,created_at,updated_at) VALUES(?,?,'image','complete','pos-original-photos',?,?,?,?)").bind(`KBL-${story.id}-image`,story.id,JSON.stringify(result),await sha(JSON.stringify(result)),at,at).run();}

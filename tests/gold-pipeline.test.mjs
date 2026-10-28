@@ -8,14 +8,14 @@ import { webcrypto, createHash } from 'node:crypto';
 const { build } = createRequire(fs.realpathSync('node_modules/wrangler/package.json'))('esbuild');
 let G, P, POS, db;
 const env = {}, realFetch = globalThis.fetch, realNow = Date.now;
-const at = Date.parse('2026-10-27T00:02:00Z'); // 07:02 in Vietnam; fixtures only.
+const at = Date.parse('2026-10-27T01:02:00Z'); // 08:02 in Vietnam; fixtures only.
 const value = { price_buy_9999: 10000001, price_sell_9999: 10200003, price_buy_750: 7500001, price_sell_750: 7800003 };
 function record(kind, id, data) { db.prepare('INSERT INTO records(kind,id,data,created_at,updated_at) VALUES(?,?,?,?,?)').run(kind, id, JSON.stringify(data), at, at); }
 function stored(kind, id) { const r = db.prepare('SELECT data FROM records WHERE kind=? AND id=?').get(kind, id); return r ? JSON.parse(r.data) : null; }
 function row(stage, story) { return db.prepare('SELECT * FROM jobs WHERE story_id=? AND stage=?').get(story, stage); }
-function edition(slot = '2026-10-27-7') { const r = db.prepare('SELECT * FROM editions WHERE id=?').get(slot); return r ? { ...r, data: JSON.parse(r.data) } : null; }
+function edition(slot = '2026-10-27-8') { const r = db.prepare('SELECT * FROM editions WHERE id=?').get(slot); return r ? { ...r, data: JSON.parse(r.data) } : null; }
 async function price(values = value, observedAt = at - 30000, revision = 1) { return POS.prices('win', { prices: values, observedAt, revision }); }
-async function claim(story, stage, account) { return P.claim('win', account || null, account ? [] : ['render'], `KBL-${story}-${stage}`); }
+async function claim(story, stage, account) { if(stage==='image')account=null;return P.claim('win', account || null, account ? [] : [stage==='image'?'image':'render'], `KBL-${story}-${stage}`); }
 before(async () => {
     globalThis.crypto ||= webcrypto;
     globalThis.__KBL_GOLD_TEST_ENV = env;
@@ -62,7 +62,7 @@ test('fresh real POS import atomically seeds immutable gold story, internal evid
     const task = await claim(result.storyId, 'write', 'writer');
     assert.equal(task.job.attempt, 1);
     assert.match(task.job.prompt, /không phải bản tải HTTP/);
-    for (const offset of [5, 12]) {
+    for (const offset of [5, 11]) {
         const later = at + offset * 3600000;
         Date.now = () => later;
         await price(value, later - 10000, offset);
@@ -132,7 +132,7 @@ test('uncaptured edition expires outside its hour and never backfills, while nex
 
 test('conflicting job rolls back capture and full story quota leaves no partial story/evidence', async () => {
     await price();
-    const sid = createHash('sha256').update('KBL-GOLD:2026-10-27-7').digest('hex').slice(0, 32);
+    const sid = createHash('sha256').update('KBL-GOLD:2026-10-27-8').digest('hex').slice(0, 32);
     db.prepare("INSERT INTO jobs(id,story_id,stage,status,created_at,updated_at) VALUES(?,?,'write','queued',?,?)").run(`KBL-${sid}-write`, sid, at, at);
     await assert.rejects(G.captureGoldSlot(at), /UNIQUE constraint/);
     assert.equal(edition().captured_at, null);
