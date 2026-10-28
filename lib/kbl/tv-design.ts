@@ -30,16 +30,33 @@ const typography = z
   .strict();
 const box = z
   .object({
-    x: z.number().min(0).max(1500),
-    y: z.number().min(0).max(850),
+    x: z.number().min(0).max(1520),
+    y: z.number().min(0).max(876),
     w: z.number().min(80).max(1600),
     h: z.number().min(24).max(900),
     visible: z.boolean(),
+    locked: z.boolean().optional(),
+  })
+  .strict();
+const layerSchema = z
+  .object({
+    id: z.string().regex(/^[a-z0-9-]{1,60}$/),
+    type: z.enum(["text", "rect", "image"]),
+    name: z.string().max(80),
+    box,
+    style: typography,
+    text: z.string().max(500),
+    fill: color,
+    radius: z.number().min(0).max(200),
+    opacity: z.number().min(0.05).max(1),
+    position: z.enum(["back", "front"]),
+    src: z.string().regex(/^(?:|\/kbl-logo\.png|\/api\/media\/[a-f0-9]{64})$/),
   })
   .strict();
 export const tvDesignSchema = z
   .object({
     schema: z.literal(1),
+    layers: z.array(layerSchema).max(20).default([]),
     background: color,
     lineColor: color,
     rowBackground: color,
@@ -74,13 +91,21 @@ export const tvDesignSchema = z
   })
   .strict()
   .superRefine((v, ctx) => {
-    for (const [key, b] of Object.entries(v.boxes))
+    for (const [key, b] of [
+      ...Object.entries(v.boxes),
+      ...v.layers.map((l) => ["layer:" + l.id, l.box] as const),
+    ])
       if (b.x + b.w > 1600 || b.y + b.h > 900)
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["boxes", key],
           message: "Phần tử phải nằm trong khung TV 1600 × 900.",
         });
+    if (new Set(v.layers.map((l) => l.id)).size !== v.layers.length)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "ID lớp bị trùng.",
+      });
   });
 export type TVDesign = z.infer<typeof tvDesignSchema>;
 export function defaultTVDesign(): TVDesign {
@@ -91,6 +116,7 @@ export function defaultTVDesign(): TVDesign {
   ) => ({ font: "arial" as const, size, weight, color: "#092d4b", align });
   return {
     schema: 1,
+    layers: [],
     background: "#fff9eb",
     lineColor: "#d7c496",
     rowBackground: "#f4e8cb",
@@ -138,4 +164,22 @@ export function tvPreset(name: string): TVDesign {
     d.styles.sell.color = "#ffd66b";
   }
   return d;
+}
+
+export type TVLayer = TVDesign["layers"][number];
+export function tvBox(d: TVDesign, part: string) {
+  return part.startsWith("layer:")
+    ? d.layers.find((l) => "layer:" + l.id === part)?.box || d.boxes.title
+    : d.boxes[
+        (["headers", "labels", "buy", "sell"].includes(part)
+          ? "table"
+          : part) as keyof TVDesign["boxes"]
+      ];
+}
+export function tvStyle(d: TVDesign, part: string) {
+  if (part.startsWith("layer:")) {
+    const l = d.layers.find((l) => "layer:" + l.id === part);
+    return l?.type === "text" ? l.style : null;
+  }
+  return part === "table" ? null : d.styles[part as keyof TVDesign["styles"]];
 }

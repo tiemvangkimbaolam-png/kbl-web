@@ -168,7 +168,13 @@ export async function handle(req: Request): Promise<Response> {
         }
         if (path[0] === 'admin') {
             const actor = await admin(req);
-            if(path[1]==='tv-design'){if(method==='GET')return response(await readTVDesign());if(method==='POST')return response(await saveTVDesign(await body(req,16000)));}
+            if(path[1]==='tv-image'&&method==='POST'){
+                const mime=(req.headers.get('content-type')||'').split(';')[0];if(!['image/png','image/jpeg','image/webp'].includes(mime))fail('Chỉ nhận ảnh PNG, JPG hoặc WebP.',415);
+                if(Number(req.headers.get('content-length')||0)>1500000)fail('Ảnh TV tối đa 1,5 MB.',413);
+                const bytes=await req.arrayBuffer();if(bytes.byteLength>1500000)fail('Ảnh TV tối đa 1,5 MB.',413);
+                const image=await upload(new Request(req,{body:bytes}),null,'tv');await S.sql().prepare('UPDATE assets SET public=1 WHERE id=?').bind(image.id).run();return response({url:'/api/media/'+image.id});
+            }
+            if(path[1]==='tv-design'){if(method==='GET')return response(await readTVDesign());if(method==='POST')return response(await saveTVDesign(await body(req,48000)));}
             if(path[1]==='customers')return await handleCustomerAdmin(req,path.slice(2));
             if(path[1] === 'cloud-price') { if(method === 'GET') return response(await cloudPriceStatus()); if(method === 'POST' && path[2] === 'poll') { await rate(req,'cloud-price-poll',6); return response(await pollCloudPrice({force:true})); } }
             if(path[1] === 'inbox') return await handleInboxAdmin(req,path.slice(2));
