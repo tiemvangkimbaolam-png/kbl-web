@@ -271,9 +271,10 @@ export function TVEditor() {
   function order(direction: number) {
     if (!layer) return;
     patch((d) => {
-      const index = d.layers.findIndex((l) => l.id === layer.id),
-        to = Math.max(0, Math.min(d.layers.length - 1, index + direction));
-      [d.layers[index], d.layers[to]] = [d.layers[to], d.layers[index]];
+      const index = d.layers.findIndex((l) => l.id === layer.id);
+      const indices=d.layers.map((l,i)=>l.position===layer.position?i:-1).filter(i=>i>=0);
+      const to=indices[indices.indexOf(index)+direction];
+      if(to!==undefined)[d.layers[index], d.layers[to]] = [d.layers[to], d.layers[index]];
     });
   }
   useEffect(() => {
