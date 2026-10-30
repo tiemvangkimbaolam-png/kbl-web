@@ -8,15 +8,12 @@ export function oauthIntent(href){
  url.searchParams.delete('connect');url.searchParams.delete('inbox');
  return {platform,enableInbox,cleanUrl:url.pathname+url.search+url.hash};
 }
-// Navigate through the callback origin before creating the owner-bound state.
-// No credential, authorization code or token is passed between Admin hosts.
-export async function beginOAuth({platform,baseUrl,currentUrl,enableInbox=false},{start,navigate,ready=(_url)=>{}}){
- validPlatform(platform);const base=new URL(baseUrl),current=new URL(currentUrl);
+// Start on the admin host that holds the Access session. The provider returns
+// to the public callback host, and the worker forwards that result back to the
+// Access-protected admin host; no credential or token is passed in between.
+export async function beginOAuth({platform,baseUrl,enableInbox=false},{start,navigate,ready=(_url)=>{}}){
+ validPlatform(platform);const base=new URL(baseUrl);
  if(base.protocol!=='https:'||base.username||base.password||base.pathname!=='/'||base.search||base.hash)throw Error('Địa chỉ OAuth máy chủ chưa hợp lệ.');
- if(current.origin!==base.origin){
-  const handoff=new URL('/admin/ket-noi',base);handoff.searchParams.set('connect',platform);handoff.searchParams.set('inbox',enableInbox?'1':'0');
-  navigate(handoff.href);return {handoff:true};
- }
  const value=await start(platform,{enableInbox}),url=new URL(value.authorizeUrl||'',base);
  if(!value.authorizeUrl||url.protocol!=='https:'||url.username||url.password||!hosts[platform].includes(url.hostname))throw Error('Máy chủ chưa trả đúng trang cấp quyền của nền tảng.');
  ready(url.href);navigate(url.href);return {handoff:false};

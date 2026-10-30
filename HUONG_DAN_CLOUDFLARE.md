@@ -49,6 +49,7 @@ Từ Cloudflare Access copy:
 ```json
 "vars": {
   "KBL_AUTH_MODE": "cloudflare-access",
+  "KBL_ADMIN_ORIGIN": "https://kbl-web-moi.ten-mien.workers.dev",
   "OWNER_EMAIL": "vlam1881997@gmail.com",
   "CF_ACCESS_TEAM_DOMAIN": "https://ten-team.cloudflareaccess.com",
   "CF_ACCESS_AUD": "AUD_TAG_64_KY_TU_CUA_UNG_DUNG"

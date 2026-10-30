@@ -92,4 +92,21 @@ test('customer reply permissions are opt-in and cannot be mistaken for granted s
 });
 
 test('OAuth start stays on the callback origin and wrong-host Admin must hand off before state is created',async()=>{const count=db.prepare("SELECT COUNT(*) n FROM records WHERE kind='social-state'").get().n;await assert.rejects(()=>handle(new Request('https://alias.test/api/admin/social/oauth/threads/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}),['oauth','threads','start'],actor),/đúng địa chỉ/);assert.equal(db.prepare("SELECT COUNT(*) n FROM records WHERE kind='social-state'").get().n,count);});
+test('OAuth may start on the Access-protected admin origin and returns there instead of the callback host',async()=>{
+ globalThis.__KBL_SOCIAL_TEST_ENV.KBL_ADMIN_ORIGIN='https://admin.test';
+ try{
+  const start=await handle(new Request('https://admin.test/api/admin/social/oauth/threads/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}),['oauth','threads','start'],actor);
+  assert.equal(start.status,200);const first=await start.json(),state=new URL(first.authorizeUrl).searchParams.get('state');
+  const callback=await handle(new Request('https://kbl.test/api/admin/social/oauth/threads/callback?state='+state+'&error=access_denied'),['oauth','threads','callback'],actor);
+  assert.equal(callback.status,303);const target=new URL(callback.headers.get('location'));assert.equal(target.origin,'https://admin.test');assert.equal(target.pathname,'/admin/ket-noi');assert.equal(target.searchParams.get('social'),'cancelled');
+ }finally{delete globalThis.__KBL_SOCIAL_TEST_ENV.KBL_ADMIN_ORIGIN;}
+});
+test('the callback host rejects a state created on a foreign origin',async()=>{
+ globalThis.__KBL_SOCIAL_TEST_ENV.KBL_ADMIN_ORIGIN='https://admin.test';
+ try{
+  const start=await handle(new Request('https://admin.test/api/admin/social/oauth/threads/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}),['oauth','threads','start'],actor);
+  const first=await start.json(),state=new URL(first.authorizeUrl).searchParams.get('state');
+  await assert.rejects(()=>handle(new Request('https://other.test/api/admin/social/oauth/threads/callback?state='+state+'&code=CODE'),['oauth','threads','callback'],actor),/không khớp/);
+ }finally{delete globalThis.__KBL_SOCIAL_TEST_ENV.KBL_ADMIN_ORIGIN;}
+});
 test('cancelled provider authorization returns to the connections screen without exchanging a token',async()=>{const first=await(await call('oauth/threads/start',{})).json(),state=new URL(first.authorizeUrl).searchParams.get('state');const cancelled=await call('oauth/threads/callback?state='+state+'&error=access_denied');assert.equal(cancelled.status,303);const url=new URL(cancelled.headers.get('location'));assert.equal(url.pathname,'/admin/ket-noi');assert.equal(url.searchParams.get('social'),'cancelled');await assert.rejects(()=>call('oauth/threads/callback?state='+state+'&code=fixture'),/đã dùng/);});

@@ -33,7 +33,7 @@ async function openAccount(a, commandId, background = false) { const visible = l
     return { waiting: true, message: 'Đã yêu cầu tiện ích mở lại đúng tab hiện có.' }; const exe = chromePath(); if (!exe)
     throw Error('Không tìm thấy Google Chrome.'); const maps = ledger.get('profiles') || {}, dir = maps[a.id] || path.join(dataDir, 'profiles', a.id); if (a.extensionId && !maps[a.id])
     throw Error('Hồ sơ đã ghép ngoài thư mục quản lý. Mở đúng Chrome hiện có; không tự tạo hồ sơ thay thế.'); if (maps[a.id] && await profileRunning(dir))
-    throw Error('Đúng hồ sơ Chrome vẫn đang mở nhưng tiện ích chưa báo về. Kiểm tra tiện ích trong cửa sổ đó; không tạo tab khác.'); fs.mkdirSync(dir, { recursive: true }); maps[a.id] = dir; ledger.set('profiles', maps); cp.spawn(exe, ['--user-data-dir=' + dir, '--new-window', ...(background ? ['--start-minimized'] : []), PROVIDERS[a.provider]], { detached: true, stdio: 'ignore', windowsHide: background }).unref(); return { ok: true, message: 'Đã mở đúng hồ sơ được quản lý. Nếu lần đầu: nạp tiện ích EXTENSION tại chrome://extensions và ghép mã từ trang local.' }; }
+    throw Error('Đúng hồ sơ Chrome vẫn đang mở nhưng tiện ích chưa báo về. Kiểm tra tiện ích trong cửa sổ đó; không tạo tab khác.'); fs.mkdirSync(dir, { recursive: true }); maps[a.id] = dir; ledger.set('profiles', maps); cp.spawn(exe, ['--user-data-dir=' + dir, '--new-window', ...(background ? ['--start-minimized'] : []), PROVIDERS[a.provider]], { detached: true, stdio: 'ignore', windowsHide: background }).unref(); return { ok: true, message: 'Đã mở đúng hồ sơ được quản lý. Nếu lần đầu: nạp tiện ích EXTENSION tại chrome://extensions rồi dán mã KBL42 từ Admin → Đội AI.' }; }
 async function profileRunning(dir) { if (process.platform !== 'win32')
     return false; const script = "$p=$env:KBL_PROFILE_PATH; $found=@(Get-CimInstance Win32_Process -Filter \"name='chrome.exe'\" | Where-Object {$_.CommandLine -and $_.CommandLine.IndexOf($p,[StringComparison]::OrdinalIgnoreCase) -ge 0}).Count; if($found -gt 0){'yes'}else{'no'}"; return new Promise((resolve, reject) => { const c = cp.spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, shell: false, env: { ...process.env, KBL_PROFILE_PATH: dir }, stdio: ['ignore', 'pipe', 'ignore'] }); let output = ''; const timer = setTimeout(() => { c.kill(); reject(Error('Kiểm tra Chrome quá thời gian; không mở thêm.')); }, 12000); c.stdout.on('data', b => output += b); c.on('error', e => { clearTimeout(timer); reject(e); }); c.on('exit', code => { clearTimeout(timer); if (code !== 0)
     reject(Error('Chưa xác nhận được Chrome đang chạy; không mở thêm.'));
@@ -194,7 +194,7 @@ async function tick() {
     syncing = true;
     try {
         refreshRenderTools();
-        const hv = hub.view(), accounts = hv.accounts.map(a => ({ id: a.id, status: a.online ? (a.blocked ? 'quota' : hv.runs.some(r => r.accountId === a.id && !['confirmed', 'expired'].includes(r.status)) ? 'working' : a.ready ? 'ready' : 'attention') : 'offline', message: hv.runs.filter(r => r.accountId === a.id).at(-1)?.message || '' }));
+        const hv = hub.view(), accounts = hv.accounts.map(a => ({ id: a.id, status: a.online ? (a.blocked ? 'quota' : hv.runs.some(r => r.accountId === a.id && !['confirmed', 'expired'].includes(r.status)) ? 'working' : a.ready ? 'ready' : 'attention') : 'offline', paired: Boolean(a.extensionId), message: hv.runs.filter(r => r.accountId === a.id).at(-1)?.message || '' }));
         const r = await bridge.request('/api/worker/heartbeat', 'POST', { version: '2.2.0', capabilities, renderStatus, posStatus: pos.view(), accounts, activeJobIds: [...hv.runs.filter(x => !['confirmed', 'expired'].includes(x.status)).map(x => x.jobId), ...(renderActive ? [renderActive.job.id] : [])] });
         bridge.setAccounts(r.accounts);
         hub.reconcile(r.accounts);
@@ -231,6 +231,10 @@ async function tick() {
                     throw Error('Không có hồ sơ.');
                 if (c.operation === 'open-login')
                     result = await openAccount(a, c.id);
+                else if (c.operation === 'pair') {
+                    const code = hub.issuePairing(a.id);
+                    result = { ok: true, message: 'Mã ghép ' + code + ' · dùng một lần trong 10 phút. Dán vào tiện ích KBL trong đúng hồ sơ Chrome.' };
+                }
                 else if (c.operation === 'check-session')
                     result = { ok: true, message: a.online ? (a.ready ? 'Tiện ích đã báo ô nhập sẵn sàng.' : 'Tiện ích có kết nối nhưng ô nhập chưa sẵn sàng.') : 'Chưa có heartbeat tiện ích trong hồ sơ này.' };
                 else if (c.operation === 'hide-window')

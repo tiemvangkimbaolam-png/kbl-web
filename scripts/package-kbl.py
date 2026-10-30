@@ -25,14 +25,14 @@ def windows_zip():
             rel = p.relative_to(ROOT / 'windows')
             if p.name == 'kbl-config.json' or any(x in rel.parts for x in ('node_modules', 'work', 'output', 'profiles', '.kbl-render-runtime')) or p.suffix in ('.sqlite', '.log'):
                 raise RuntimeError('Operational file found in Windows source; refusing package')
-            write(z, 'KBL_WINDOWS_MOI/' + str(rel), p.read_bytes())
+            write(z, 'KBL_WINDOWS_MOI/' + rel.as_posix(), p.read_bytes())
         write(z, 'KBL_WINDOWS_MOI/POS_SYNC.md', (ROOT / 'docs/POS_SYNC.md').read_bytes())
         write(z, 'KBL_WINDOWS_MOI/GIA_CLOUD_KHI_TAT_MAY.md', (ROOT / 'docs/GIA_CLOUD_KHI_TAT_MAY.md').read_bytes())
     with zipfile.ZipFile(target) as z:
         if z.testzip():
             raise RuntimeError('Corrupt Windows archive')
         for p in files:
-            assert z.read('KBL_WINDOWS_MOI/' + str(p.relative_to(ROOT / 'windows'))) == p.read_bytes()
+            assert z.read('KBL_WINDOWS_MOI/' + p.relative_to(ROOT / 'windows').as_posix()) == p.read_bytes()
     return target
 
 

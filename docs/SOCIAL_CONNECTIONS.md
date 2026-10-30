@@ -17,11 +17,14 @@ Khóa mã hóa chủ vẫn ở Cloudflare: dùng `KBL_SOCIAL_ENCRYPTION_KEY`, ho
 
 Giữ `KBL_AUTH_MODE=cloudflare-access`, OWNER_EMAIL, Team Domain và AUD của ứng dụng Admin. Bảo vệ `/admin*` và `/api/admin*`, gồm callback bên dưới. Callback GET vẫn cần phiên đúng tài khoản chủ và state một lần. Không tạo ngoại lệ công khai cho toàn bộ `/api/admin`.
 
+Nếu miền callback công khai (`KBL_PUBLISHER_PUBLIC_BASE_URL`) chưa được Cloudflare Access bảo vệ nhưng miền Admin workers.dev đã được bảo vệ, đặt `KBL_ADMIN_ORIGIN` bằng HTTPS gốc của miền Admin đó. Khi provider trả callback về miền công khai mà request không có phiên Access, worker chỉ chuyển tiếp nguyên trạng `state`, `code`/`error` sang đúng đường dẫn callback trên miền Admin. Việc đổi code lấy token vẫn chỉ chạy sau khi Access xác thực chủ và state còn kiểm tra UID, nền tảng, thời hạn, cấu hình ứng dụng; không có endpoint công khai nào đổi token. Nút **Thêm tài khoản** tạo state ngay trên miền Admin đang đăng nhập, không còn chuyển cả trang sang miền callback.
+
 Đặt biến công khai (không phải secret):
 
 | Biến | Giá trị |
 |---|---|
 | KBL_PUBLISHER_PUBLIC_BASE_URL | HTTPS gốc đang dùng thật, ví dụ `https://tiemvangkimbaolam.id.vn` |
+| KBL_ADMIN_ORIGIN | HTTPS gốc của miền Admin đã được Cloudflare Access bảo vệ, ví dụ `https://kbl-web-moi.tiemvangkimbaolam.workers.dev`; để trống nếu callback chạy trực tiếp trên miền công khai đã có Access |
 | KBL_META_GRAPH_VERSION | Phiên bản Graph API đang chọn trong app Meta, dạng `vNN.0`; không tự đoán phiên bản |
 | KBL_META_APP_ID | Meta App ID cho Facebook + Instagram |
 | KBL_THREADS_APP_ID | Threads App ID |
@@ -40,7 +43,7 @@ Các secret đặt bằng Cloudflare Workers → Settings → Variables and Secr
 
 Không ghi các secret vào ZIP, GitHub, wrangler vars, ảnh chụp hoặc đoạn chat. App ID có thể là biến thông thường. Bot Token Telegram nhập qua form bảo vệ trong Admin, gửi HTTPS, mã hóa trong D1; không lưu vào localStorage/browser config. Cấu hình thiếu hiện rõ chưa sẵn sàng, không xác nhận giả.
 
-Trên hostname thử workers.dev, đổi `KBL_PUBLISHER_PUBLIC_BASE_URL` về đúng hostname thử và đăng ký callback tương ứng. Không mở Admin ở staging trong khi base URL đang là domain chính. Sau chuyển miền, thay base và callback cho chính xác rồi kết nối/kiểm tra lại.
+Trên hostname thử workers.dev, giữ `KBL_PUBLISHER_PUBLIC_BASE_URL` là miền callback đã đăng ký và đặt `KBL_ADMIN_ORIGIN` là hostname thử đã có Cloudflare Access; callback sẽ được chuyển tiếp về Admin thử. Nếu đổi base, phải đổi callback trong dashboard nền tảng cho khớp rồi kết nối/kiểm tra lại. Không mở Admin ở miền công khai chưa có Access.
 
 ## 2. Callback chính xác
 

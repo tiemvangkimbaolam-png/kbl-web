@@ -11,3 +11,9 @@ Không đổi Cloudflare Access, OWNER_EMAIL, callback đăng ký, scope mặc �
 Kiểm chứng: 173/173 kiểm thử qua; có 14 kiểm thử kết nối/chuyển miền, callback dùng một lần, chủ khác, hủy cấp quyền, lỗi phiên và URL bất thường. TypeScript --noEmit và build Cloudflare thành công. Các provider và identity trong kiểm thử là fixture; chưa kiểm tra việc chủ bấm và cấp quyền trên tài khoản Meta/Threads thật. Trình duyệt kiểm thử cục bộ chưa chạy được vì bản tải Chromium không hợp lệ; không ghi nhận đó là kiểm thử trình duyệt thành công.
 
 Còn phụ thuộc thực tế: Cloudflare Access phải bảo vệ /admin và /api/admin trên miền callback; callback phải khớp dashboard nhà cung cấp; app ID/secret/use case và tài khoản tester/quyền phải đúng. Không bỏ bảo vệ hoặc thay callback để né lỗi nền tảng. Nếu còn lỗi, cần xem thông báo tại đúng nền tảng; không gửi secret/token/code trong chat.
+
+## Cập nhật 30/10/2026 — miền callback công khai
+
+Ảnh mới cho thấy miền `tiemvangkimbaolam.id.vn` không có ứng dụng Cloudflare Access: request `/admin/ket-noi?connect=instagram` tới worker và nhận JSON 401, trong khi host workers.dev chuyển đúng sang trang đăng nhập Access. Vì vậy việc chuyển cả trang sang miền callback làm nút **Thêm tài khoản** dừng ở JSON thay vì mở trang cấp quyền.
+
+Cách sửa: nút bắt đầu OAuth ngay trên miền Admin đang đăng nhập (workers.dev); đặt `KBL_ADMIN_ORIGIN` bằng miền Admin đó. Provider vẫn trả về callback đã đăng ký trên miền công khai. Nếu callback không có phiên Access, worker chỉ chuyển tiếp `state` và `code`/`error` sang đúng callback trên miền Admin; sau đó Access xác thực chủ, state một lần được kiểm tra UID/nền tảng/thời hạn/cấu hình ứng dụng rồi mới đổi token. Không có endpoint công khai đổi token, không nới quyền `/api/admin`. Nếu sau này bật Access cho miền công khai, callback có phiên hợp lệ sẽ chạy trực tiếp tại đó và quay về đúng miền Admin đã bắt đầu.

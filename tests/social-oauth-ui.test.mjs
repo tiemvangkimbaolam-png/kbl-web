@@ -1,10 +1,24 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {beginOAuth,oauthIntent} from '../app/components/social-oauth.mjs';
-test('an Admin alias navigates to the callback domain without starting OAuth or transferring any credential',async()=>{
- const urls=[];let calls=0;
- await beginOAuth({platform:'threads',baseUrl:'https://kbl.test',currentUrl:'https://worker.test/admin/ket-noi?unrelated=private',enableInbox:true},{start:async()=>{calls++;},navigate:u=>urls.push(u)});
- assert.equal(calls,0);assert.equal(urls.length,1);const target=new URL(urls[0]);assert.equal(target.origin,'https://kbl.test');assert.equal(target.pathname,'/admin/ket-noi');assert.deepEqual([...target.searchParams],[['connect','threads'],['inbox','1']]);
- assert.deepEqual(oauthIntent(target.href),{platform:'threads',enableInbox:true,cleanUrl:'/admin/ket-noi'});
+import {adminCallbackRedirect} from '../lib/kbl/social-core.mjs';
+test('an Admin on the workers.dev host starts OAuth there instead of navigating to an unprotected alias',async()=>{
+ const calls=[],url='https://threads.net/oauth/authorize?client_id=fixture&state=fixture-state';
+ await beginOAuth({platform:'threads',baseUrl:'https://kbl.test',currentUrl:'https://worker.test/admin/ket-noi?unrelated=private',enableInbox:true},{start:async(p,v)=>{calls.push([p,v]);return{authorizeUrl:url};},ready:u=>calls.push(['ready',u]),navigate:u=>calls.push(['navigate',u])});
+ assert.deepEqual(calls,[['threads',{enableInbox:true}],['ready',url],['navigate',url]]);
+});
+test('a public callback without an Access session is forwarded only to the admin origin',()=>{
+ const env={KBL_ADMIN_ORIGIN:'https://admin.test'},state='a'.repeat(64);
+ const request=(path,headers={})=>new Request('https://kbl.test'+path,{headers});
+ const redirected=adminCallbackRedirect(request('/api/admin/social/oauth/instagram/callback?state='+state+'&code=CODE&extra=drop',{}),env);
+ assert.equal(redirected.status,302);const target=new URL(redirected.headers.get('location'));
+ assert.equal(target.origin,'https://admin.test');assert.equal(target.pathname,'/api/admin/social/oauth/instagram/callback');
+ assert.deepEqual([...target.searchParams],[['state',state],['code','CODE']]);
+ assert.equal(adminCallbackRedirect(request('/api/admin/social/oauth/instagram/callback?state='+state,{cookie:'CF_Authorization=token'}),env),null);
+ assert.equal(adminCallbackRedirect(request('/api/admin/social/oauth/instagram/callback?state='+state,{'cf-access-jwt-assertion':'token'}),env),null);
+ assert.equal(adminCallbackRedirect(request('/api/admin/social/oauth/instagram/callback?state=short'),env),null);
+ assert.equal(adminCallbackRedirect(new Request('https://admin.test/api/admin/social/oauth/instagram/callback?state='+state),env),null);
+ assert.equal(adminCallbackRedirect(new Request('https://kbl.test/api/admin/social/oauth/instagram/callback?state='+state,{method:'POST'}),env),null);
+ assert.equal(adminCallbackRedirect(request('/api/admin/social/oauth/other/callback?state='+state),env),null);
 });
 test('canonical Admin starts the JSON owner route and opens the exact provider authorization URL',async()=>{
  const calls=[],url='https://threads.net/oauth/authorize?client_id=fixture&state=fixture-state&redirect_uri=https%3A%2F%2Fkbl.test%2Fapi%2Fadmin%2Fsocial%2Foauth%2Fthreads%2Fcallback';

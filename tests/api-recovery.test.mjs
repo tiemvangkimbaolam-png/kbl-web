@@ -71,6 +71,25 @@ test('cron cleanup remains independent if tick fails and reports failure without
     assert.deepEqual(events, ['scheduler-error']);
 });
 
+test('pair command is delivered to its worker; the pairing code never reaches the account record or export', async () => {
+    const worker = (await call('admin/workers', { label: 'Pairing Windows fixture' })).data;
+    const account = (await call('admin/accounts', { provider: 'gemini', label: 'Pairing account fixture', workerId: worker.id })).data;
+    assert.equal((await call('admin/commands', { accountId: account.id, operation: 'delete-profile' })).status, 422);
+    const pair = await call('admin/commands', { accountId: account.id, operation: 'pair' });
+    assert.equal(pair.status, 200);
+    const headers = { 'x-kbl-worker-token': worker.token, 'Content-Type': 'application/json' };
+    const heartbeat = await call('worker/heartbeat', { version: '2.2.0-fixture', capabilities: ['browser'], accounts: [{ id: account.id, status: 'attention', paired: true, message: 'Fixture extension paired.' }] }, headers);
+    assert.equal(heartbeat.status, 200);
+    assert.ok(heartbeat.data.commands.some(c => c.id === pair.data.id));
+    const code = 'KBL42-' + 'c'.repeat(24);
+    assert.equal((await call('worker/commands/' + pair.data.id, { ok: true, message: 'Mã ghép ' + code + ' · dùng một lần trong 10 phút.' }, headers)).status, 200);
+    const state = await call('admin/state');
+    const saved = state.data.accounts.find(a => a.id === account.id);
+    assert.equal(saved.paired, true);
+    assert.equal(saved.pairCode, undefined);
+    assert.match(state.data.commands.find(c => c.id === pair.data.id).message, /KBL42-/);
+    assert.equal(JSON.stringify((await call('admin/export')).data).includes(code), false);
+});
 test('public catalog uses cloud snapshot while Windows is offline; only the bound worker can hand over private config', async () => {
     const source = (await call('admin/workers', { label: 'Cloud price source fixture' })).data;
     const other = (await call('admin/workers', { label: 'Other price source fixture' })).data;

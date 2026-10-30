@@ -1,6 +1,6 @@
 import {socialEnvironment,saveSocialApplication} from './social-config';
 import * as S from './store';
-import { SOCIAL_PROVIDERS, random, digest, seal, unseal, authorization, exchange, configFor, publicBase, targetList, publicConnection, safeTargets, providerJSON } from './social-core.mjs';
+import { SOCIAL_PROVIDERS, random, digest, seal, unseal, authorization, exchange, configFor, publicBase, adminBase, targetList, publicConnection, safeTargets, providerJSON } from './social-core.mjs';
 const registry:any=SOCIAL_PROVIDERS;
 const reply=(value:any,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const fail=(message:string,status=400)=>{throw Object.assign(Error(message),{status});};
@@ -37,7 +37,8 @@ export async function handleSocialAdmin(req:Request,path:string[],actor:{uid:str
  if(path[0]==='oauth'&&path[1]){
   const platform=platformOf(path[1]);if(platform==='telegram')fail('Telegram sử dụng bot token, không dùng OAuth.');
   if(method==='POST'&&path[2]==='start'){
-   if(u.origin!==publicBase(config))fail('Mở Admin đúng địa chỉ KBL_PUBLISHER_PUBLIC_BASE_URL trước khi kết nối OAuth.',409);
+   const startOrigins=[publicBase(config),adminBase(config)].filter(Boolean);
+   if(!startOrigins.includes(u.origin))fail('Mở Admin đúng địa chỉ KBL_PUBLISHER_PUBLIC_BASE_URL hoặc KBL_ADMIN_ORIGIN trước khi kết nối OAuth.',409);
    const body=await input(req),id=body.connectionId?validId(body.connectionId):S.id(),old=await S.get('social-connection',id);
    if(old&&old.platform!==platform)fail('Kết nối thuộc nền tảng khác.',409);
    if(!old&&(await S.list('social-connection',101)).length>=100)fail('Đã đủ 100 kết nối; ngắt kết nối cũ trước.',507);
@@ -50,18 +51,18 @@ export async function handleSocialAdmin(req:Request,path:string[],actor:{uid:str
   if(method==='GET'&&path[2]==='callback'){
    const state=u.searchParams.get('state')||'';if(!/^[a-f0-9]{64}$/.test(state))fail('Mã trạng thái OAuth không hợp lệ.');
    const stateId=await digest(state),record=await S.get('social-state',stateId);if(!record)fail('Yêu cầu OAuth hết hạn hoặc đã dùng.',409);
-   const pending=await unseal(record.vault,config.KBL_SOCIAL_ENCRYPTION_KEY,'kbl-social-state:'+stateId);
-   if(pending.owner!==actor.uid||pending.platform!==platform||pending.origin!==u.origin||pending.expiresAt<Date.now())fail('Phiên OAuth không khớp tài khoản/địa chỉ hoặc hết hạn.',403);
+   const pending=await unseal(record.vault,config.KBL_SOCIAL_ENCRYPTION_KEY,'kbl-social-state:'+stateId),callbackOrigins=[publicBase(config),adminBase(config)].filter(Boolean);
+   if(pending.owner!==actor.uid||pending.platform!==platform||!callbackOrigins.includes(u.origin)||pending.expiresAt<Date.now())fail('Phiên OAuth không khớp tài khoản/địa chỉ hoặc hết hạn.',403);
    if(pending.appHash&&pending.appHash!==await digest(JSON.stringify([config[registry[platform].client],config[registry[platform].secret],config.KBL_META_GRAPH_VERSION||''])))fail('Cấu hình ứng dụng đã đổi; bắt đầu OAuth lại.',409);
    const taken=await S.sql().prepare("DELETE FROM records WHERE kind='social-state' AND id=? RETURNING id").bind(stateId).first();if(!taken)fail('Callback này đã được xử lý.',409);
-   if(u.searchParams.has('error'))return Response.redirect(u.origin+'/admin/ket-noi?social=cancelled',303);
+   if(u.searchParams.has('error'))return Response.redirect(pending.origin+'/admin/ket-noi?social=cancelled',303);
    const code=u.searchParams.get('code');if(!code||code.length>4096)fail('Chưa nhận được mã OAuth hợp lệ.');
    try{
     const tokens=await exchange(config,platform,{code,verifier:pending.verifier}),targets=await targetList(config,platform,tokens);
     const old=await S.get('social-connection',pending.id),target=targets.length===1?targets[0]:null;
     await saveSecret({id:pending.id,platform,label:pending.label,inboxRequested:pending.inboxRequested===true,status:target?'connected':'choose-target',targetId:target?.id||null,targetLabel:target?.label||null,expiresAt:tokens.expiresAt,scope:tokens.scope,connectedAt:Date.now(),lastError:null},{tokens,targets,selected:target},old?.version);
-    return Response.redirect(u.origin+'/admin/ket-noi?social=connected&connection='+pending.id,303);
-   }catch(error){return Response.redirect(u.origin+'/admin/ket-noi?social=failed',303);}
+    return Response.redirect(pending.origin+'/admin/ket-noi?social=connected&connection='+pending.id,303);
+   }catch(error){return Response.redirect(pending.origin+'/admin/ket-noi?social=failed',303);}
   }
  }
  if(path[0]==='targets'&&path[1]){

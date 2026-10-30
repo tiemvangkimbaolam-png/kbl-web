@@ -229,7 +229,7 @@ export async function handle(req: Request): Promise<Response> {
             }
             if (method === 'POST' && path[1] === 'commands') {
                 const v = await body(req);
-                if (!['open-login', 'check-session', 'hide-window', 'resume'].includes(v.operation))
+                if (!['pair', 'open-login', 'check-session', 'hide-window', 'resume'].includes(v.operation))
                     fail('Lệnh chưa được hỗ trợ.');
                 const a = await S.get('account', v.accountId);
                 if (!a?.workerId)
@@ -354,9 +354,12 @@ export async function handle(req: Request): Promise<Response> {
                 const v = await body(req), old = await S.get('worker', wid);
                 const posStatus = v.posStatus && typeof v.posStatus === 'object' ? { pending: Math.max(0, Math.min(100, Number(v.posStatus.pending) || 0)), photoPending: Math.max(0, Math.min(500, Number(v.posStatus.photoPending) || 0)), lastSuccess: Number(v.posStatus.lastSuccess) || 0, lastError: String(v.posStatus.lastError || '').slice(0, 250) } : undefined;
                 await S.put('worker', wid, { ...old, status: 'online', lastSeen: Date.now(), capabilities: Array.isArray(v.capabilities) ? v.capabilities.filter((x: any) => ['render','image', 'publish', 'browser', 'pos-readonly'].includes(x)) : [], version: String(v.version || '').slice(0, 50), renderStatus: String(v.renderStatus || '').slice(0, 400), posStatus });
-                const reports = Array.isArray(v.accounts) ? v.accounts.slice(0, 20).map((a: any) => ({ id: String(a.id), status: ['ready', 'working', 'quota', 'challenge', 'attention', 'offline'].includes(a.status) ? a.status : 'offline', message: String(a.message || '').slice(0, 300) })) : [];
+                const reports = Array.isArray(v.accounts) ? v.accounts.slice(0, 20).map((a: any) => {
+                    const status = ['ready', 'working', 'quota', 'challenge', 'attention', 'offline'].includes(a.status) ? a.status : 'offline';
+                    return { id: String(a.id), status, paired: typeof a.paired === 'boolean' ? a.paired : ['ready', 'working', 'quota', 'challenge', 'attention'].includes(status) ? true : null, message: String(a.message || '').slice(0, 300) };
+                }) : [];
                 const encoded = JSON.stringify(reports);
-                await S.sql().prepare("UPDATE records SET data=json_set(data,'$.workerId',?,'$.lastSeen',?,'$.status',(SELECT json_extract(j.value,'$.status') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id),'$.message',(SELECT json_extract(j.value,'$.message') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id)),version=version+1,updated_at=? WHERE kind='account' AND id IN (SELECT json_extract(value,'$.id') FROM json_each(?)) AND (json_extract(data,'$.workerId') IS NULL OR json_extract(data,'$.workerId')=?)").bind(wid, Date.now(), encoded, encoded, Date.now(), encoded, wid).run();
+                await S.sql().prepare("UPDATE records SET data=json_set(data,'$.workerId',?,'$.lastSeen',?,'$.status',(SELECT json_extract(j.value,'$.status') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id),'$.message',(SELECT json_extract(j.value,'$.message') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id),'$.paired',(SELECT json_extract(j.value,'$.paired') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id)),version=version+1,updated_at=? WHERE kind='account' AND id IN (SELECT json_extract(value,'$.id') FROM json_each(?)) AND (json_extract(data,'$.workerId') IS NULL OR json_extract(data,'$.workerId')=?)").bind(wid, Date.now(), encoded, encoded, encoded, Date.now(), encoded, wid).run();
                 const activeIds = JSON.stringify(Array.isArray(v.activeJobIds) ? v.activeJobIds.slice(0, 40) : []);
                 await S.sql().prepare("UPDATE jobs SET lease_until=? WHERE status IN ('leased','running','attention') AND id IN (SELECT value FROM json_each(?)) AND (owner=? OR owner IN (SELECT id FROM records WHERE kind='account' AND json_extract(data,'$.workerId')=?))").bind(Date.now() + 30 * 60000, activeIds, wid, wid).run();
                 await P.tick();

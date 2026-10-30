@@ -8,7 +8,9 @@ Site mặc định riêng tư. API `/api/admin/*` yêu cầu identity do Sites c
 
 ## Worker v2
 
-- POST /api/worker/heartbeat: báo khả năng thật và tình trạng tối đa 20 hồ sơ; nhận settings/accounts/commands.
+- POST /api/worker/heartbeat: báo khả năng thật và tình trạng tối đa 20 hồ sơ, gồm `paired` của tiện ích Chrome; nhận settings/accounts/commands.
+- POST /api/admin/commands: `pair`, `open-login`, `check-session`, `hide-window`, `resume`. Lệnh `pair` sinh mã `KBL42-…` dùng một lần trong 10 phút; mã chỉ nằm trong lệnh gửi Windows, không nằm trong dữ liệu xuất. Mật khẩu AI không đi qua website.
+- POST /api/worker/commands/{id}: worker trả `ok` và `message`; với lệnh `pair`, message chứa mã ghép để chủ đọc trong 10 phút.
 - POST /api/worker/claim: accountId hoặc capabilities=['render'], tùy chọn jobId để nhận đúng việc đã chọn.
 - POST /api/worker/jobs/{id}/dispatch: phải có lease, ghi nhận đã bàn giao UI/dựng.
 - POST /api/worker/jobs/{id}/complete: lease và result. Chỉ chấp nhận cùng kết quả khi gửi lại; hash khác từ chối.
