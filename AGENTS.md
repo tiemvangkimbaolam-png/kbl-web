@@ -8,3 +8,5 @@
 - Giữ auth Sites, OWNER_EMAIL và token worker. Không ghi secrets vào source, manifest, log hoặc đầu ra.
 - Migrations đã áp dụng không được sửa. Thêm migration mới.
 - Đọc docs/CONTRACTS.md và docs/VERIFICATION.md trước khi đổi giao thức. Kiểm thử meaningful gồm API, mất kết nối, idempotency, private dữ liệu và quota; phân biệt mô phỏng với thật.
+
+- Khi tiếp tục dự án, đọc `.project-state/contract.md` và áp dụng `.agents/skills/project-continuity-orchestrator/SKILL.md`; phân biệt kiểm thử mô phỏng với thiết bị thật.

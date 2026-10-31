@@ -60,3 +60,81 @@ body.kbl-reference-home{line-height:1.6;font-size:16px;background:var(--paper);c
 
 /* One accessible placeholder; avoid overlapping the legacy pseudo-element. */
 .product-image.empty:after{content:none!important}
+
+
+/* Approved concept 06 — Hồng đào / Vàng đồng. Presentation only. */
+body.kbl-reference-home{
+ --kbl-paper:#fffefd!important;--kbl-surface:#fff!important;--kbl-soft:#fff4ee!important;
+ --kbl-ink:#102c43!important;--kbl-accent:#9b4d2d!important;--kbl-muted:#65717d!important;--kbl-line:#efdcd0!important;
+ --paper:#fffefd;--cream:#fff6f1;--white:#fff;--ink:#102c43;--navy:#102c43;--gold:#9b4d2d;--line:#efdcd0;--muted:#65717d;
+ --kbl-ui-ink:#102c43!important;--kbl-ui-gold:#9b4d2d!important;--kbl-ui-line:#efdcd0!important;
+ background:#fffefd!important;color:#102c43!important
+}
+body.kbl-reference-home .site-header{background:#fffffffa!important;border-bottom:1px solid #f1e6de!important}
+body.kbl-reference-home .brand-copy>strong{color:#9b4d2d!important;background:none!important;-webkit-text-fill-color:currentColor;font-family:KBLPlayfair,Georgia,serif!important}
+body.kbl-reference-home .brand-copy small{color:#17364e!important}
+body.kbl-reference-home #prices{background:#fffefd url('/tien-ich/widget-kbl/assets/peach-silk.jpg') center bottom/100% auto no-repeat!important;padding-bottom:48px!important}
+body.kbl-reference-home #prices .price-heading h2{color:#102c43!important;font-family:KBLPlayfair,Georgia,serif!important;line-height:1.2!important}
+body.kbl-reference-home #prices .eyebrow{color:#9b4d2d!important}
+body.kbl-reference-home #prices .kbl-price-unit{color:#65717d!important}
+body.kbl-reference-home #prices .kbl-rate-header{background:transparent!important;border:0!important;color:#65717d!important;padding:12px 20px!important;grid-template-columns:28% 36% 36%}
+body.kbl-reference-home #prices .kbl-rate-header span:not(:first-child){text-align:right}
+body.kbl-reference-home #prices .kbl-rate-header span:last-child{color:#9b4d2d}
+body.kbl-reference-home #prices #price-grid{border:0!important;background:transparent!important;gap:10px!important}
+body.kbl-reference-home #prices #price-grid .price-card{
+ position:relative;grid-template-columns:28% 36% 36%!important;align-items:center;
+ min-height:88px!important;padding:18px 20px!important;border:1px solid #f1e3dc!important;border-radius:16px!important;
+ background:#ffffffed!important;box-shadow:0 4px 16px #7c442604!important
+}
+body.kbl-reference-home #prices #price-grid .price-card:first-child{background:#fff4edeb!important;border-color:#f0dcd0!important}
+body.kbl-reference-home #prices #price-grid .price-card:before{display:block!important;content:'';position:absolute;left:14px;top:26%;bottom:26%;width:4px;height:auto!important;border-radius:8px;background:linear-gradient(#c17851,#a14625)!important}
+body.kbl-reference-home #prices #price-grid .price-card-head{padding-left:10px!important}
+body.kbl-reference-home #prices #price-grid h3{color:#102c43!important;font-family:KBLPlayfair,Georgia,serif!important;font-size:22px!important;font-weight:600!important;line-height:1.3!important}
+body.kbl-reference-home #prices #price-grid .price-card:first-child h3{color:#8c4025!important}
+body.kbl-reference-home #prices #price-grid .price-value{min-width:0!important;text-align:right!important}
+body.kbl-reference-home #prices #price-grid .price-value+ .price-value{border-left:1px solid #f0e5de!important;padding-left:12px!important;margin-left:12px!important}
+body.kbl-reference-home #prices #price-grid .price-value strong{color:#102c43!important;font-family:KBLPlayfair,Georgia,serif!important;font-size:clamp(22px,2.1vw,28px)!important;font-weight:700!important;letter-spacing:-.04em!important;white-space:nowrap!important;line-height:1.4!important;overflow-wrap:normal!important}
+body.kbl-reference-home #prices #price-grid .price-value:nth-child(2)>strong{color:#9b4d2d!important;text-shadow:none}
+body.kbl-reference-home #prices #price-grid .price-card-foot{color:#65717d!important}
+body.kbl-reference-home #prices #kbl-home-world-gold{border:1px solid #efddcf!important;border-radius:18px!important;background:#fffaf7e8!important;box-shadow:0 8px 24px #713d1d05!important}
+body.kbl-reference-home .kbl-widget-install{display:flex;margin:24px 0 0!important;padding:0!important;border:0!important;background:none!important}
+body.kbl-reference-home .kbl-widget-install>div{display:none}
+body.kbl-reference-home .kbl-widget-install>a{display:flex;align-items:center;justify-content:center;gap:20px;width:100%;min-height:58px;padding:14px 24px;border-radius:99px;background:linear-gradient(115deg,#9b4d2d,#ad603d);color:#fff;text-decoration:none;font-size:17px;font-weight:600;border:1px solid #c88b69;box-shadow:inset 0 1px 1px #ffffff75,0 10px 24px #a3573030}
+body.kbl-reference-home .kbl-widget-install>a:hover{background:linear-gradient(115deg,#8c3d1d,#ab633f)}
+body.kbl-reference-home .kbl-widget-install>a:focus-visible{outline:3px solid #9b4d2d;outline-offset:4px}
+body.kbl-reference-home #products{background:#fff!important;border-color:#f1e5dd!important}
+body.kbl-reference-home :is(.filter-tab.active,.market-tab.active){background:#fff0e7!important;border-color:#d69c7a!important;color:#8d4227!important}
+body.kbl-reference-home #products .product-card{border-radius:16px!important;overflow:hidden}
+body.kbl-reference-home #products .product-image{border-radius:16px!important;overflow:hidden}
+body.kbl-reference-home :is(.product-button,.refresh-price){background:#fff4ed!important;color:#8b4025!important;border-color:#e4bda7!important}
+body.kbl-reference-home #kbl-mobile-nav{background:#fffffff5!important;border-top:1px solid #f1dfd3!important;box-shadow:0 -6px 30px #8f47200a!important}
+body.kbl-reference-home #kbl-mobile-nav a[aria-current]{color:#9b4d2d!important}
+body.kbl-reference-home #kbl-mobile-nav a[aria-current]:before{background:#ac5b34!important}
+body.kbl-home-57109 .floating-contact>#kbl-pwa-reload.kbl-reload-under-ai,body.kbl-home-57109 .floating-contact>.floating-top{
+ display:flex!important;align-items:center;justify-content:center;position:relative!important;inset:auto!important;
+ width:48px!important;min-width:48px!important;height:48px!important;min-height:48px!important;margin:0!important;padding:0!important;
+ border-radius:50%!important;border:1px solid #ead6c8!important;background:#fff!important;color:#17344a!important;
+ box-shadow:0 6px 18px #7842201a!important;transform:none!important;z-index:2!important
+}
+body.kbl-reference-home .floating-contact{gap:10px!important;align-items:flex-end!important}
+body.kbl-reference-home .kbl-ai-launcher{border:1px solid #d5966f!important;background:#fff!important;box-shadow:0 5px 18px #8e4b2424!important}
+@media(max-width:760px){
+ body.kbl-reference-home .container{width:calc(100% - 32px)!important}
+ body.kbl-reference-home #prices .price-heading h2{font-size:clamp(32px,8.2vw,42px)!important}
+ body.kbl-reference-home #prices .kbl-price-columns{gap:28px!important}
+ body.kbl-reference-home #prices .kbl-rate-header{font-size:13px!important;padding:10px 12px!important;grid-template-columns:26% 37% 37%}
+ body.kbl-reference-home #prices #price-grid .price-card{grid-template-columns:26% 37% 37%!important;padding:17px 12px!important;min-height:76px!important;border-radius:14px!important}
+ body.kbl-reference-home #prices #price-grid .price-card:before{left:10px;width:3px}
+ body.kbl-reference-home #prices #price-grid .price-card-head{padding-left:8px!important}
+ body.kbl-reference-home #prices #price-grid h3{font-size:clamp(17px,4.7vw,21px)!important}
+ body.kbl-reference-home #prices #price-grid .price-value strong{font-size:clamp(17px,4.8vw,23px)!important;letter-spacing:-.045em!important}
+ body.kbl-reference-home #prices #price-grid .price-value+ .price-value{padding-left:7px!important;margin-left:7px!important}
+ body.kbl-reference-home #prices .kbl-widget-install>a{font-size:17px;min-height:56px}
+ body.kbl-reference-home #kbl-mobile-nav a{color:#65717d!important}
+}
+@media(max-width:360px){body.kbl-reference-home .container{width:calc(100% - 24px)!important}body.kbl-reference-home #prices #price-grid .price-value+ .price-value{padding-left:4px!important;margin-left:4px!important}}
+/* Keep the original three live columns on phones as in the chosen concept. */
+body.kbl-reference-home #prices #price-grid .price-card-head{grid-column:auto!important;align-self:center}
+body.kbl-reference-home #prices #price-grid .price-value>span{display:none!important}
+body.kbl-reference-home #prices .kbl-rate-header{display:grid!important}
+@media(max-width:1000px){body.kbl-reference-home #prices .kbl-price-columns{grid-template-columns:minmax(0,1fr)!important}}
