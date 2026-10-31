@@ -17,25 +17,25 @@
     },
     "build": {
       "status": "done",
-      "note": "60 checks passed; Cloudflare build passed; static browser layout/control checks; real iPhone not_tested.",
+      "note": "69 checks passed; Cloudflare build passed; five browser widths balanced; clipboard success/fallback VM verified; native iPhone not_tested.",
       "evidence": [
         {
-          "path": "scripts/scriptable-widget.template.js",
-          "sha256": "a755393b7a16e508fa3a2db340cb8c84d517c87a3f899d26156ae7f186b274c2",
-          "bytes": 6773
-        },
-        {
           "path": "public/reference-home/patch.css",
-          "sha256": "a3df3e5150e7b3fafebb8dbc53f24ff51a8bc872b4c9b874f6305fc691d5b502",
-          "bytes": 15602
+          "sha256": "87719919f17f5007426d3aa91564b35df065acf89e6c0d002cdb7b8b353d5628",
+          "bytes": 16027
         },
         {
-          "path": "tests/widgets.test.mjs",
-          "sha256": "89b85fbc3f36cdabee2fb4fd4dfa34a5a16f80b4357efec4e7541c7a60296c83",
-          "bytes": 8939
+          "path": "tests/widget-install.test.mjs",
+          "sha256": "49671cc8207b484a164abd3c3415911a9746c6d1129d1d26e542240db12a0b6e",
+          "bytes": 6659
+        },
+        {
+          "path": ".project-state/verification.md",
+          "sha256": "35fba5043d763e4e9671d5d5802f07f6b3a28df46c478eb056756eb34d654532",
+          "bytes": 2947
         }
       ],
-      "at": "2026-10-31T14:09:54.435372+00:00"
+      "at": "2026-10-31T18:19:32.658081+00:00"
     },
     "demonstrate": {
       "status": "not_tested",
@@ -62,7 +62,7 @@
       "at": "2026-10-31T14:09:54.557959+00:00"
     }
   },
-  "next_action": "Lưu GitHub; cần phiên Cloudflare hợp lệ để deploy production.",
+  "next_action": "Push reviewed fixes to kbl-web-moi via PR; production deployment needs authenticated Cloudflare.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -87,7 +87,13 @@
       "stage": "integrate",
       "status": "blocked",
       "note": "Wrangler is not authenticated; no DNS or database changes."
+    },
+    {
+      "at": "2026-10-31T18:19:32.658095+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "69 checks passed; Cloudflare build passed; five browser widths balanced; clipboard success/fallback VM verified; native iPhone not_tested."
     }
   ],
-  "updated_at": "2026-10-31T14:09:54.557974+00:00"
+  "updated_at": "2026-10-31T18:19:32.658097+00:00"
 }

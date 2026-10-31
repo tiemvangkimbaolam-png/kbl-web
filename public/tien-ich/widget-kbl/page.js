@@ -1,8 +1,9 @@
 import { widgetSnapshot, widgetState, widgetMoney, widgetClock, KBL_WIDGET_FEATURED } from './gold-core.mjs';
+import { readInstallSource } from './install-flow.mjs';
 const $ = id => document.getElementById(id);
 const root = $('widget-preview');
 const theme = 'copper';
-let size = 'medium', snapshot = null, lastError = '', downloadFile = null;
+let size = 'medium', snapshot = null, lastError = '', installSource = '';
 let sequence = 0, pendingController = null;
 const scriptName = () => 'KBL Gia Vang Dong';
 const fileBase = () => 'KBL_Gia_Vang_Dong';
@@ -24,20 +25,20 @@ function render() {
   $('widget-freshness').textContent = state.rows.length ? (state.stale ? 'Bản lưu · kiểm tra giá mới' : 'Bảng giá KBL') : 'Chạm widget để mở website';
   $('widget-time').textContent = state.sourceAt ? widgetClock(state.sourceAt) : '—';
   $('selection-summary').textContent = 'Hồng đào vàng đồng' + ' · Cỡ ' + labels[size] + ' đang xem trước';
-  $('download-widget').href = './' + fileBase() + '.scriptable'; $('download-widget').download = fileBase() + '.scriptable';
+  $('download-widget').href = './' + fileBase() + '.js'; $('download-widget').download = fileBase() + '.js';
   $('view-code').href = './' + fileBase() + '.js'; $('script-name').textContent = scriptName();
   $('open-widget').href = 'scriptable:///run/' + encodeURIComponent(scriptName());
 }
-async function preloadShare() {
-  const chosen = fileBase(); downloadFile = null; $('share-widget').hidden = true;
+async function prepareInstall() {
+  const button = $('copy-widget'); button.disabled = true;
   try {
-    if (!navigator.share || !navigator.canShare || typeof File === 'undefined') return;
-    const response = await fetch('./' + chosen + '.scriptable');
-    if (!response.ok) return;
-    const file = new File([await response.blob()], chosen + '.scriptable', { type: 'application/octet-stream' });
-    if (chosen !== fileBase() || !navigator.canShare({ files: [file] })) return;
-    downloadFile = file; $('share-widget').hidden = false;
-  } catch (_) {}
+    const source = await readInstallSource(); installSource = source.code;
+    $('install-code').value = installSource;
+    button.disabled = false; button.textContent = 'Sao chép mã widget';
+    $('download-status').textContent = 'Mã đã sẵn sàng. Sao chép rồi dán vào script mới trong Scriptable.';
+  } catch (error) {
+    button.textContent = 'Mã chưa sẵn sàng'; $('download-status').textContent = error.message;
+  }
 }
 async function refreshPrices() {
   const current = ++sequence; pendingController?.abort(); pendingController = new AbortController();
@@ -55,13 +56,29 @@ document.querySelectorAll('[data-size]').forEach(button => button.addEventListen
   size = button.dataset.size;
   document.querySelectorAll('[data-size]').forEach(el => el.setAttribute('aria-pressed', String(el === button))); render();
 }));
-$('download-widget').addEventListener('click', () => { $('download-status').textContent = 'Sau khi tải, mở tệp → Chia sẻ → Scriptable để nhập gói. Tiếp tục làm bước 3 để đặt ra màn hình.'; });
-$('share-widget').addEventListener('click', async () => {
-  if (!downloadFile) return;
-  try { await navigator.share({ files: [downloadFile], title: 'Widget giá vàng Kim Bảo Lâm' }); }
-  catch (error) { if (error.name !== 'AbortError') $('download-status').textContent = 'Trình duyệt chưa chia sẻ được tệp. Hãy dùng nút Tải widget KBL.'; }
+$('download-widget').addEventListener('click', () => {
+  $('download-status').textContent = 'Tệp .js dành cho iCloud Drive → Scriptable. Nếu chia sẻ tệp báo lỗi UTI, dùng Sao chép mã widget và dán trong ứng dụng.';
 });
-render(); void refreshPrices(); void preloadShare();
+$('copy-widget').addEventListener('click', () => {
+  if (!installSource) return;
+  // The source is preloaded, so Safari's clipboard call stays inside the user gesture.
+  let request;
+  try {
+    if (!navigator.clipboard?.writeText) throw Error('Clipboard unavailable');
+    request = navigator.clipboard.writeText(installSource);
+  } catch (_) { showManualCopy(); return; }
+  Promise.resolve(request).then(() => {
+    $('add-widget').hidden = false;
+    $('download-status').textContent = 'Đã sao chép mã. Mở Scriptable → dán vào trang trắng → đặt tên KBL Gia Vang Dong → bấm ▶ để xem thử.';
+  }).catch(showManualCopy);
+});
+function showManualCopy() {
+  $('manual-copy').open = true;
+  const field = $('install-code'); field.focus(); field.select(); field.setSelectionRange(0, field.value.length);
+  $('add-widget').hidden = false;
+  $('download-status').textContent = 'Safari chưa cho sao chép tự động. Nhấn giữ vùng mã bên dưới → Chọn tất cả → Sao chép, rồi mở Scriptable để dán.';
+}
+render(); void refreshPrices(); void prepareInstall();
 const poller = setInterval(() => { if (!document.hidden) void refreshPrices(); }, 60000);
 window.addEventListener('pagehide', () => { clearInterval(poller); pendingController?.abort(); });
 window.addEventListener('pageshow', event => { if (event.persisted) { location.reload(); } });

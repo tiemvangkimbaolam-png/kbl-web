@@ -11,3 +11,7 @@ Tham chiếu được duyệt: image-edit-target-a521aed9885ffa3e.png, mẫu 06 
 - Bàn giao GitHub branch/PR và gói cập nhật gọn nếu cần. Không đổi DNS, migrations, dữ liệu hay công khai secrets.
 
 SHA256 ảnh mẫu đã chọn: 4023986244cb2bf058a8aa814c30e6c47d77f977f67084065a8fa642946cb601.
+
+01/11/2026: người dùng cung cấp ảnh lỗi UTI lúc chia sẻ gói Scriptable. Được phép sửa luồng cài, giữ mẫu 06 và giá/POS. Thay bằng sao chép mã → editor mới, thêm fallback thủ công, kiểm tra hash mã, và cung cấp đoạn cài ngắn gắn commit cố định cho trường hợp cứu hộ. Không khẳng định đã kiểm tra iPhone thật hoặc đã deploy khi chưa có bằng chứng.
+
+Căn bảng giá mobile: khoảng hở 12px của grid cũ cộng thêm trên tổng 100% bề rộng ba cột đẩy giá bán vượt mép phải. Bỏ khoảng hở thừa và chừa thêm 6px bên phải ở cả tiêu đề/các dòng; không đổi giá, cỡ chữ hay công thức. Kiểm tra mép chữ thay vì chỉ bề rộng khung.
