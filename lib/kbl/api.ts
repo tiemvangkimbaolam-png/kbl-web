@@ -1,6 +1,7 @@
 import {recordTraffic,trafficSummary} from './traffic';
 import {readTVDesign,saveTVDesign} from './tv-design-api';
 import {handleCustomer} from './customer';
+import {handleHoldings} from './holdings';
 import {handleTryOn} from './tryon';
 import {handleCustomerAdmin} from './customer-admin';
 import {submitFeedback} from './feedback';
@@ -92,6 +93,7 @@ export async function handle(req: Request): Promise<Response> {
             if(path[1]==='fx'&&method==='GET')return response(await readVcbRate());
             if(path[1]==='traffic'&&method==='POST'){await rate(req,'traffic',120);return response(await recordTraffic(await body(req,1500)));}
             if(path[1]==='tv-design'&&method==='GET')return response(await readTVDesign());
+            if(path[1]==='holdings')return await handleHoldings(req,path.slice(2));
             if(path[1]==='customer')return await handleCustomer(req,path.slice(2));
             if(path[1]==='try-on')return await handleTryOn(req,path.slice(2));
             if(path[1]==='feedback'&&method==='POST')return await submitFeedback(req);
