@@ -138,3 +138,10 @@ body.kbl-reference-home #prices #price-grid .price-card-head{grid-column:auto!im
 body.kbl-reference-home #prices #price-grid .price-value>span{display:none!important}
 body.kbl-reference-home #prices .kbl-rate-header{display:grid!important}
 @media(max-width:1000px){body.kbl-reference-home #prices .kbl-price-columns{grid-template-columns:minmax(0,1fr)!important}}
+
+/* Phone balance: legacy 12px gaps were added on top of 100% column tracks. */
+body.kbl-reference-home #prices #price-grid .price-card{column-gap:0!important}
+@media(max-width:760px){
+ body.kbl-reference-home #prices #price-grid .price-card,
+ body.kbl-reference-home #prices .kbl-rate-header{grid-template-columns:minmax(0,26fr) minmax(0,37fr) minmax(0,37fr)!important;padding-right:18px!important;column-gap:0!important}
+}
