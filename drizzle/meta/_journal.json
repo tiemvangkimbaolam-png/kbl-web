@@ -15,6 +15,13 @@
       "when": 1793002235152,
       "tag": "0001_pos_lookup",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793417361018,
+      "tag": "0002_publication_variants",
+      "breakpoints": true
     }
   ]
 }

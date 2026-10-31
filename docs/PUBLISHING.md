@@ -1,6 +1,6 @@
 # Xuất bản mạng xã hội từ video đã duyệt
 
-Bộ code này có adapter thật cho Facebook Page, Instagram chuyên nghiệp liên kết Page, Threads, YouTube và Telegram. Tài khoản phải được OAuth/bot kết nối, chọn đúng Page/kênh và cấp quyền xuất bản. Có OAuth không có nghĩa ứng dụng đã được nền tảng duyệt quyền đăng. Các test dùng phản hồi giả lập; chưa xác nhận bài nào đã đăng bằng tài khoản người dùng.
+Bộ code này có adapter thật cho Facebook Page, Instagram chuyên nghiệp liên kết Page, Threads, YouTube và Telegram. Tài khoản phải được OAuth/bot kết nối, chọn đúng Page/kênh và cấp quyền xuất bản. Có OAuth không có nghĩa ứng dụng đã được nền tảng duyệt quyền đăng. YouTube không có API riêng cho Shorts: video dọc 1080×1920 tối đa 3 phút được nhận là Shorts và mô tả tự thêm #Shorts. Các test dùng phản hồi giả lập; chưa xác nhận bài nào đã đăng bằng tài khoản người dùng.
 
 ## Cấu hình và nối luồng
 
@@ -8,7 +8,7 @@ Bộ code này có adapter thật cho Facebook Page, Instagram chuyên nghiệp 
 2. Chọn tài khoản đích trên Admin. Cho phép phát hành trong cài đặt, chọn nền tảng của hồ sơ.
 3. Pipeline chỉ gửi nội dung khi tin, ảnh và video đã qua đủ bước duyệt. `publishSocialStory(storyId, platform, connectionId, {origin,videoId,headline,caption})` tiến thêm một bước mỗi lần cron.
 4. Route `GET /api/publishing-media/:token` gọi `servePublishingMedia(token)`. Link ngẫu nhiên hạn hai giờ chỉ cung cấp đúng video tạm của hồ sơ cho Meta tải; không mở toàn bộ bucket và không dùng quyền Admin/worker trong URL.
-5. Không tự coi container, upload-session, token OAuth hay HTTP 200 là bài hoàn thành. Instagram/Threads chờ xử lý container rồi lấy ID bài và permalink. YouTube đợi trạng thái processed + public. Facebook đợi video ready và permalink. Telegram cần message_id và link kênh (kênh riêng ghi rõ chỉ thành viên xem được).
+5. Không tự coi container, upload-session, token OAuth hay HTTP 200 là bài hoàn thành. Instagram/Threads chờ xử lý container rồi lấy ID bài và permalink. YouTube đợi trạng thái processed + public; bản dựng 1080×1920 ≤ 3 phút và mô tả có #Shorts để vào Shorts. Facebook đợi video ready và permalink. Telegram cần message_id và link kênh (kênh riêng ghi rõ chỉ thành viên xem được).
 6. Chỉ khi có receipt cho mọi nền tảng trong hồ sơ mới dọn video/audio/phụ đề tạm. Ảnh sản phẩm/tin và video gốc Windows giữ lại.
 
 ## Lỗi và mất kết nối

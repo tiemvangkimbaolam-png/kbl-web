@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 const { build } = createRequire(
   fs.realpathSync("node_modules/wrangler/package.json"),
@@ -77,7 +78,7 @@ before(async () => {
       },
     ],
   });
-  handle = (await import(path.resolve(".sites-runtime/test-tv-api.mjs")))
+  handle = (await import(pathToFileURL(path.resolve(".sites-runtime/test-tv-api.mjs")).href))
     .handle;
   await build({
     entryPoints: ["lib/kbl/tv-design.ts"],
@@ -86,7 +87,7 @@ before(async () => {
     format: "esm",
     outfile: ".sites-runtime/test-tv-schema.mjs",
   });
-  const m = await import(path.resolve(".sites-runtime/test-tv-schema.mjs"));
+  const m = await import(pathToFileURL(path.resolve(".sites-runtime/test-tv-schema.mjs")).href);
   defaults = m.defaultTVDesign;
   schema = m.tvDesignSchema;
 });
@@ -194,7 +195,7 @@ test("shared TV board renders saved typography, actual price units and text safe
     external: ["react", "react/jsx-runtime", "lucide-react"],
   });
   const { TVBoard } = await import(
-    path.resolve(".sites-runtime/test-tv-board.mjs")
+    pathToFileURL(path.resolve(".sites-runtime/test-tv-board.mjs")).href
   );
   const { createElement } = await import("react");
   const { renderToStaticMarkup } = await import("react-dom/server");

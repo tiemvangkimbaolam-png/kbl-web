@@ -75,7 +75,7 @@ Dùng Threads App ID/Secret riêng và callback Threads. Server đổi code lấ
 
 ### YouTube
 
-Bật YouTube Data API v3, OAuth Web Client, khai báo callback. Đưa tài khoản vào tester khi app đang Testing; OAuth yêu cầu offline access và consent để lấy refresh token. Chọn kênh YouTube được trả về và kiểm tra ID trước đăng. App chưa được kiểm toán upload có thể bị giới hạn video private; OAuth không thay kiểm toán. Video dọc/Shorts còn cần đúng thời lượng/tỷ lệ và xử lý YouTube thành công.
+Bật YouTube Data API v3, OAuth Web Client, khai báo callback. Đưa tài khoản vào tester khi app đang Testing; OAuth yêu cầu offline access và consent để lấy refresh token. Chọn kênh YouTube được trả về và kiểm tra ID trước đăng. App chưa được kiểm toán upload có thể bị giới hạn video private; OAuth không thay kiểm toán. Video dọc 1080×1920 tối đa 3 phút được nhận là Shorts và mô tả tự thêm #Shorts; vẫn cần xử lý YouTube thành công.
 
 ### TikTok
 
@@ -91,7 +91,7 @@ OA publishing, nhắn UID và ZBS template theo số điện thoại là các nh
 
 ### Telegram
 
-Tạo bot bằng BotFather; thêm bot vào channel với quyền đăng; nhập Token và Chat ID/username ở Admin. Source gọi `getMe`, `getChat`, `getChatMember` để xác minh, không gửi bài thử lúc kết nối. Bot không tự bắt đầu hội thoại với số điện thoại POS; người dùng cần mở/nhắn bot trước khi chăm sóc riêng.
+Tạo bot bằng BotFather; thêm bot vào channel với quyền đăng; nhập Token và Chat ID/username ở Admin. Source gọi `getMe`, `getChat` để xác minh; với nhóm/channel còn gọi `getChatMember` để kiểm tra quyền gửi/đăng. Chat riêng chỉ nhận được tin sau khi người dùng nhắn bot trước. Không gửi bài thử lúc kết nối. Bot không tự bắt đầu hội thoại với số điện thoại POS; người dùng cần mở/nhắn bot trước khi chăm sóc riêng.
 
 ## 4. Trạng thái và khôi phục
 

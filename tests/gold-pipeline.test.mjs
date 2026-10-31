@@ -2,6 +2,7 @@ import { test, before, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import { webcrypto, createHash } from 'node:crypto';
@@ -24,7 +25,7 @@ before(async () => {
         b.onResolve({ filter: /^cloudflare:workers$/ }, () => ({ path: 'env', namespace: 'test-env' }));
         b.onLoad({ filter: /.*/, namespace: 'test-env' }, () => ({ contents: 'export const env=globalThis.__KBL_GOLD_TEST_ENV;', loader: 'js' }));
     } }] });
-    ({ G, P, POS } = await import(path.resolve('.sites-runtime/gold-pipeline.mjs') + '?v=' + realNow()));
+    ({ G, P, POS } = await import(pathToFileURL(path.resolve('.sites-runtime/gold-pipeline.mjs')).href + '?v=' + realNow()));
 });
 beforeEach(() => {
     Date.now = () => at;

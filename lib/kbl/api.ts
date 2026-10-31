@@ -192,12 +192,12 @@ export async function handle(req: Request): Promise<Response> {
                 }
             }
             if (method === 'GET' && path[1] === 'state') {
-                const [cfg, accounts, workers, products, stories, prices, orders, consultations, channels, commands, jobs, events, receipts, storage, editions] = await Promise.all([S.settings(), S.list('account', 20), S.list('worker', 20), S.list('product', 500), S.list('story', 80), S.list('price', 40), S.list('order', 100), S.list('consultation', 100), S.list('channel', 20), S.list('command', 30), S.sql().prepare('SELECT id,story_id,stage,status,owner,exclude_account,lease_until,attempt,error,created_at,updated_at FROM jobs ORDER BY created_at DESC LIMIT 250').all(), S.sql().prepare('SELECT * FROM events ORDER BY id DESC LIMIT 80').all(), S.sql().prepare('SELECT * FROM receipts ORDER BY at DESC LIMIT 100').all(), S.sql().prepare('SELECT COALESCE(SUM(bytes),0) bytes,COUNT(*) files FROM assets WHERE deleted_at IS NULL').first(), S.sql().prepare('SELECT * FROM editions ORDER BY created_at DESC LIMIT 12').all()]);
-                return response({ settings: cfg, accounts, workers, products, stories, prices, orders, consultations: consultations.map(({ tokenHash, ...v }: any) => v), channels, commands, jobs: jobs.results, events: events.results, receipts: receipts.results, storage, editions: editions.results, posBound: await POS.locked(), posSync: await S.list('pos-sync', 10), serverTime: Date.now() });
+                const [cfg, accounts, workers, products, stories, prices, orders, consultations, channels, commands, jobs, events, receipts, storage, editions, aiHealth] = await Promise.all([S.settings(), S.list('account', 20), S.list('worker', 20), S.list('product', 500), S.list('story', 80), S.list('price', 40), S.list('order', 100), S.list('consultation', 100), S.list('channel', 20), S.list('command', 30), S.sql().prepare('SELECT id,story_id,stage,status,owner,exclude_account,lease_until,attempt,error,created_at,updated_at FROM jobs ORDER BY created_at DESC LIMIT 250').all(), S.sql().prepare('SELECT * FROM events ORDER BY id DESC LIMIT 80').all(), S.sql().prepare('SELECT * FROM receipts ORDER BY at DESC LIMIT 100').all(), S.sql().prepare('SELECT COALESCE(SUM(bytes),0) bytes,COUNT(*) files FROM assets WHERE deleted_at IS NULL').first(), S.sql().prepare('SELECT * FROM editions ORDER BY created_at DESC LIMIT 12').all(), S.list('ai-provider-health', 5)]);
+                return response({ settings: cfg, accounts, workers, products, stories, prices, orders, consultations: consultations.map(({ tokenHash, ...v }: any) => v), channels, commands, jobs: jobs.results, events: events.results, receipts: receipts.results, storage, editions: editions.results, aiHealth, apiConsult: apiConsultReady(), posBound: await POS.locked(), posSync: await S.list('pos-sync', 10), serverTime: Date.now() });
             }
             if (method === 'POST' && path[1] === 'settings') {
                 const v = await body(req), old = await S.settings();
-                const allowed = z.object({ teamEnabled: z.boolean().optional(), autoResearch: z.boolean().optional(), autoConsult: z.boolean().optional(), autoProducts: z.boolean().optional(), feedbackConnectionId: z.string().regex(/^(?:[a-f0-9]{32})?$/).optional(), productHours: z.array(z.number().int().min(0).max(23)).min(1).max(6).optional(), publicationEnabled: z.boolean().optional(), storageLimitMB: z.number().int().min(32).max(2048).optional(), companyName: z.string().min(3).max(150).optional(), phone: z.string().max(30).optional(), address: z.string().max(300).optional(), hours: z.string().max(100).optional() }).strict().parse(v);
+                const allowed = z.object({ teamEnabled: z.boolean().optional(), autoResearch: z.boolean().optional(), autoOutlook: z.boolean().optional(), autoConsult: z.boolean().optional(), autoProducts: z.boolean().optional(), feedbackConnectionId: z.string().regex(/^(?:[a-f0-9]{32})?$/).optional(), productHours: z.array(z.number().int().min(0).max(23)).min(1).max(6).optional(), goldSchedule: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)).min(1).max(6).optional(), publicationSpacingMinutes: z.number().int().min(0).max(1440).optional(), publicationEnabled: z.boolean().optional(), storageLimitMB: z.number().int().min(32).max(2048).optional(), companyName: z.string().min(3).max(150).optional(), phone: z.string().max(30).optional(), address: z.string().max(300).optional(), hours: z.string().max(100).optional() }).strict().parse(v);
                 if (allowed.teamEnabled === true) {
                     const ac = await S.list('account', 20);
                     if (!ac.length)
@@ -224,7 +224,10 @@ export async function handle(req: Request): Promise<Response> {
                 const v = await body(req);
                 if (v.provider && v.provider !== old.provider)
                     fail('Thêm hồ sơ mới khi đổi nhà cung cấp; giữ phiên Chrome hiện tại.');
-                await S.put('account', old.id, { ...old, ...accountInput({ ...old, ...v }) }, old.version);
+                if (v.workerId !== undefined && v.workerId !== null && v.workerId !== '' && !await S.get('worker', String(v.workerId)))
+                    fail('Máy Windows không tồn tại.', 404);
+                const workerId = v.workerId !== undefined ? (v.workerId ? String(v.workerId) : null) : old.workerId || null, moved = workerId !== (old.workerId || null);
+                await S.put('account', old.id, { ...old, ...accountInput({ ...old, ...v }), workerId, ...(moved ? { status: 'offline', paired: null, lastSeen: 0, message: 'Đã gán lại máy Windows; chờ máy báo trạng thái.' } : {}) }, old.version);
                 return response({ ok: true });
             }
             if (method === 'POST' && path[1] === 'commands') {
@@ -351,20 +354,32 @@ export async function handle(req: Request): Promise<Response> {
                 return response(await POS.attachPhoto(wid, sku, asset.assetId));
             }
             if (method === 'POST' && path[1] === 'heartbeat') {
-                const v = await body(req), old = await S.get('worker', wid);
+                const v = await body(req), at = Date.now(), old = await S.get('worker', wid);
+                const capabilities = Array.isArray(v.capabilities) ? v.capabilities.filter((x: any) => ['render','image', 'publish', 'browser', 'pos-readonly'].includes(x)) : [];
+                const version = String(v.version || '').slice(0, 50), renderStatus = String(v.renderStatus || '').slice(0, 400);
                 const posStatus = v.posStatus && typeof v.posStatus === 'object' ? { pending: Math.max(0, Math.min(100, Number(v.posStatus.pending) || 0)), photoPending: Math.max(0, Math.min(500, Number(v.posStatus.photoPending) || 0)), lastSuccess: Number(v.posStatus.lastSuccess) || 0, lastError: String(v.posStatus.lastError || '').slice(0, 250) } : undefined;
-                await S.put('worker', wid, { ...old, status: 'online', lastSeen: Date.now(), capabilities: Array.isArray(v.capabilities) ? v.capabilities.filter((x: any) => ['render','image', 'publish', 'browser', 'pos-readonly'].includes(x)) : [], version: String(v.version || '').slice(0, 50), renderStatus: String(v.renderStatus || '').slice(0, 400), posStatus });
+                // Only write when state or the 45s liveness stamp changed; unchanged heartbeats every 15s would burn the Free D1 write quota.
+                if (!old || at - Number(old.lastSeen || 0) >= 45000 || old.status !== 'online' || JSON.stringify(old.capabilities || []) !== JSON.stringify(capabilities) || old.version !== version || old.renderStatus !== renderStatus || JSON.stringify(old.posStatus || null) !== JSON.stringify(posStatus || null))
+                    await S.sql().prepare('UPDATE records SET data=?,version=version+1,updated_at=? WHERE kind=? AND id=?').bind(JSON.stringify({ ...old, status: 'online', lastSeen: at, capabilities, version, renderStatus, posStatus }), at, 'worker', wid).run();
                 const reports = Array.isArray(v.accounts) ? v.accounts.slice(0, 20).map((a: any) => {
                     const status = ['ready', 'working', 'quota', 'challenge', 'attention', 'offline'].includes(a.status) ? a.status : 'offline';
                     return { id: String(a.id), status, paired: typeof a.paired === 'boolean' ? a.paired : ['ready', 'working', 'quota', 'challenge', 'attention'].includes(status) ? true : null, message: String(a.message || '').slice(0, 300) };
                 }) : [];
-                const encoded = JSON.stringify(reports);
-                await S.sql().prepare("UPDATE records SET data=json_set(data,'$.workerId',?,'$.lastSeen',?,'$.status',(SELECT json_extract(j.value,'$.status') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id),'$.message',(SELECT json_extract(j.value,'$.message') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id),'$.paired',(SELECT json_extract(j.value,'$.paired') FROM json_each(?) j WHERE json_extract(j.value,'$.id')=records.id)),version=version+1,updated_at=? WHERE kind='account' AND id IN (SELECT json_extract(value,'$.id') FROM json_each(?)) AND (json_extract(data,'$.workerId') IS NULL OR json_extract(data,'$.workerId')=?)").bind(wid, Date.now(), encoded, encoded, encoded, Date.now(), encoded, wid).run();
-                const activeIds = JSON.stringify(Array.isArray(v.activeJobIds) ? v.activeJobIds.slice(0, 40) : []);
-                await S.sql().prepare("UPDATE jobs SET lease_until=? WHERE status IN ('leased','running','attention') AND id IN (SELECT value FROM json_each(?)) AND (owner=? OR owner IN (SELECT id FROM records WHERE kind='account' AND json_extract(data,'$.workerId')=?))").bind(Date.now() + 30 * 60000, activeIds, wid, wid).run();
-                await P.tick();
-                const commands = (await S.list('command', 50)).filter((c: any) => c.workerId === wid && c.status === 'pending' && c.expiresAt > Date.now());
-                return response({ ok: true, workerId: wid, accounts: (await S.list('account', 20)).filter((a: any) => !a.workerId || a.workerId === wid), commands, settings: await S.settings() });
+                const accounts = (await S.list('account', 20)).filter((a: any) => !a.workerId || a.workerId === wid), byId = new Map(accounts.map((a: any) => [a.id, a])), updates: any[] = [];
+                for (const report of reports) {
+                    const account: any = byId.get(report.id);
+                    if (!account) continue;
+                    if (account.workerId === wid && account.status === report.status && account.paired === report.paired && account.message === report.message && at - Number(account.lastSeen || 0) < 45000) continue;
+                    Object.assign(account, { workerId: wid, lastSeen: at, status: report.status, paired: report.paired, message: report.message });
+                    updates.push(S.sql().prepare('UPDATE records SET data=?,version=version+1,updated_at=? WHERE kind=? AND id=?').bind(JSON.stringify(account), at, 'account', account.id));
+                }
+                if (updates.length) await S.sql().batch(updates);
+                if (Array.isArray(v.activeJobIds) && v.activeJobIds.length) {
+                    const activeIds = JSON.stringify(v.activeJobIds.slice(0, 40));
+                    await S.sql().prepare("UPDATE jobs SET lease_until=? WHERE status IN ('leased','running','attention') AND id IN (SELECT value FROM json_each(?)) AND (owner=? OR owner IN (SELECT id FROM records WHERE kind='account' AND json_extract(data,'$.workerId')=?))").bind(at + 30 * 60000, activeIds, wid, wid).run();
+                }
+                const commands = (await S.sql().prepare("SELECT id,data,version,created_at,updated_at FROM records WHERE kind='command' AND json_extract(data,'$.workerId')=? AND json_extract(data,'$.status')='pending' ORDER BY updated_at DESC LIMIT 10").bind(wid).all<any>()).results.map((x: any) => ({ ...JSON.parse(x.data), id: x.id, version: x.version, createdAt: x.created_at, updatedAt: x.updated_at })).filter((c: any) => Number(c.expiresAt || 0) > at);
+                return response({ ok: true, workerId: wid, accounts, commands, settings: await S.settings() });
             }
             if (method === 'POST' && path[1] === 'commands' && path[2]) {
                 const c = await S.get('command', path[2]), v = await body(req);
@@ -436,7 +451,10 @@ export async function handle(req: Request): Promise<Response> {
         return response({ error: 'Không tìm thấy chức năng.' }, 404);
     }
     catch (e: any) {
-        const status = e.status || (e instanceof z.ZodError || e instanceof SyntaxError ? 422 : 500);
-        return response({ error: status === 500 ? 'Chưa xử lý được yêu cầu. Dữ liệu đã lưu được giữ nguyên.' : e.message }, status);
+        const raw = String(e?.message || '');
+        const quota = /D1_ERROR/i.test(raw) && /(exceeded|limit|quota|rows read|rows written|per day)/i.test(raw);
+        const status = e.status || (e instanceof z.ZodError || e instanceof SyntaxError ? 422 : quota ? 503 : 500);
+        const message = status === 500 ? 'Chưa xử lý được yêu cầu. Dữ liệu đã lưu được giữ nguyên.' : quota ? 'Cơ sở dữ liệu đã chạm hạn mức ghi/đọc miễn phí trong ngày. Dữ liệu chưa thay đổi; thử lại sau 07:00 giờ Việt Nam.' : e.message;
+        return response({ error: message }, status);
     }
 }

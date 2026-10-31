@@ -2,6 +2,7 @@ import { before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
@@ -25,7 +26,7 @@ before(async () => {
     const blobs = new Map();
     globalThis.__KBL_RECOVERY_ENV = { DB: { prepare, async batch(stmts) { db.exec('BEGIN'); try { const result = []; for (const stmt of stmts) result.push(await stmt.run()); db.exec('COMMIT'); return result; } catch (e) { db.exec('ROLLBACK'); throw e; } } }, BUCKET: { async head(id) { return blobs.has(id) ? { size: blobs.get(id).byteLength } : null; }, async put(id, data) { blobs.set(id, data); }, async get(id) { return blobs.has(id) ? { body: blobs.get(id), size: blobs.get(id).byteLength } : null; }, async delete(id) { blobs.delete(id); } } };
     await build({ entryPoints: ['lib/kbl/api.ts'], bundle: true, platform: 'node', format: 'esm', outfile: '.sites-runtime/api-recovery.mjs', plugins: [{ name: 'recovery-env', setup(b) { b.onResolve({ filter: /^cloudflare:workers$/ }, () => ({ path: 'env', namespace: 'fixture' })); b.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'export const env = globalThis.__KBL_RECOVERY_ENV;', loader: 'js' })); } }] });
-    handle = (await import(path.resolve('.sites-runtime/api-recovery.mjs'))).handle;
+    handle = (await import(pathToFileURL(path.resolve('.sites-runtime/api-recovery.mjs')).href)).handle;
     await call('admin/settings', { autoResearch: false, autoConsult: false });
 });
 test('health proves migrations and storage permissions rather than binding existence', async () => {

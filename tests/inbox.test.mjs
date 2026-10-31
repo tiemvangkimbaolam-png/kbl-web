@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {verifyMeta,extractMessages,sendReplyOnce} from '../lib/kbl/inbox-core.mjs';
+import {verifyMeta,extractMessages,sendReplyOnce,telegramWebhookSecret} from '../lib/kbl/inbox-core.mjs';
+import {telegramJSON} from '../lib/kbl/social-core.mjs';
 test('Meta webhook HMAC verifies the exact raw payload and rejects wrong secrets or changed bytes',async()=>{
  const secret='fixture-secret-only',raw=JSON.stringify({entry:[]}),key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
  const sig='sha256='+[...new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(raw)))].map(v=>v.toString(16).padStart(2,'0')).join('');
@@ -19,4 +20,15 @@ test('reply checkpoints before network call and never repeats an ambiguous write
  const result=await sendReplyOnce(row,'Xin chào',options);assert.equal(result.status,'uncertain');await sendReplyOnce(result,'Xin chào',options);assert.equal(calls,1);
  assert.deepEqual(states,['sending','uncertain']);
  const expired=await sendReplyOnce(row,'Xin chào',{...options,now:()=>1000+86400000});assert.equal(expired.status,'expired');assert.equal(calls,1);
+});
+test('telegram webhook secret is per-connection and requires a real master key',async()=>{
+ const master='k'.repeat(64),a=await telegramWebhookSecret(master,'a'.repeat(32)),b=await telegramWebhookSecret(master,'b'.repeat(32));
+ assert.match(a,/^[a-f0-9]{64}$/);assert.notEqual(a,b);
+ await assert.rejects(()=>telegramWebhookSecret('short','a'.repeat(32)),/32/);
+});
+test('telegram API errors surface the description but never the bot token',async()=>{
+ const token='123456:SECRET-TOKEN';
+ await assert.rejects(()=>telegramJSON(token,'getChat',{},async()=>({ok:false,status:400,json:async()=>({ok:false,description:'Bad Request: chat not found for '+token})})),error=>error.status===502&&!error.message.includes(token)&&/chat not found/.test(error.message));
+ const ok=await telegramJSON(token,'getMe',{},async()=>({ok:true,status:200,json:async()=>({ok:true,result:{is_bot:true}})}));
+ assert.equal(ok.result.is_bot,true);
 });

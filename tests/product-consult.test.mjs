@@ -2,6 +2,7 @@ import { before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import { assistantState } from '../lib/kbl/assistant-state.mjs';
@@ -21,7 +22,7 @@ before(async () => {
     const DB = { prepare(query) { let params = []; const stmt = { bind(...p) { params = p; return stmt; }, async first() { return db.prepare(query).get(...params) || null; }, async all() { return { results: db.prepare(query).all(...params) }; }, async run() { const r = db.prepare(query).run(...params); return { success: true, meta: { changes: Number(r.changes) } }; } }; return stmt; }, async batch(stmts) { db.exec('BEGIN'); try { const result = []; for (const stmt of stmts) result.push(await stmt.run()); db.exec('COMMIT'); return result; } catch (e) { db.exec('ROLLBACK'); throw e; } } };
     globalThis.__KBL_DETAIL_ENV = { DB, KBL_PRICE_ENCRYPTION_KEY: 'd'.repeat(64) };
     await build({ entryPoints: ['lib/kbl/api.ts'], bundle: true, platform: 'node', format: 'esm', outfile: '.sites-runtime/test-product-consult.mjs', plugins: [{ name: 'env', setup(b) { b.onResolve({ filter: /^cloudflare:workers$/ }, () => ({ path: 'env', namespace: 'fixture' })); b.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'export const env=globalThis.__KBL_DETAIL_ENV;' })); } }] });
-    handle = (await import(path.resolve('.sites-runtime/test-product-consult.mjs') + '?' + Date.now())).handle;
+    handle = (await import(pathToFileURL(path.resolve('.sites-runtime/test-product-consult.mjs')).href + '?' + Date.now())).handle;
     const w = (await call('admin/workers', 'POST', { label: 'PRIVATE-WORKER-LABEL' })).data; wid = w.id; wh = { 'Content-Type': 'application/json', 'x-kbl-worker-token': w.token };
     account = (await call('admin/accounts', 'POST', { label: 'PRIVATE-AI-LABEL', provider: 'chatgpt', workerId: wid })).data.id;
     await call('admin/settings', 'POST', { teamEnabled: true, autoResearch: false, autoConsult: true, phone: '0900000000', address: 'Địa chỉ cửa hàng fixture', hours: '08:00–18:00' });
@@ -109,7 +110,7 @@ test('disabled AI still accepts a private question without claiming an AI answer
 });
 test('actual React product detail renders safe facts and original photo links without recalculating the saved price', async () => {
     await build({ entryPoints: ['app/components/product-details.tsx'], bundle: true, platform: 'node', format: 'esm', outfile: '.sites-runtime/product-detail-ssr.mjs', external: ['react', 'react-dom', 'react-dom/server', 'lucide-react'] });
-    const { default: ProductDetails } = await import(path.resolve('.sites-runtime/product-detail-ssr.mjs') + '?' + Date.now());
+    const { default: ProductDetails } = await import(pathToFileURL(path.resolve('.sites-runtime/product-detail-ssr.mjs')).href + '?' + Date.now());
     const { createElement } = await import('react'), { renderToStaticMarkup } = await import('react-dom/server');
     const id = 'a'.repeat(64), p = { ...C.inventory(inventory, price)[0], id: 'fixture', source: 'pos', imageIds: [id], updatedAt: Date.now(), price: 12345678, description: '<script>privateAttack()</script>' };
     const html = renderToStaticMarkup(createElement(ProductDetails, { product: p }));
@@ -166,7 +167,7 @@ test('Admin application form persists encrypted secrets, shares Meta settings, p
 
 test('actual application form SSR never embeds a saved secret and renders editable platform IDs',async()=>{
  await build({entryPoints:['app/components/social-app-form.tsx'],bundle:true,platform:'node',format:'esm',outfile:'.sites-runtime/social-app-form-ssr.mjs',external:['react','react-dom','react-dom/server','lucide-react']});
- const {default:Form}=await import(path.resolve('.sites-runtime/social-app-form-ssr.mjs')+'?'+Date.now()),{createElement}=await import('react'),{renderToStaticMarkup}=await import('react-dom/server');
+ const {default:Form}=await import(pathToFileURL(path.resolve('.sites-runtime/social-app-form-ssr.mjs')).href+'?'+Date.now()),{createElement}=await import('react'),{renderToStaticMarkup}=await import('react-dom/server');
  const html=renderToStaticMarkup(createElement(Form,{provider:{id:'youtube',label:'YouTube',application:{clientId:'public-client-fixture',hasSecret:true,clientSecret:'PRIVATE-MUST-NOT-RENDER'},callback:'https://kbl.test/callback',scopes:[]},encryptionReady:true,onSaved:async()=>{}}));
  assert.ok(html.includes('Client ID'));assert.ok(html.includes('Lưu ứng dụng'));assert.ok(html.includes('public-client-fixture'));assert.ok(!html.includes('PRIVATE-MUST-NOT-RENDER'));assert.ok(html.includes('type="password"'));
 });

@@ -1,21 +1,35 @@
 import {socialEnvironment} from './social-config';
 import * as S from './store';
 import { socialCredentials } from './social';
-import { verifyMeta,extractMessages,sendReplyOnce } from './inbox-core.mjs';
+import {publicBase,telegramJSON} from './social-core.mjs';
+import { verifyMeta,extractMessages,sendReplyOnce,telegramWebhookSecret } from './inbox-core.mjs';
 const reply=(v:any,status=200)=>Response.json(v,{status,headers:{'Cache-Control':'no-store'}});
 const valid=(v:string)=>/^[a-f0-9]{32}$/.test(v);
-const telegramSecret=async(id:string)=>{const master=(await socialEnvironment()).KBL_INBOX_WEBHOOK_SECRET;if(typeof master!=='string'||master.length<32)throw Error('Chưa cấu hình KBL_INBOX_WEBHOOK_SECRET.');return S.sha(master+':telegram:'+id);};
+// KBL_INBOX_WEBHOOK_SECRET is optional: the social encryption key already
+// protects the same connection, so inbox can be enabled without a second secret.
+const telegramSecret=async(id:string)=>{const env=await socialEnvironment(),master=env.KBL_INBOX_WEBHOOK_SECRET||env.KBL_SOCIAL_ENCRYPTION_KEY;if(typeof master!=='string'||master.length<32)throw Object.assign(Error('Chưa có khóa tạo webhook Telegram: thêm KBL_SOCIAL_ENCRYPTION_KEY hoặc KBL_INBOX_WEBHOOK_SECRET (tối thiểu 32 ký tự) trong Cloudflare.'),{status:503});return telegramWebhookSecret(master,id);};
 export async function handleInboxAdmin(req:Request,path:string[]){
  if(req.method==='GET')return reply({bindings:(await S.list('inbox-binding',100)).map(({id,enabled,platform,updatedAt}:any)=>({id,enabled,platform,updatedAt})),outbox:(await S.list('inbox-message',100)).map(({id,platform,status,reason,sentAt,receivedAt}:any)=>({id,platform,status,reason,sentAt,receivedAt})),supported:['facebook','instagram','telegram']});
  if(req.method!=='POST'||!valid(path[0]||''))return reply({message:'Không có chức năng này.'},404);
- const data:any=await req.json();if(typeof data.enabled!=='boolean'||data.confirmMessagingPermission!==true)return reply({message:'Xác nhận quyền tin nhắn và trạng thái bật/tắt.'},400);
+ const data:any=await req.json();if(typeof data.enabled!=='boolean'||data.enabled&&data.confirmMessagingPermission!==true)return reply({message:'Xác nhận quyền tin nhắn và trạng thái bật/tắt.'},400);
  const auth=await socialCredentials(path[0]),platform=auth.connection.platform;
- if(data.enabled&&platform!=='telegram'&&(!(await socialEnvironment()).KBL_META_WEBHOOK_VERIFY_TOKEN||!(await socialEnvironment()).KBL_META_APP_SECRET))return reply({message:'Cần cấu hình Meta webhook verify token và App Secret trước khi bật.'},503);
- if(data.enabled&&platform==='telegram')await telegramSecret(path[0]);
  if(!['facebook','instagram','telegram'].includes(platform))return reply({message:'Chưa có bộ nhận/trả lời tin nhắn cho nền tảng này.'},409);
+ const cfg=await socialEnvironment(),base=publicBase(cfg);
+ let callback='',secret='',message='';
+ if(platform==='telegram'){
+  secret=await telegramSecret(path[0]);
+  callback=base+'/api/social-inbox/telegram/'+path[0];
+  if(data.enabled)await telegramJSON(auth.tokens.accessToken,'setWebhook',{url:callback,secret_token:secret,allowed_updates:['message']});
+  else await telegramJSON(auth.tokens.accessToken,'deleteWebhook',{drop_pending_updates:false});
+  message=data.enabled?'Đã bật tự trả lời và đăng ký webhook Telegram. Tin nhắn riêng gửi tới bot sẽ vào hàng đợi tư vấn.':'Đã tắt tự trả lời và gỡ webhook Telegram.';
+ }else{
+  if(data.enabled&&(!cfg.KBL_META_WEBHOOK_VERIFY_TOKEN||!cfg.KBL_META_APP_SECRET))return reply({message:'Cần cấu hình Meta webhook verify token và App Secret trước khi bật.'},503);
+  secret=cfg.KBL_META_WEBHOOK_VERIFY_TOKEN||'';
+  callback=base+'/api/social-inbox/'+platform+'/'+path[0];
+  message='Cần đăng ký webhook và quyền nhắn tin trên ứng dụng nền tảng; lưu tại đây chưa đăng ký webhook.';
+ }
  await S.put('inbox-binding',path[0],{enabled:data.enabled,platform,targetId:auth.connection.targetId});
- const base=new URL(req.url).origin,secret=platform==='telegram'?await telegramSecret(path[0]):(await socialEnvironment()).KBL_META_WEBHOOK_VERIFY_TOKEN;
- return reply({success:true,callback:base+'/api/social-inbox/'+platform+'/'+path[0],verifyToken:secret,message:'Cần đăng ký webhook và quyền nhắn tin trên ứng dụng nền tảng; lưu tại đây chưa đăng ký webhook.'});
+ return reply({success:true,enabled:data.enabled,registered:platform==='telegram',callback,verifyToken:secret,message});
 }
 export async function handleInboxWebhook(req:Request,platform:string,connectionId:string){
  if(!valid(connectionId)||!['facebook','instagram','telegram'].includes(platform))return reply({message:'Not found'},404);

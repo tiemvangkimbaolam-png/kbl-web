@@ -3,6 +3,7 @@ import a from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { createRequire } from 'node:module';
@@ -44,7 +45,7 @@ before(async()=>{
     const DB = { prepare(query) { queryCount++; let params=[]; const s={ bind(...p){params=p;return s;}, async first(){return db.prepare(query).get(...params)||null;},async all(){return {results:db.prepare(query).all(...params)};},async run(){return {meta:{changes:Number(db.prepare(query).run(...params).changes)}};} };return s; }, async batch(stmts){db.exec('BEGIN');try{const out=[];for(const s of stmts)out.push(await s.run());db.exec('COMMIT');return out;}catch(e){db.exec('ROLLBACK');throw e;}} };
     globalThis.__POS_ENV={DB,BUCKET:{async head(id){return files.has(id)?{size:files.get(id).length}:null;},async put(id,b){files.set(id,Buffer.from(b));},async get(id){const b=files.get(id);return b?{body:b,size:b.length}:null;},async delete(id){files.delete(id);}}};
     await build({entryPoints:['lib/kbl/api.ts'],bundle:true,platform:'node',format:'esm',outfile:'.sites-runtime/test-pos.mjs',plugins:[{name:'pos-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fake'}));b.onLoad({filter:/.*/,namespace:'fake'},()=>({contents:'export const env=globalThis.__POS_ENV;',loader:'js'}));}}]});
-    handle=(await import(path.resolve('.sites-runtime/test-pos.mjs')+'?v='+Date.now())).handle;
+    handle=(await import(pathToFileURL(path.resolve('.sites-runtime/test-pos.mjs')).href+'?v='+Date.now())).handle;
     const w=(await call('admin/workers',{label:'POS fixture'},owner)).body;workerId=w.id;workerHeaders={'Content-Type':'application/json','x-kbl-worker-token':w.token};
     fs.mkdirSync(path.join(root,'product-photos'));
 });

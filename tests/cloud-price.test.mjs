@@ -2,6 +2,7 @@ import { before,test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import { parseCloudAskNumber,cloudAskToBaseVnd,deriveCloudPrices,fetchCloudRelay,safeCloudSpreads,publicCloudSnapshot } from '../lib/kbl/cloud-price-core.mjs';
@@ -30,7 +31,7 @@ test('stale and failed source keeps last values with original timestamps and exp
 const db=new DatabaseSync(':memory:');
 function prepare(query){let params=[];const stmt={bind(...p){params=p;return stmt;},async first(){return db.prepare(query).get(...params)||null;},async all(){return{results:db.prepare(query).all(...params)};},async run(){const r=db.prepare(query).run(...params);return{meta:{changes:Number(r.changes)}};}};return stmt;}
 let mod,env;
-before(async()=>{for(const f of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(fs.readFileSync('drizzle/'+f,'utf8').replaceAll('--> statement-breakpoint',''));env=globalThis.__KBL_CLOUD_PRICE_ENV={KBL_PRICE_ENCRYPTION_KEY:'a'.repeat(64),DB:{prepare}};db.prepare("INSERT INTO records(kind,id,data,created_at,updated_at) VALUES('pos-binding','main',?,1,1)").run(JSON.stringify({workerId:'pos-owner'}));const{build}=createRequire(fs.realpathSync('node_modules/wrangler/package.json'))('esbuild');await build({entryPoints:['lib/kbl/cloud-price.ts'],bundle:true,platform:'node',format:'esm',outfile:'.sites-runtime/cloud-price-fixture.mjs',plugins:[{name:'cloud-price-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env=globalThis.__KBL_CLOUD_PRICE_ENV;',loader:'js'}));}}]});mod=await import(path.resolve('.sites-runtime/cloud-price-fixture.mjs'));});
+before(async()=>{for(const f of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(fs.readFileSync('drizzle/'+f,'utf8').replaceAll('--> statement-breakpoint',''));env=globalThis.__KBL_CLOUD_PRICE_ENV={KBL_PRICE_ENCRYPTION_KEY:'a'.repeat(64),DB:{prepare}};db.prepare("INSERT INTO records(kind,id,data,created_at,updated_at) VALUES('pos-binding','main',?,1,1)").run(JSON.stringify({workerId:'pos-owner'}));const{build}=createRequire(fs.realpathSync('node_modules/wrangler/package.json'))('esbuild');await build({entryPoints:['lib/kbl/cloud-price.ts'],bundle:true,platform:'node',format:'esm',outfile:'.sites-runtime/cloud-price-fixture.mjs',plugins:[{name:'cloud-price-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env=globalThis.__KBL_CLOUD_PRICE_ENV;',loader:'js'}));}}]});mod=await import(pathToFileURL(path.resolve('.sites-runtime/cloud-price-fixture.mjs')).href);});
 test('only bound POS configures encrypted relay, duplicate revision is safe and stale updates cannot overwrite',async()=>{
  const config={enabled:true,relayUrl,relayToken,markupVnd:100000,pollMs:60000,spreads:{'9999':300000,'980':300000,'750':500000,'610':400000,'585':500000,'416':500000}};
  await assert.rejects(()=>mod.configureCloudPrice('other',{config,revision:1}),/đã ghép/);

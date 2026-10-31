@@ -28,7 +28,7 @@ test('actual FFmpeg fixture render validates portrait/audio, reuses matching cac
             uploads.push({ route, bytes: Buffer.from(bytes) }); return { assetId: hash(bytes) };
         } };
         const job = { id: 'render-fixture', storyId: 'fixture-story', context: { outputs: { image: { rows: scenes.map(s => ({ assetId: s.id, caption: 'Fixture only' })) }, write: { script: 'Fixture narration one with timed words' } } } };
-        const render = () => renderer.render({ job, lease: 'fixture-only', bridge, config: { ffmpeg: 'ffmpeg', ffprobe: 'ffprobe' }, workDir: path.join(dir, 'work') });
+        const render = () => renderer.render({ job, lease: 'fixture-only', bridge, config: { ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', renderer: 'ffmpeg' }, workDir: path.join(dir, 'work') });
         const first = await render();
         assert.equal(first.width, 1080); assert.equal(first.height, 1920);
         const folders = fs.readdirSync(path.join(dir, 'work', job.storyId)); assert.equal(folders.length, 1);

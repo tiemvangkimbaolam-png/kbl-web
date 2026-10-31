@@ -2,6 +2,7 @@ import { before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import { seal, unseal, authorization, exchange, targetList, safeTargets, publicConnection, providerJSON } from '../lib/kbl/social-core.mjs';
@@ -48,7 +49,7 @@ before(async()=>{
  globalThis.__KBL_SOCIAL_TEST_ENV={...env,DB:{prepare}};
  const{build}=createRequire(fs.realpathSync('node_modules/wrangler/package.json'))('esbuild');
  await build({entryPoints:['lib/kbl/social.ts'],bundle:true,platform:'node',format:'esm',outfile:'.sites-runtime/social-fixture.mjs',plugins:[{name:'social-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env = globalThis.__KBL_SOCIAL_TEST_ENV;',loader:'js'}));}}]});
- handle=(await import(path.resolve('.sites-runtime/social-fixture.mjs'))).handleSocialAdmin;
+ handle=(await import(pathToFileURL(path.resolve('.sites-runtime/social-fixture.mjs')).href)).handleSocialAdmin;
 });
 test('OAuth callback is one-time, bound to owner/platform/origin and secrets stay encrypted through target selection',async()=>{
  const first=await(await call('oauth/youtube/start',{label:'Channel fixture'})).json(),state=new URL(first.authorizeUrl).searchParams.get('state');

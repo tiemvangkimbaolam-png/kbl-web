@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import zipfile
 from pathlib import Path
@@ -19,7 +20,15 @@ def write(z, name, data):
 def windows_zip():
     target = ROOT / 'public/downloads/KBL-WINDOWS-2.zip'
     target.parent.mkdir(parents=True, exist_ok=True)
-    files = sorted(p for p in (ROOT / 'windows').rglob('*') if p.is_file())
+    blocked = {'work', 'output', 'profiles', '.kbl-render-runtime'}
+    files = []
+    for dirpath, dirnames, filenames in os.walk(ROOT / 'windows'):
+        for name in list(dirnames):
+            if name in blocked and any((Path(dirpath) / name).iterdir()):
+                raise RuntimeError('Operational file found in Windows source; refusing package: ' + name)
+        dirnames[:] = [d for d in dirnames if d not in blocked | {'node_modules', '.kbl-render', '__pycache__'}]
+        files.extend(Path(dirpath) / name for name in filenames)
+    files.sort()
     with zipfile.ZipFile(target, 'w', compression=zipfile.ZIP_DEFLATED) as z:
         for p in files:
             rel = p.relative_to(ROOT / 'windows')

@@ -24,7 +24,7 @@ function refreshRenderTools() {
     try {
         const pre = require('./render.cjs').preflight(config);
         capabilities = pre.ready ? ['browser', 'render','image', 'pos-readonly'] : ['browser', 'pos-readonly'];
-        renderStatus = pre.ready ? 'FFmpeg và Node Edge TTS đã phát hiện; dịch vụ giọng đọc thật chưa được xác minh.' : 'Chưa đủ FFmpeg/ffprobe/node-edge-tts; chưa nhận việc dựng video. Tự kiểm tra lại sau một phút.';
+        renderStatus = pre.ready ? (pre.remotion && pre.chrome ? 'Remotion (bố cục sáng 1080×1920) và Node Edge TTS đã phát hiện; dịch vụ giọng đọc thật chưa được xác minh.' : 'FFmpeg và Node Edge TTS đã phát hiện; dịch vụ giọng đọc thật chưa được xác minh.') : 'Chưa đủ FFmpeg/ffprobe/node-edge-tts; chưa nhận việc dựng video. Tự kiểm tra lại sau một phút.';
     } catch (error) { capabilities = ['browser', 'pos-readonly']; renderStatus = String(error.message).slice(0, 400); }
 }
 const htmlEscape = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

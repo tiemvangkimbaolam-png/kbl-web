@@ -5,10 +5,10 @@ Source có bộ nhận/trả lời **Facebook Messenger Page, Instagram Professi
 ## Bật đúng kết nối
 
 1. Hoàn tất OAuth, chọn đúng Page/Instagram account hoặc kiểm tra Telegram bot ở Kết nối.
-2. Chủ gọi `POST /api/admin/inbox/CONNECTION_ID` với JSON `{ "enabled": true, "confirmMessagingPermission": true }`. Thao tác này xác nhận cửa hàng chủ động bật trả lời, không thay quyền nhà cung cấp. Trả về callback và verify token. `GET /api/admin/inbox` chỉ trả trạng thái đã lọc, không trả token.
+2. Chủ gọi `POST /api/admin/inbox/CONNECTION_ID` với JSON `{ "enabled": true, "confirmMessagingPermission": true }`. Thao tác này xác nhận cửa hàng chủ động bật trả lời, không thay quyền nhà cung cấp. Trả về callback và verify token. Gọi lại với `{ "enabled": false }` để tắt. `GET /api/admin/inbox` chỉ trả trạng thái đã lọc, không trả token.
 3. Đăng ký callback `https://DOMAIN/api/social-inbox/PLATFORM/CONNECTION_ID` trong ứng dụng nền tảng. Meta cần sự kiện messages và quyền Messenger/Instagram messaging được duyệt; quyền xuất bản bài không tự cấp quyền đọc/trả lời inbox. Có thể cần pages_messaging, pages_manage_metadata và instagram_manage_messages theo sản phẩm và chế độ ứng dụng.
 4. Meta: đặt secrets `KBL_META_APP_SECRET` và `KBL_META_WEBHOOK_VERIFY_TOKEN`. Callback GET trả challenge đúng verify token; POST kiểm HMAC SHA256 trên nguyên body. Không bật callback chưa kiểm chữ ký.
-5. Telegram: đặt secret ngẫu nhiên ≥32 ký tự `KBL_INBOX_WEBHOOK_SECRET`. Mỗi connection có `secret_token` riêng được dẫn xuất; lấy kết quả admin ở bước2 và dùng `setWebhook` chính thức với `allowed_updates:["message"]`. Chỉ nhận human text trong private chat, bỏ nhóm/channel/bot/ảnh/tệp.
+5. Telegram: bật tự trả lời trong Admin sẽ gọi `setWebhook` với callback công khai, `allowed_updates:["message"]` và `secret_token` dẫn xuất riêng cho từng connection; tắt sẽ gọi `deleteWebhook`. Khóa dẫn xuất dùng `KBL_INBOX_WEBHOOK_SECRET` nếu có, nếu không dùng `KBL_SOCIAL_ENCRYPTION_KEY` đã cấu hình cho kết nối. Đổi khóa dẫn xuất thì phải bật lại để đăng ký webhook mới. Chỉ nhận human text trong private chat, bỏ nhóm/channel/bot/ảnh/tệp.
 
 ## Luồng dữ liệu
 

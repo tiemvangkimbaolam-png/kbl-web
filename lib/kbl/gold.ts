@@ -1,11 +1,19 @@
 import { publicationPlan } from './publication-plan';
 import { sql, get, list, settings, sha, id } from './store';
-import { goldSlot } from './domain.mjs';
 
 const CODES = ['9999', '980', '750', '610', '585', '416'];
 const PRICE_URL = 'https://tiemvangkimbaolam.id.vn/bang-gia';
 const FRESH_MS = 5 * 60000;
 const recent = (value: any, at: number) => Number.isSafeInteger(value) && value > 0 && value <= at + 60000 && at - value <= FRESH_MS;
+// Slot ids stay hourly so an unfinished edition expires cleanly, while the
+// configured schedule decides when inside that hour capture may start.
+function scheduledSlot(at: number, schedule: any) {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(at));
+    const v = (k: string) => parts.find(x => x.type === k)?.value || '', hour = Number(v('hour')), nowMin = hour * 60 + Number(v('minute'));
+    const times = (Array.isArray(schedule) ? schedule : ['08:00', '13:00', '19:00']).map((s: any) => { const m = String(s).match(/^([01]\d|2[0-3]):([0-5]\d)$/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }).filter((n: any) => n !== null) as number[];
+    if (!times.some(t => nowMin >= t && nowMin < t + 60)) return null;
+    return `${v('year')}-${v('month')}-${v('day')}-${hour}`;
+}
 
 // A price record's updated_at is deliberately not a price observation. Only the
 // timestamp supplied by the read-only POS import and its matching sync count/hash
@@ -30,8 +38,8 @@ export async function captureGoldSlot(at = Date.now()) {
     // Expire only unstarted editions. A captured story keeps running beyond its
     // hour with the same immutable observation; it is never silently refreshed.
     await sql().prepare("UPDATE editions SET data=json_set(data,'$.status','missed','$.message','Không có giá POS đủ mới trong giờ phát; không dựng bù giá lịch sử.') WHERE kind='gold' AND captured_at IS NULL AND json_extract(data,'$.status')='awaiting-price' AND created_at<?").bind(Math.floor(at / 3600000) * 3600000).run();
-    const slot = goldSlot(new Date(at));
-    if (!slot || !(await settings()).teamEnabled) return { waiting: true, reason: 'outside-slot-or-paused' };
+    const cfg = await settings(), slot = scheduledSlot(at, (cfg as any).goldSchedule);
+    if (!slot || !cfg.teamEnabled) return { waiting: true, reason: 'outside-slot-or-paused' };
     await sql().prepare("INSERT OR IGNORE INTO editions(id,kind,data,created_at) VALUES(?,'gold',?,?)").bind(slot, JSON.stringify({ status: 'awaiting-price', slot, message: 'Chờ giá thật POS được quan sát trong 5 phút; không điền giá lịch sử.' }), at).run();
     const existing = await sql().prepare('SELECT * FROM editions WHERE id=?').bind(slot).first<any>();
     if (existing.captured_at !== null) return { captured: true, duplicate: true, storyId: JSON.parse(existing.data).storyId, slot };

@@ -2,6 +2,7 @@ import { test, before, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import { webcrypto } from 'node:crypto';
@@ -56,7 +57,7 @@ before(async () => {
         b.onResolve({ filter: /^cloudflare:workers$/ }, () => ({ path: 'env', namespace: 'test-env' }));
         b.onLoad({ filter: /.*/, namespace: 'test-env' }, () => ({ contents: 'export const env=globalThis.__KBL_PIPELINE_RECOVERY_ENV;', loader: 'js' }));
     } }] });
-    P = await import(path.resolve('.sites-runtime/pipeline-recovery.mjs') + '?v=' + Date.now());
+    P = await import(pathToFileURL(path.resolve('.sites-runtime/pipeline-recovery.mjs')).href + '?v=' + Date.now());
 });
 beforeEach(setup);
 afterEach(() => { globalThis.fetch = originalFetch; db.close(); });

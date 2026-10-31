@@ -23,7 +23,7 @@ test('price unit presentation converts only explicit supported units; copied pre
   assert.equal(perChi(12992000,'đồng/chỉ'),12992000);
   assert.equal(perChi(4000,'USD/oz'),null);
   const source=readFileSync(new URL('../app/components/reference-home/template.ts',import.meta.url),'utf8');
-  const html=JSON.parse(source.split('const template = ')[1].split(';\nexport default')[0]);
+  const html=JSON.parse(source.split('const template = ')[1].split(/;\r?\nexport default/)[0]);
   assert.doesNotMatch(html,/<script|\son(?:click|input|keydown)\s*=|javascript:|data-cfemail|12\.692\.000|09:31 hôm nay|\/cdn-cgi\//i);
   assert.match(html,/id="prices"/);assert.match(html,/id="products"/);assert.match(html,/id="pawn-form"/);assert.match(html,/id="contact"/);
   for(const file of readdirSync(new URL('../public/fonts/',import.meta.url))){const bytes=readFileSync(new URL('../public/fonts/'+file,import.meta.url));assert.ok(['00010000','4f54544f','774f4646','774f4632'].includes(bytes.subarray(0,4).toString('hex')),file+' is a real font');}

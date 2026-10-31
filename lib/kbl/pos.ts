@@ -28,6 +28,19 @@ async function apply(workerId: string, kind: string, rows: Row[], complete: bool
         if (before.revision === revision && before.digest === digest) return { success: true, count: rows.length, duplicate: true, wroteToPOS: false };
         fail('Bản chụp POS cũ hoặc khác nội dung cùng số thứ tự; không ghi đè.', 409);
     }
+    // Windows gửi lại bản chụp y hệt mỗi phút. Khi nội dung không đổi và không có
+    // sự kiện kho nào sau bản chụp trước, chỉ cần tăng số thứ tự để giữ thứ tự
+    // sự kiện; ghi lại toàn bộ dòng sẽ vượt hạn mức D1 mà không thêm thông tin.
+    if (revision !== undefined && before && before.digest === digest) {
+        const stock = kind === 'product' ? await S.get('pos-stock', 'main') : null;
+        if ((stock?.revision || 0) <= (before.revision || 0)) {
+            const at = Date.now();
+            const statements = [S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) VALUES('pos-sync',?,?,?,?) ON CONFLICT(kind,id) DO UPDATE SET data=excluded.data,version=records.version+1,updated_at=excluded.updated_at WHERE COALESCE(json_extract(records.data,'$.revision'),0)<=?").bind(kind, JSON.stringify({ revision, digest, count: rows.length, receivedAt: at, workerId }), at, at, revision)];
+            if (kind === 'product') statements.push(S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) VALUES('pos-stock','main',?,?,?) ON CONFLICT(kind,id) DO UPDATE SET data=excluded.data,version=records.version+1,updated_at=excluded.updated_at WHERE COALESCE(json_extract(records.data,'$.revision'),0)<=?").bind(JSON.stringify({ revision, digest, workerId, operation: 'snapshot' }), at, at, revision));
+            await S.sql().batch(statements);
+            return { success: true, count: rows.length, duplicate: true, wroteToPOS: false };
+        }
+    }
     const at = Date.now(), marker = S.id(), incoming = JSON.stringify(rows), ids = JSON.stringify(rows.map(r => r.id)), cap = kind === 'product' ? 500 : 20000;
     // Each D1 batch is a transaction. The marker guards all writes, including a
     // concurrent newer revision or quota failure. No partial snapshot hides stock.
@@ -63,7 +76,7 @@ export async function products(workerId: string, input: any) {
     }
     if (new Set(rows.map(p => p.id)).size !== rows.length) fail('Bản chụp có SKU bị trùng.');
     const result = await apply(workerId, 'product', rows, true, input.revision);
-    await refreshPhotoVisibility();
+    if (result.duplicate !== true) await refreshPhotoVisibility();
     return { ...result, ok: true };
 }
 export async function prices(workerId: string, input: any) {
@@ -127,7 +140,10 @@ export async function lookup(token: string) {
     return { kind: row.kind === 'pos-pawn' ? 'pawn' : 'warranty', record: safe, syncedAt: row.updated_at, stale: Date.now() - row.updated_at > 1800000, calculationSource: 'pos' };
 }
 export async function refreshPhotoVisibility() {
-    await S.sql().prepare("UPDATE assets SET public=CASE WHEN EXISTS(SELECT 1 FROM records r,json_each(json_extract(r.data,'$.imageIds')) im WHERE r.kind='product' AND json_extract(r.data,'$.published')=1 AND im.value=assets.id) OR EXISTS(SELECT 1 FROM records r,json_each(json_extract(r.data,'$.images')) im WHERE r.kind='article' AND json_extract(im.value,'$.assetId')=assets.id) THEN 1 ELSE 0 END WHERE purpose='product' AND deleted_at IS NULL").run();
+    // Chỉ chạm đúng ảnh có cờ public thay đổi; chạy lặp mỗi phút sẽ tính là ghi
+    // toàn bộ bảng ảnh vào hạn mức D1.
+    const wanted = "CASE WHEN EXISTS(SELECT 1 FROM records r,json_each(json_extract(r.data,'$.imageIds')) im WHERE r.kind='product' AND json_extract(r.data,'$.published')=1 AND im.value=assets.id) OR EXISTS(SELECT 1 FROM records r,json_each(json_extract(r.data,'$.images')) im WHERE r.kind='article' AND json_extract(im.value,'$.assetId')=assets.id) THEN 1 ELSE 0 END";
+    await S.sql().prepare("UPDATE assets SET public=" + wanted + " WHERE purpose='product' AND deleted_at IS NULL AND public<>" + wanted).run();
 }
 export async function attachPhoto(workerId: string, sku: string, assetId: string) {
     await bind(workerId);

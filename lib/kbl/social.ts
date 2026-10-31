@@ -1,6 +1,6 @@
 import {socialEnvironment,saveSocialApplication} from './social-config';
 import * as S from './store';
-import { SOCIAL_PROVIDERS, random, digest, seal, unseal, authorization, exchange, configFor, publicBase, adminBase, targetList, publicConnection, safeTargets, providerJSON } from './social-core.mjs';
+import { SOCIAL_PROVIDERS, random, digest, seal, unseal, authorization, exchange, configFor, publicBase, adminBase, targetList, publicConnection, safeTargets, providerJSON, telegramJSON } from './social-core.mjs';
 const registry:any=SOCIAL_PROVIDERS;
 const reply=(value:any,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const fail=(message:string,status=400)=>{throw Object.assign(Error(message),{status});};
@@ -32,7 +32,7 @@ export async function handleSocialAdmin(req:Request,path:string[],actor:{uid:str
  if(method==='GET'&&(!path.length||path[0]==='status'))return reply({connections:await socialStatus()});
  if(method==='GET'&&path[0]==='providers'){
   const base=publicBase(config),keyReady=/^[a-f0-9]{64}$/.test(config.KBL_SOCIAL_ENCRYPTION_KEY||'');
-  return reply({baseUrl:base,encryptionReady:keyReady,providers:Object.entries(SOCIAL_PROVIDERS).map(([id,p]:any)=>{let configured=id==='telegram'?keyReady:false;if(id!=='telegram')try{configFor(config,id);configured=keyReady;}catch{}const required=id==='telegram'?['KBL_SOCIAL_ENCRYPTION_KEY']:[p.client,p.secret,'KBL_SOCIAL_ENCRYPTION_KEY',...(['facebook','instagram'].includes(id)?['KBL_META_GRAPH_VERSION']:[])];const missing=required.filter((name:string)=>name==='KBL_SOCIAL_ENCRYPTION_KEY'?!keyReady:!config[name]);return{id,label:p.label,configured,required,missing,application:id==='telegram'?null:{clientId:config[p.client]||'',hasSecret:!!config[p.secret],graphVersion:['facebook','instagram'].includes(id)?config.KBL_META_GRAPH_VERSION||'':null,sharedWith:['facebook','instagram'].includes(id)?'Facebook và Instagram dùng chung ứng dụng Meta.':null},scopes:p.scopes,callback:id==='telegram'?null:base+'/api/admin/social/oauth/'+id+'/callback',mode:id==='telegram'?'bot-token':'oauth',limitations:id==='tiktok'?'Cần preview, quyền, privacy và đồng ý trước mỗi lần đăng; audit riêng.':id==='zalo'?'OA và tin theo mẫu có quyền/gói/phí riêng.':id==='youtube'?'OAuth không thay kiểm toán upload/public.':null};})});
+  return reply({baseUrl:base,encryptionReady:keyReady,providers:Object.entries(SOCIAL_PROVIDERS).map(([id,p]:any)=>{let configured=id==='telegram'?keyReady:false;if(id!=='telegram')try{configFor(config,id);configured=keyReady;}catch{}const required=id==='telegram'?['KBL_SOCIAL_ENCRYPTION_KEY']:[p.client,p.secret,'KBL_SOCIAL_ENCRYPTION_KEY',...(['facebook','instagram'].includes(id)?['KBL_META_GRAPH_VERSION']:[])];const missing=required.filter((name:string)=>name==='KBL_SOCIAL_ENCRYPTION_KEY'?!keyReady:!config[name]);return{id,label:p.label,configured,required,missing,application:id==='telegram'?null:{clientId:config[p.client]||'',hasSecret:!!config[p.secret],graphVersion:['facebook','instagram'].includes(id)?config.KBL_META_GRAPH_VERSION||'':null,sharedWith:['facebook','instagram'].includes(id)?'Facebook và Instagram dùng chung ứng dụng Meta.':null},scopes:p.scopes,callback:id==='telegram'?null:base+'/api/admin/social/oauth/'+id+'/callback',mode:id==='telegram'?'bot-token':'oauth',limitations:id==='tiktok'?'Cần preview, quyền, privacy và đồng ý trước mỗi lần đăng; audit riêng.':id==='zalo'?'OA và tin theo mẫu có quyền/gói/phí riêng.':id==='youtube'?'Video dọc 1080×1920 tối đa 3 phút được YouTube nhận là Shorts; video phải dựng trên Windows. OAuth không thay kiểm toán upload/public.':null};})});
  }
  if(path[0]==='oauth'&&path[1]){
   const platform=platformOf(path[1]);if(platform==='telegram')fail('Telegram sử dụng bot token, không dùng OAuth.');
@@ -84,10 +84,15 @@ export async function handleSocialAdmin(req:Request,path:string[],actor:{uid:str
  if(method==='POST'&&path[0]==='telegram'){
   if((await S.list('social-connection',101)).length>=100)fail('Đã đủ 100 kết nối; ngắt kết nối cũ trước.',507);
   const body=await input(req);if(typeof body.token!=='string'||!/^\d{5,16}:[A-Za-z0-9_-]{25,100}$/.test(body.token)||typeof body.chatId!=='string'||!/^(@[A-Za-z0-9_]{5,64}|-?\d{3,24})$/.test(body.chatId))fail('Bot token hoặc Chat ID không đúng định dạng.');
-  const token=body.token,chatId=body.chatId,call=(route:string,data:any)=>providerJSON('https://api.telegram.org/bot'+token+'/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-  const me=await call('getMe',{}),chat=await call('getChat',{chat_id:chatId}),member=await call('getChatMember',{chat_id:chatId,user_id:me.result.id});
-  if(['left','kicked'].includes(member.result.status)||member.result.status==='restricted'&&member.result.can_send_messages!==true)fail('Bot không có quyền gửi vào đích này.',403);
-  if(chat.result.type==='channel'&&!(member.result.status==='creator'||member.result.status==='administrator'&&member.result.can_post_messages))fail('Bot chưa có quyền đăng bài trong channel.',403);
+  const token=body.token,chatId=body.chatId;
+  const me=await telegramJSON(token,'getMe');if(me.result?.is_bot!==true)fail('Token này không thuộc một bot Telegram.',400);
+  const chat=await telegramJSON(token,'getChat',{chat_id:chatId}),type=String(chat.result?.type||'');
+  if(!['private','group','supergroup','channel'].includes(type))fail('Loại chat Telegram chưa được hỗ trợ.',409);
+  if(type!=='private'){
+   let member:any=null;try{member=(await telegramJSON(token,'getChatMember',{chat_id:String(chat.result.id),user_id:me.result.id})).result;}catch{fail('Bot chưa ở trong chat này hoặc thiếu quyền đọc thành viên. Thêm bot vào kênh/nhóm rồi thử lại.',409);}
+   if(!member||['left','kicked'].includes(member.status)||member.status==='restricted'&&member.can_send_messages!==true)fail('Bot không có quyền gửi vào đích này.',403);
+   if(type==='channel'&&!(member.status==='creator'||member.status==='administrator'&&member.can_post_messages))fail('Bot chưa có quyền đăng bài trong channel.',403);
+  }
   const id=S.id(),target={id:String(chat.result.id),label:chat.result.title||chat.result.username||'Telegram'};
   const saved=await saveSecret({id,platform:'telegram',label:label(body.label,target.label),status:'connected',targetId:target.id,targetLabel:target.label,connectedAt:Date.now(),scope:['bot-verified'],expiresAt:null,lastError:null},{tokens:{accessToken:token},targets:[target],selected:target});
   return reply({connection:publicConnection(saved)});
