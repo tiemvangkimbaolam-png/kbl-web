@@ -5,37 +5,42 @@
   "stages": {
     "specify": {
       "status": "done",
-      "note": "",
+      "note": "Customer authorized private holdings ledger, gain/percent arrows and real-point chart; separate Scriptable widget, preserve POS/theme/auth.",
       "evidence": [
         {
           "path": ".project-state/contract.md",
-          "sha256": "14fb7e958ae2aec0ee8bd71a83199ea3715a263f1ec05a4633e39e33e47d0bd0",
-          "bytes": 1134
+          "sha256": "697415cb5dd112dba0d88c578fceebae1b4fc7a57023bc4f35495e8e18c995ca",
+          "bytes": 2806
         }
       ],
-      "at": "2026-10-31T13:56:42.601333+00:00"
+      "at": "2026-10-31T18:54:29.708660+00:00"
     },
     "build": {
       "status": "done",
-      "note": "69 checks passed; Cloudflare build passed; five browser widths balanced; clipboard success/fallback VM verified; native iPhone not_tested.",
+      "note": "88 targeted tests passed; final API/native 19 tests rerun after type narrowing fix. Final Cloudflare build passed. Browser fixture chart/privacy/add/edit/sale checked; native iPhone not_tested. Existing unrelated typecheck errors remain.",
       "evidence": [
         {
-          "path": "public/reference-home/patch.css",
-          "sha256": "87719919f17f5007426d3aa91564b35df065acf89e6c0d002cdb7b8b353d5628",
-          "bytes": 16027
+          "path": "lib/kbl/holdings-core.mjs",
+          "sha256": "8b3e0270081bee5e61d0f09fb40898960b31cda543cc6a71979ed19f4cf7eeef",
+          "bytes": 6080
         },
         {
-          "path": "tests/widget-install.test.mjs",
-          "sha256": "49671cc8207b484a164abd3c3415911a9746c6d1129d1d26e542240db12a0b6e",
-          "bytes": 6659
+          "path": "lib/kbl/holdings.ts",
+          "sha256": "75d0b08414d0ff43882424800c729d553a5bca1cd36565dee825da92d3577099",
+          "bytes": 5975
+        },
+        {
+          "path": "public/tien-ich/vang-cua-toi/page.js",
+          "sha256": "37d97ddbb7a91a0197ed5366e19d93cb837072d072f2c18574e768f3d64d6030",
+          "bytes": 10796
         },
         {
           "path": ".project-state/verification.md",
-          "sha256": "35fba5043d763e4e9671d5d5802f07f6b3a28df46c478eb056756eb34d654532",
-          "bytes": 2947
+          "sha256": "5b35eb8589c9314ff3ab8ac356ebb3c550b6af9ec6665306cb6b733fb1e8b18f",
+          "bytes": 5106
         }
       ],
-      "at": "2026-10-31T18:19:32.658081+00:00"
+      "at": "2026-10-31T18:56:40.929090+00:00"
     },
     "demonstrate": {
       "status": "not_tested",
@@ -51,18 +56,12 @@
     },
     "integrate": {
       "status": "blocked",
-      "note": "Wrangler is not authenticated; no DNS or database changes.",
-      "evidence": [
-        {
-          "path": ".project-state/verification.md",
-          "sha256": "2e02d31213134d024f11eac15931c685f3c13da22663403ce3a38a04c0c8e73e",
-          "bytes": 1379
-        }
-      ],
-      "at": "2026-10-31T14:09:54.557959+00:00"
+      "note": "PR #12 merged into kbl-web-moi at c3bc65b53e0fdb8bde34e2c4017519f5b4e0bd64; Cloudflare production still requires authenticated session. Patch ZIP apply/idempotency/conflict checks passed.",
+      "evidence": [],
+      "at": "2026-10-31T18:23:55.252135+00:00"
     }
   },
-  "next_action": "Push reviewed fixes to kbl-web-moi via PR; production deployment needs authenticated Cloudflare.",
+  "next_action": "Merge GitHub source and deliver update ZIP; production needs Cloudflare authentication and iPhone pairing check.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -93,7 +92,37 @@
       "stage": "build",
       "status": "done",
       "note": "69 checks passed; Cloudflare build passed; five browser widths balanced; clipboard success/fallback VM verified; native iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T18:23:55.252147+00:00",
+      "stage": "integrate",
+      "status": "blocked",
+      "note": "PR #12 merged into kbl-web-moi at c3bc65b53e0fdb8bde34e2c4017519f5b4e0bd64; Cloudflare production still requires authenticated session. Patch ZIP apply/idempotency/conflict checks passed."
+    },
+    {
+      "at": "2026-10-31T18:54:29.708673+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Customer authorized private holdings ledger, gain/percent arrows and real-point chart; separate Scriptable widget, preserve POS/theme/auth."
+    },
+    {
+      "at": "2026-10-31T18:54:29.741564+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "API/SQLite and native widget VM tests pass; browser fixture form/privacy/chart flows pass; Cloudflare build passes. Native iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T18:55:32.283786+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "88 targeted tests pass; Cloudflare build passes. Browser fixture chart/privacy/add/edit/sale flows checked at four widths. No new typecheck errors; existing social-connections/remotion errors remain. Native iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T18:56:40.929105+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "88 targeted tests passed; final API/native 19 tests rerun after type narrowing fix. Final Cloudflare build passed. Browser fixture chart/privacy/add/edit/sale checked; native iPhone not_tested. Existing unrelated typecheck errors remain."
     }
   ],
-  "updated_at": "2026-10-31T18:19:32.658097+00:00"
+  "updated_at": "2026-10-31T18:56:40.929108+00:00"
 }

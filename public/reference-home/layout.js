@@ -240,3 +240,6 @@
   else setup();
 
 })();
+
+// Personal holdings entry uses the existing customer login, separate from POS.
+{const cta=document.getElementById("kbl-widget-install");if(cta&&!document.getElementById("kbl-holdings-link")){const link=document.createElement("a");link.id="kbl-holdings-link";link.href="/vang-cua-toi";link.textContent="Vàng của tôi · Theo dõi tích lũy ↗";link.style.cssText="display:block;text-align:center;padding:14px 12px;color:#93462d;font-size:16px;text-underline-offset:5px";cta.after(link);}}
