@@ -1,0 +1,11 @@
+# Tiệm Vàng Kim Bảo Lâm
+
+Website chính thức: https://tiemvangkimbaolam.id.vn
+
+- Sản phẩm công khai đồng bộ từ POS; giá mang tính tham khảo và cần cửa hàng xác nhận trước giao dịch.
+- Bảng giá trình chiếu: https://tiemvangkimbaolam.id.vn/tv
+- Danh mục URL công khai: https://tiemvangkimbaolam.id.vn/sitemap.xml
+- Bản tin ghi nguồn và thời điểm; không phải khuyến nghị đầu tư hoặc cam kết lợi nhuận.
+- Không truy cập Admin, API riêng, thông tin khách hàng hoặc phiếu bằng mã riêng tư.
+
+Chỉ trích dẫn nội dung công khai có thể đọc trực tiếp. Không suy đoán tồn kho, xuất xứ hoặc giá khi trang không cung cấp.

@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "goal": "Áp dụng mẫu 06 Hồng đào vàng đồng lên website KBL và widget Scriptable miễn phí; giữ nguyên giá, POS, sản phẩm và quyền truy cập.",
+  "created_at": "2026-10-31T13:54:50.812082+00:00",
+  "stages": {
+    "specify": {
+      "status": "done",
+      "note": "",
+      "evidence": [
+        {
+          "path": ".project-state/contract.md",
+          "sha256": "14fb7e958ae2aec0ee8bd71a83199ea3715a263f1ec05a4633e39e33e47d0bd0",
+          "bytes": 1134
+        }
+      ],
+      "at": "2026-10-31T13:56:42.601333+00:00"
+    },
+    "build": {
+      "status": "done",
+      "note": "60 checks passed; Cloudflare build passed; static browser layout/control checks; real iPhone not_tested.",
+      "evidence": [
+        {
+          "path": "scripts/scriptable-widget.template.js",
+          "sha256": "a755393b7a16e508fa3a2db340cb8c84d517c87a3f899d26156ae7f186b274c2",
+          "bytes": 6773
+        },
+        {
+          "path": "public/reference-home/patch.css",
+          "sha256": "a3df3e5150e7b3fafebb8dbc53f24ff51a8bc872b4c9b874f6305fc691d5b502",
+          "bytes": 15602
+        },
+        {
+          "path": "tests/widgets.test.mjs",
+          "sha256": "89b85fbc3f36cdabee2fb4fd4dfa34a5a16f80b4357efec4e7541c7a60296c83",
+          "bytes": 8939
+        }
+      ],
+      "at": "2026-10-31T14:09:54.435372+00:00"
+    },
+    "demonstrate": {
+      "status": "not_tested",
+      "note": "Web preview verified; actual native iPhone display/import unavailable.",
+      "evidence": [
+        {
+          "path": ".project-state/verification.md",
+          "sha256": "2e02d31213134d024f11eac15931c685f3c13da22663403ce3a38a04c0c8e73e",
+          "bytes": 1379
+        }
+      ],
+      "at": "2026-10-31T14:09:54.497702+00:00"
+    },
+    "integrate": {
+      "status": "blocked",
+      "note": "Wrangler is not authenticated; no DNS or database changes.",
+      "evidence": [
+        {
+          "path": ".project-state/verification.md",
+          "sha256": "2e02d31213134d024f11eac15931c685f3c13da22663403ce3a38a04c0c8e73e",
+          "bytes": 1379
+        }
+      ],
+      "at": "2026-10-31T14:09:54.557959+00:00"
+    }
+  },
+  "next_action": "Lưu GitHub; cần phiên Cloudflare hợp lệ để deploy production.",
+  "history": [
+    {
+      "at": "2026-10-31T13:56:42.601346+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": ""
+    },
+    {
+      "at": "2026-10-31T14:09:54.435386+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "60 checks passed; Cloudflare build passed; static browser layout/control checks; real iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T14:09:54.497716+00:00",
+      "stage": "demonstrate",
+      "status": "not_tested",
+      "note": "Web preview verified; actual native iPhone display/import unavailable."
+    },
+    {
+      "at": "2026-10-31T14:09:54.557971+00:00",
+      "stage": "integrate",
+      "status": "blocked",
+      "note": "Wrangler is not authenticated; no DNS or database changes."
+    }
+  ],
+  "updated_at": "2026-10-31T14:09:54.557974+00:00"
+}

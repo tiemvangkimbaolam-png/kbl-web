@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "originals": {
+    "main.js": "3213b959a3d9ff518f76692bc6c1ff5c5ec91e778fcdfee82ef355d2efb0a511",
+    "renderer.js": "00661078da086f29309459e0ef348cdaca39f22dcae6ed8a73c69ef51d04c2e0",
+    "pawn.html": "760ad5390cc335fa9a67aff3b2f04a813da79dbbd0f8825dc0e0f6ee40bb1535",
+    "index.html": "7b03e300d1bdcf1284d7535e4a35b5ae4d63d4d7ac28b8820bf9b7b4ebe159d9",
+    "package.json": "2776d2ab948174b40c2eb9a9b46bb7186b5ee2cdd81fb84d770c0c1f05c9e3e0",
+    "kbl-product-photos.cjs": "840d883a54af1305a4d65342caee81cb29c01cdd39e248f24fe90695e0312e85"
+  },
+  "patched": {
+    "main.js": "81868b4c7a4a86c9165a2b6d4c9f12f299c695b7b649cdae561ca176a49662a5",
+    "renderer.js": "a8fba9a15d6cd74dc8ecb8203bf22c2c942a599b501ed3c31ceb185d56d38703",
+    "pawn.html": "27f44dd15ab9355cae7607da53ab3a3824fd5a090d31dca4294ac69b77667070",
+    "index.html": "4247d39006c75c48d60b5745b665a0ff29a02ddc4a789af691044c41ee6ccbcd",
+    "package.json": "2776d2ab948174b40c2eb9a9b46bb7186b5ee2cdd81fb84d770c0c1f05c9e3e0",
+    "kbl-product-photos.cjs": "840d883a54af1305a4d65342caee81cb29c01cdd39e248f24fe90695e0312e85"
+  },
+  "connectionOnly": true,
+  "verification": "Reversing connection-only changes yields byte-identical latest originals, except removal of embedded legacy relay credential. Optional missing stylesheet/script tags removed from index/pawn, without changing inline POS function bodies.",
+  "sanitization": [
+    "Removed embedded legacy relay credential from renderer.js and index.html; runtime user configuration remains."
+  ],
+  "missingOptionalReferences": [
+    "kbl-galaxy-v2.css",
+    "kbl-report-dashboard.js",
+    "kbl-header-prices.js",
+    "kbl-pawn-recovery.js"
+  ],
+  "removedOptionalTags": [
+    {
+      "file": "index.html",
+      "asset": "kbl-galaxy-v2.css",
+      "removedTag": "<link rel=\"stylesheet\" href=\"kbl-galaxy-v2.css\" media=\"screen\">"
+    },
+    {
+      "file": "index.html",
+      "asset": "kbl-report-dashboard.js",
+      "removedTag": "<script src=\"kbl-report-dashboard.js\" defer></script>"
+    },
+    {
+      "file": "index.html",
+      "asset": "kbl-header-prices.js",
+      "removedTag": "<script src=\"kbl-header-prices.js\" defer></script>"
+    },
+    {
+      "file": "pawn.html",
+      "asset": "kbl-galaxy-v2.css",
+      "removedTag": "<link rel=\"stylesheet\" href=\"kbl-galaxy-v2.css\" media=\"screen\">"
+    },
+    {
+      "file": "pawn.html",
+      "asset": "kbl-pawn-recovery.js",
+      "removedTag": "<script src=\"kbl-pawn-recovery.js\"></script>"
+    }
+  ],
+  "publicQR": "Product QR uses separate HTTPS public base; never the loopback transport. Existing route kept."
+}

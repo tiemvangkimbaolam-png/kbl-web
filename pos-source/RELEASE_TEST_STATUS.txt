@@ -1,0 +1,8 @@
+SOURCE VERSION: 2.4.3
+REVIEWED: main.js, renderer/Pawn, Remote, TV, staff manager
+SECURITY TESTS: PASS (store-level owner login, roles, revocation, audit)
+BUSINESS FORMULAS: reference scripts PASS
+SIGNED MANIFEST: NEED RE-SIGN with separate Admin tool
+REAL WINDOWS EXE / DEVICE / NETWORK E2E: NOT TESTED
+
+ADDENDUM 2026-10-11: employee credentials accepted in same Windows EXE; isolated staff Remote terminal, owner switch account, password change, session revocation. JS syntax & unit tests run; Windows GUI/print/scale E2E not verified. Signed release requires new signature.

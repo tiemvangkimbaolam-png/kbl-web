@@ -1,0 +1,14 @@
+KBL THƯƠNG MẠI — SOURCE ĐÃ NÂNG CẤP (CHƯA KÝ LẠI BẢN PHÁT HÀNH)
+
+- Cô lập đường dữ liệu thương mại, không nhập/sao chép POS cũ.
+- Đăng nhập OWNER Windows trước khi mở dữ liệu POS.
+- Quản trị nhân viên Remote: Ctrl+Shift+M trên Windows.
+- Remote LAN cần mật khẩu; phân quyền quyền xem/chỉnh giá, phiếu cầm, ảnh giấy tờ.
+- Bảng giá TV đỏ vàng chữ lớn, hỗ trợ nền sáng và chọn loại vàng.
+- Nhật ký thay đổi giá Remote, xác nhận cầm/chuộc và tài khoản.
+- Không thay đổi hàm tính 610-630-622, trọng lượng và lãi cầm đồ.
+- Kiểm tra Node --check và golden tests đạt trong môi trường kiểm thử source.
+
+CHƯA ĐỦ ĐIỀU KIỆN GIAO KHÁCH THU TIỀN: ký lại integrity manifest ở ADMIN bằng passphrase chủ sở hữu; npm run check, build EXE Windows; nghiệm thu phần cứng, CCCD, print, POS nghiệp vụ và các quyền nhân viên; rà soát pháp lý/phí cầm.
+
+GIỚI HẠN: Remote còn phụ thuộc các CDN cropperjs/html5-qrcode/qr-scanner nếu cần chức năng tương ứng khi offline. Windows mới chỉ cho OWNER đăng nhập, không mở chế độ làm việc nhiều vai trò nhân viên trên desktop.

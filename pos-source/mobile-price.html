@@ -1,0 +1,1981 @@
+<!doctype html>
+
+<html lang="vi">
+
+<head>
+
+    <meta charset="utf-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+    <title>Gold Shop POS Remote</title>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.legacy.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <style>
+
+        :root {
+
+            --navy: #0b2748;
+
+            --gold: #c79a18;
+
+            --blue: #176cf2;
+
+            --green: #168b57;
+
+            --ink: #0b2240;
+
+            --muted: #64748b;
+
+            --line: #d9e0e8;
+
+            --bg: #f3f6fa;
+
+        }
+
+        * { box-sizing: border-box; }
+
+        body { margin: 0; padding: 0 0 86px; background: var(--bg); color: var(--ink); font-family: Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+        .topbar { padding: 16px 14px; background: var(--navy); color: #fff; text-align: center; font-size: 20px; font-weight: 900; letter-spacing: .2px; }
+
+        .topbar small { display: block; margin-top: 5px; color: #d9e7f8; font-size: 12px; font-weight: 600; }
+
+        .page { max-width: 720px; margin: 0 auto; padding: 14px; }
+
+        .panel { display: none; }
+
+        .panel.active { display: block; }
+
+        .card { padding: 18px; background: #fff; border-radius: 16px; box-shadow: 0 5px 18px rgba(11,34,64,.10); }
+
+        h2 { margin: 0 0 6px; color: var(--navy); font-size: 22px; }
+
+        h3 { margin: 0; color: var(--navy); font-size: 18px; }
+
+        p { margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+        .side-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+
+        .side-card { min-width: 0; padding: 14px; background: #f8fafc; border: 1px solid var(--line); border-radius: 12px; }
+
+        .side-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--gold); font-size: 16px; font-weight: 900; }
+
+        .side-state { margin-top: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+
+        .side-state.done { color: var(--green); }
+
+        .preview { display: block; width: 100%; max-height: 112px; margin-top: 10px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+
+        button { border: 0; border-radius: 9px; cursor: pointer; font: inherit; font-weight: 900; }
+
+        .btn { width: 100%; margin-top: 12px; padding: 13px 12px; color: #fff; background: var(--blue); font-size: 14px; }
+
+        .btn:active { transform: scale(.99); }
+
+        .btn-green { background: var(--green); }
+
+        .btn-gold { background: var(--gold); color: #fff; }
+
+        .btn-dark { background: var(--navy); }
+
+        .help { margin-top: 15px; padding: 11px 12px; border-radius: 9px; background: #fff7df; color: #775c00; font-size: 12px; line-height: 1.45; }
+
+        #scan-status, #price-status { min-height: 22px; margin-top: 12px; text-align: center; font-weight: 800; font-size: 13px; }
+
+        #crop-box { display: none; margin-top: 16px; padding: 12px; border-radius: 12px; background: #0b1220; }
+
+        #crop-title { color: #fff; text-align: center; font-size: 13px; font-weight: 900; }
+
+        #crop-image { display: block; max-width: 100%; max-height: 46vh; margin: 10px auto 0; }
+
+        .crop-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+
+        .crop-actions .btn { margin-top: 0; }
+
+        .price-card { margin-top: 12px; padding: 14px; background: #f8fafc; border: 1px solid var(--line); border-radius: 12px; }
+
+        .base-price-card { border-color: #d4a72c; background: #fffaf0; }
+
+        .auto-badge { display: inline-block; margin-left: 4px; padding: 3px 6px; border-radius: 999px; background: #fff0b8; color: #775c00; font-size: 10px; vertical-align: middle; }
+
+        .derived-line { margin-top: 10px; }
+
+        .derived-line input[readonly], input[readonly] { background: #eef3f8; color: #0b2240; }
+
+        .price-title { margin-bottom: 10px; color: var(--gold); font-size: 17px; font-weight: 900; }
+
+        .price-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; font-weight: 800; }
+
+        input[type="number"], input[type="password"] { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: var(--ink); font-size: 16px; font-weight: 700; }
+
+        .tv-link { display: block; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--blue); font-size: 13px; font-weight: 800; word-break: break-all; }
+
+        .bottom-nav { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: 1fr 1fr; padding-bottom: env(safe-area-inset-bottom); background: #fff; box-shadow: 0 -5px 18px rgba(11,34,64,.12); }
+
+        .tab-btn { padding: 12px 8px 10px; border-radius: 0; background: #fff; color: #64748b; font-size: 13px; }
+
+        .tab-btn span { display: block; margin-bottom: 4px; font-size: 22px; }
+
+        .tab-btn.active { background: #eff5ff; color: var(--navy); }
+
+        .tab-btn.active span { filter: saturate(1.35); }
+
+        @media (max-width: 560px) {
+
+            .side-grid, .price-grid { grid-template-columns: 1fr; }
+
+            .topbar { font-size: 18px; }
+
+            .card { padding: 15px; }
+
+        }
+
+
+
+        .bottom-nav { grid-template-columns: repeat(4, 1fr); }
+
+        input[type="text"] { width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:var(--ink); font-size:16px; font-weight:700; }
+
+        .pawn-search-row { display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:14px; }
+
+        .pawn-search-row .btn { width:auto; min-width:120px; margin-top:0; }
+
+        .pawn-scan-tools { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+
+        .pawn-scan-tools .btn, .pawn-scan-tools label { margin-top:0; }
+
+        .pawn-scan-file { display:flex; align-items:center; justify-content:center; width:100%; padding:13px 12px; border-radius:9px; background:#eef3f8; color:var(--navy); font-size:13px; font-weight:900; cursor:pointer; text-align:center; }
+
+        #pawn-reader { position:relative; margin-top:14px; overflow:hidden; border-radius:14px; background:#050d18; min-height:270px; isolation:isolate; }
+
+        #pawn-reader video { width:100% !important; height:auto !important; min-height:270px; display:block; border-radius:14px; object-fit:cover; -webkit-transform:translateZ(0); transform:translateZ(0); }
+
+        #pawn-reader video::-webkit-media-controls { display:none !important; }
+
+        #pawn-reader .scan-frame { position:absolute; z-index:20; top:50%; left:50%; width:min(68vw,260px); height:min(68vw,260px); border:2px solid rgba(255,255,255,.9); border-radius:18px; box-shadow:0 0 0 9999px rgba(0,0,0,.28),0 0 28px rgba(212,159,19,.15); transform:translate(-50%,-50%); pointer-events:none; animation:kblPawnQrFramePulse 1.15s ease-in-out infinite; }
+
+        #pawn-reader .scan-frame::before,#pawn-reader .scan-frame::after { position:absolute; inset:-3px; content:""; border:5px solid transparent; border-top-color:#f2c54a; border-left-color:#f2c54a; border-radius:18px; }
+
+        #pawn-reader .scan-frame::after { border-top-color:transparent; border-left-color:transparent; border-right-color:#f2c54a; border-bottom-color:#f2c54a; }
+
+        #pawn-reader .scan-laser { position:absolute; z-index:21; left:8%; right:8%; top:11%; height:2px; border-radius:999px; background:linear-gradient(90deg,transparent,#ffe897 18%,#d49f13 50%,#ffe897 82%,transparent); box-shadow:0 0 10px rgba(242,197,74,.95); animation:kblPawnQrLaser 1.7s ease-in-out infinite; pointer-events:none; }
+
+        @keyframes kblPawnQrLaser { 0%,100%{top:10%;opacity:.55}50%{top:88%;opacity:1} }
+
+        @keyframes kblPawnQrFramePulse { 0%,100%{filter:drop-shadow(0 0 3px rgba(242,197,74,.45))}50%{filter:drop-shadow(0 0 12px rgba(242,197,74,.95))} }
+
+        #pawn-reader.scan-success .scan-frame { border-color:#49d88a; animation:none; filter:drop-shadow(0 0 14px rgba(73,216,138,.95)); }
+
+        #pawn-reader.scan-success .scan-frame::before,#pawn-reader.scan-success .scan-frame::after { border-top-color:#49d88a; border-left-color:#49d88a; }
+
+        #pawn-reader.scan-success .scan-frame::after { border-top-color:transparent; border-left-color:transparent; border-right-color:#49d88a; border-bottom-color:#49d88a; }
+
+        #pawn-reader.scan-success .scan-laser { background:#49d88a; box-shadow:0 0 14px rgba(73,216,138,.95); animation:none; top:50%; }
+
+        #pawn-reader .scan-tip { position:absolute; z-index:22; right:16px; bottom:18px; left:16px; color:#fff; text-align:center; font-size:12px; font-weight:800; line-height:1.45; text-shadow:0 1px 4px #000; }
+
+        #pawn-reader .scan-close { position:absolute; z-index:24; top:14px; right:14px; width:44px; height:44px; margin:0; padding:0; border:1px solid rgba(255,255,255,.55); border-radius:50%; background:rgba(0,0,0,.48); color:#fff; font-size:24px; line-height:1; display:grid; place-items:center; }
+
+        #pawn-reader__dashboard_section_csr button { margin-top:8px !important; }
+
+        body.pawn-qr-scanning { overflow:hidden; }
+
+        @media (max-width:680px) {
+
+            body.pawn-qr-scanning #pawn-reader { position:fixed; z-index:9999; inset:0; margin:0; border-radius:0; min-height:100dvh; width:100vw; height:100dvh; background:#000; }
+
+            body.pawn-qr-scanning #pawn-reader video { width:100vw !important; height:100dvh !important; min-height:100dvh !important; border-radius:0; object-fit:cover; }
+
+            body.pawn-qr-scanning #pawn-reader .scan-frame { width:min(72vw,292px); height:min(72vw,292px); border-radius:22px; }
+
+            body.pawn-qr-scanning #pawn-reader .scan-tip { bottom:max(42px,calc(env(safe-area-inset-bottom) + 28px)); font-size:13px; }
+
+            body.pawn-qr-scanning #pawn-reader .scan-close { top:max(16px,env(safe-area-inset-top)); right:16px; }
+
+            body.pawn-qr-scanning #pawn-reader__dashboard { position:absolute!important; z-index:23; inset:auto 12px max(84px,calc(env(safe-area-inset-bottom) + 68px)) 12px; background:transparent!important; color:#fff!important; }
+
+            body.pawn-qr-scanning #pawn-reader__dashboard_section_csr { display:none!important; }
+
+        }
+
+        #pawn-status { min-height:24px; margin-top:10px; font-size:13px; font-weight:800; }
+
+        .pawn-result { display:none; margin-top:14px; padding:14px; border:1px solid #e2c875; border-radius:12px; background:#fffaf0; }
+
+        .pawn-result.show { display:block; }
+
+        .pawn-result h3 { margin-bottom:8px; }
+
+        .pawn-row { display:flex; justify-content:space-between; gap:14px; padding:8px 0; border-bottom:1px dashed #d7dce3; font-size:13px; }
+
+        .pawn-row b { color:#755600; text-align:left; }
+
+        .pawn-row span { text-align:right; font-weight:800; word-break:break-word; }
+
+        .pawn-total { margin-top:10px; padding:12px; border-radius:10px; background:var(--navy); color:#fff; text-align:center; }
+
+        .pawn-total small { display:block; opacity:.8; margin-bottom:5px; }
+
+        .pawn-total strong { font-size:24px; }
+
+        .pawn-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+
+        .pawn-actions .btn { margin-top:0; }
+
+        .pawn-history { margin-top:12px; padding-top:10px; border-top:1px solid #e5e7eb; }
+
+        .pawn-history-item { margin-top:7px; padding:9px; border-radius:9px; background:#f8fafc; border:1px solid #e2e8f0; font-size:12px; line-height:1.45; }
+
+        .pawn-last-action { display:none; margin-top:12px; padding:12px; border:1px solid #b7e3d0; border-radius:10px; background:#edf9f3; }
+
+        .pawn-last-action.show { display:block; }
+
+        .pawn-last-action .btn { margin-top:8px; }
+
+        .danger-confirm { background:#b83b32; }
+
+        @media (max-width:560px) {
+
+            .pawn-search-row, .pawn-scan-tools, .pawn-actions { grid-template-columns:1fr; }
+
+            .pawn-search-row .btn { width:100%; }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <header class="topbar">
+
+        💎 <span id="remote-shop-name">TIỆM VÀNG</span> REMOTE
+
+        <small>Điều khiển nội bộ LAN · CCCD · Bảng giá · Phiếu cầm</small>
+
+    </header>
+
+
+
+    <main class="page">
+
+        <section id="scan-panel" class="panel active">
+
+            <div class="card">
+
+                <h2>📸 QUÉT CCCD</h2>
+
+                <p>Chụp cả hai mặt trong cùng một trang. Bấm mặt trước trước, sau đó bấm mặt sau; ảnh sẽ gửi về máy tính để OCR.</p>
+
+
+
+                <div class="side-grid">
+
+                    <div class="side-card">
+
+                        <div class="side-title"><span>🪪 MẶT TRƯỚC</span></div>
+
+                        <div id="front-state" class="side-state">Chưa chụp</div>
+
+                        <img id="front-preview" class="preview" alt="Ảnh CCCD mặt trước" hidden>
+
+                        <button type="button" class="btn" data-side="front">📷 MỞ CAMERA MẶT TRƯỚC</button>
+
+                    </div>
+
+                    <div class="side-card">
+
+                        <div class="side-title"><span>🪪 MẶT SAU</span></div>
+
+                        <div id="back-state" class="side-state">Chưa chụp</div>
+
+                        <img id="back-preview" class="preview" alt="Ảnh CCCD mặt sau" hidden>
+
+                        <button type="button" class="btn" data-side="back">📷 MỞ CAMERA MẶT SAU</button>
+
+                    </div>
+
+                </div>
+
+
+
+                <div id="scan-status"></div>
+
+                <div class="help">Nếu ảnh bị dọc, sau khi chụp hãy dùng nút <b>XOAY ẢNH</b>, kiểm tra khung cắt rồi bấm <b>CẮT &amp; GỬI</b>.</div>
+
+
+
+                <input id="camera-input" type="file" accept="image/*" capture="environment" hidden>
+
+                <div id="crop-box">
+
+                    <div id="crop-title">Đang chỉnh ảnh</div>
+
+                    <img id="crop-image" alt="Ảnh đang chỉnh">
+
+                    <div class="crop-actions">
+
+                        <button type="button" id="retake-btn" class="btn btn-gold">📷 CHỤP LẠI</button>
+
+                        <button type="button" id="rotate-btn" class="btn btn-dark">🔄 XOAY ẢNH</button>
+
+                    </div>
+
+                    <button type="button" id="send-btn" class="btn btn-green">✂️ CẮT &amp; GỬI TỚI MÁY TÍNH</button>
+
+                    <button type="button" id="cancel-btn" class="btn" style="background:#64748b;">HỦY ẢNH NÀY</button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <section id="price-panel" class="panel">
+
+            <div class="card">
+
+                <h2>📺 ĐIỀU KHIỂN BẢNG GIÁ TV</h2>
+
+                <p>Cập nhật giá bên dưới, bấm lưu để app và TV nhảy giá ngay lập tức.</p>
+
+                <form id="price-form">
+
+                    <div class="price-card base-price-card">
+
+                        <div class="price-title">VÀNG 9999 (24K) <span class="auto-badge">GIÁ BÁN CHUẨN</span></div>
+
+                        <div class="price-grid">
+
+                            <div><label for="price_sell_9999">Giá bán ra 9999</label><input id="price_sell_9999" type="number" min="0" inputmode="numeric" required></div>
+
+                            <div><label for="spread_9999">Chênh lệch mua vào</label><input id="spread_9999" type="number" min="0" inputmode="numeric" placeholder="300 = 300.000đ"></div>
+
+                        </div>
+
+                        <div class="price-grid derived-line"><div><label>Giá mua vào tự tính</label><input id="price_buy_9999" type="number" readonly></div></div>
+
+                    </div>
+
+                    <div id="derived-price-cards"></div>
+
+                    <button type="submit" class="btn btn-green">🚀 LƯU &amp; CẬP NHẬT TV</button>
+
+                </form>
+
+                <div id="price-status"></div>
+
+                <div class="help">Nếu đang mở Remote trên tên miền công khai, nhập mã quản trị hosting bên dưới. Khi mở từ QR LAN của POS thì có thể để trống.</div>
+
+                <label for="remote-token">Mã chủ tiệm (chỉ dùng cho /remote công khai)</label>
+
+                <input id="remote-token" type="password" autocomplete="off" placeholder="KBL_ADMIN_TOKEN">
+
+                <a id="tv-link" class="tv-link" href="/tv" target="_blank">📺 Mở bảng giá TV: /tv</a>
+
+            </div>
+
+        </section>
+
+
+
+        <section id="pawn-panel" class="panel">
+
+            <div class="card">
+
+                <h2>🧾 PHIẾU CẦM NỘI BỘ</h2>
+
+                <p>Quét QR Liên 2 hoặc nhập mã phiếu. Dữ liệu đọc trực tiếp từ kho cầm trên POS trong mạng LAN.</p>
+
+                <div class="help"><b>AN TOÀN:</b> chỉ bấm xác nhận sau khi ông đã kiểm tra tiền thực nhận. Mọi lần đóng lãi và chuộc đều được ghi lịch sử trong phiếu.</div>
+
+
+
+                <div class="pawn-search-row">
+
+                    <input id="pawn-code" type="text" autocomplete="off" placeholder="Ví dụ KBL-2026-028 hoặc quét QR Liên 2">
+
+                    <button type="button" id="pawn-lookup" class="btn btn-dark">🔎 TRA PHIẾU</button>
+
+                </div>
+
+
+
+                <div class="pawn-scan-tools">
+
+                    <button type="button" id="pawn-scan" class="btn btn-gold">📷 QUÉT QR LIVE</button>
+
+                    <label class="pawn-scan-file" for="pawn-scan-file">📸 MỞ CAMERA / CHỤP QR</label>
+
+                </div>
+
+                <button type="button" id="pawn-stop-scan" class="btn" style="background:#64748b;display:none;">⏹ DỪNG CAMERA</button>
+
+                <input id="pawn-scan-file" type="file" accept="image/*" capture="environment" hidden>
+
+                <div id="pawn-reader" hidden></div>
+
+                <div id="pawn-status">Sẵn sàng quét QR Liên 2.</div>
+
+                <div style="margin-top:4px;color:#94a3b8;font-size:10px;text-align:right;">QR LIVE R8.2 · cùng bộ quét đang dùng trên web</div>
+
+
+
+                <div id="pawn-result" class="pawn-result"></div>
+
+                <div id="pawn-last-action" class="pawn-last-action"></div>
+
+            </div>
+
+        </section>
+
+
+        <section id="vneid-panel" class="panel">
+            <div class="card">
+                <h2>🔳 QUÉT QR VNeID</h2>
+                <p>Dùng <b>điện thoại của tiệm</b> này để quét QR VNeID đang hiển thị trên điện thoại khách. Dữ liệu gửi thẳng về đúng hồ sơ đang mở trên POS trong cùng Wi‑Fi/LAN.</p>
+
+                <div id="vneid-target-label" class="help" style="margin-top:12px;">Đang xác định nơi nhận dữ liệu...</div>
+
+                <div id="vneid-reader" style="display:none;position:relative;margin-top:14px;overflow:hidden;border-radius:14px;background:#050d18;min-height:280px;">
+                    <video id="vneid-video" playsinline muted autoplay style="display:block;width:100%;min-height:280px;max-height:70vh;object-fit:cover;background:#050d18;"></video>
+                    <div style="position:absolute;left:50%;top:50%;width:min(72vw,290px);height:min(72vw,290px);transform:translate(-50%,-50%);border:3px solid #f2c54a;border-radius:22px;box-shadow:0 0 0 9999px rgba(0,0,0,.25);pointer-events:none;"></div>
+                    <div style="position:absolute;left:14px;right:14px;bottom:18px;color:#fff;text-align:center;font-size:12px;font-weight:900;text-shadow:0 1px 4px #000;">Đưa QR VNeID trên điện thoại khách vào giữa khung</div>
+                </div>
+
+                <button type="button" id="vneid-start" class="btn btn-green">📷 BẮT ĐẦU QUÉT QR VNeID</button>
+                <button type="button" id="vneid-stop" class="btn" style="display:none;background:#64748b;">⏹ DỪNG CAMERA</button>
+
+                <div class="field">
+                    <label>Nếu camera live bị chặn: mở camera điện thoại và chụp QR</label>
+                    <input id="vneid-qr-file" type="file" accept="image/*" capture="environment">
+                </div>
+
+                <div class="field">
+                    <label>Hoặc dán chuỗi QR đã đọc được</label>
+                    <textarea id="vneid-raw" style="width:100%;min-height:96px;padding:12px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:var(--ink);font-size:14px;resize:vertical;" placeholder="Dán nội dung QR vào đây..."></textarea>
+                </div>
+                <button type="button" id="vneid-send-raw" class="btn btn-dark">✅ DÙNG DỮ LIỆU QR NÀY</button>
+
+                <div class="field" style="margin-top:16px;">
+                    <label>Ảnh khuôn mặt khách tại quầy (tùy chọn)</label>
+                    <input id="vneid-face-file" type="file" accept="image/*" capture="user">
+                </div>
+                <button type="button" id="vneid-send-face" class="btn btn-gold">🙂 GỬI ẢNH KHUÔN MẶT VỀ HỒ SƠ</button>
+
+                <div id="vneid-status" class="status">Sẵn sàng quét.</div>
+                <div class="dangerNote"><b>Lưu ý:</b> nếu QR VNeID chỉ chứa token/link động và không chứa trực tiếp thông tin định danh, POS sẽ báo cần xác thực chính thức; hệ thống không tự đoán dữ liệu khách.</div>
+            </div>
+        </section>
+
+    </main>
+
+
+
+    <nav class="bottom-nav">
+
+        <button type="button" class="tab-btn active" data-tab="scan"><span>📸</span>Quét CCCD</button>
+
+        <button type="button" class="tab-btn" data-tab="vneid"><span>🔳</span>VNeID</button>
+
+        <button type="button" class="tab-btn" data-tab="price"><span>📺</span>Bảng Giá Tivi</button>
+
+        <button type="button" class="tab-btn" data-tab="pawn"><span>🧾</span>Phiếu Cầm</button>
+
+    </nav>
+
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <script>
+
+        const cameraInput = document.getElementById('camera-input');
+
+        const cropBox = document.getElementById('crop-box');
+
+        const cropImage = document.getElementById('crop-image');
+
+        const cropTitle = document.getElementById('crop-title');
+
+        const scanStatus = document.getElementById('scan-status');
+
+        const priceStatus = document.getElementById('price-status');
+
+        const GOLD_RULES = [
+
+            { code: '9999', title: 'Vàng 9999 (24K)', effective: 9999 },
+
+            { code: '980', title: 'Vàng 980', effective: 9850 },
+
+            { code: '750', title: 'Vàng 750 / 18K', effective: 7650 },
+
+            { code: '610', title: 'Vàng 610', effective: 6220 },
+
+            { code: '585', title: 'Vàng 585 / 14K', effective: 6000 },
+
+            { code: '416', title: 'Vàng 416 / 10K', effective: 4300 }
+
+        ];
+
+        const spreadKeys = GOLD_RULES.map((rule) => 'spread_' + rule.code);
+
+        const priceKeys = GOLD_RULES.flatMap((rule) => ['price_buy_' + rule.code, 'price_sell_' + rule.code, 'spread_' + rule.code]);
+
+        let cropper = null;
+
+        let selectedSide = 'front';
+
+
+
+        function normalizeSpread(value) {
+
+            const number = Number(value);
+
+            if (!Number.isFinite(number) || number < 0) return 0;
+
+            return number > 0 && number < 10000 ? number * 1000 : Math.round(number);
+
+        }
+
+        function roundGoldPrice(value) {
+
+            const number = Number(value);
+
+            return Number.isFinite(number) && number > 0 ? Math.round(number / 10000) * 10000 : 0;
+
+        }
+
+        function derivePrices(source) {
+
+            const input = source || {};
+
+            const baseSell = Number(input.price_sell_9999) || 0;
+
+            const result = {};
+
+            GOLD_RULES.forEach(({ code, effective }) => {
+
+                const sell = roundGoldPrice(baseSell * effective / 9999);
+
+                result['price_sell_' + code] = sell;
+
+                result['spread_' + code] = normalizeSpread(input['spread_' + code]);
+
+                result['price_buy_' + code] = Math.max(0, sell - result['spread_' + code]);
+
+            });
+
+            return result;
+
+        }
+
+
+
+        function renderDerivedCards(prices) {
+
+            const box = document.getElementById('derived-price-cards');
+
+            if (!box) return;
+
+            box.innerHTML = GOLD_RULES.slice(1).map((rule) => `
+
+                <div class="price-card auto-price-card">
+
+                    <div class="price-title">${rule.title} <span class="auto-badge">TỰ TÍNH THEO TUỔI QUY ĐỔI</span></div>
+
+                    <div class="price-grid">
+
+                        <div><label>Giá bán ra tự tính</label><input id="price_sell_${rule.code}" type="number" readonly></div>
+
+                        <div><label for="spread_${rule.code}">Chênh lệch mua vào</label><input id="spread_${rule.code}" type="number" min="0" inputmode="numeric" placeholder="400 = 400.000đ"></div>
+
+                        <div><label>Giá mua vào tự tính</label><input id="price_buy_${rule.code}" type="number" readonly></div>
+
+                    </div>
+
+                </div>`).join('');
+
+            fillPrices(prices || {});
+
+        }
+
+
+
+        function setStatus(element, message, color) {
+
+            element.textContent = message || '';
+
+            element.style.color = color || '#0b2240';
+
+        }
+
+
+
+        function openCamera(side) {
+
+            selectedSide = side;
+
+            cameraInput.value = '';
+
+            cameraInput.click();
+
+        }
+
+
+
+        document.querySelectorAll('[data-side]').forEach((button) => {
+
+            button.addEventListener('click', () => openCamera(button.dataset.side));
+
+        });
+
+
+
+        cameraInput.addEventListener('change', (event) => {
+
+            const file = event.target.files && event.target.files[0];
+
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            reader.onload = (loadEvent) => {
+
+                cropTitle.textContent = 'Đang chỉnh ' + (selectedSide === 'front' ? 'MẶT TRƯỚC' : 'MẶT SAU');
+
+                cropImage.src = loadEvent.target.result;
+
+                cropBox.style.display = 'block';
+
+                setStatus(scanStatus, 'Kiểm tra ảnh, xoay nếu cần rồi bấm CẮT & GỬI.', '#0b2240');
+
+                if (cropper) cropper.destroy();
+
+                if (typeof window.Cropper === 'function') {
+                    cropper = new Cropper(cropImage, {
+                        aspectRatio: 85.6 / 53.98,
+                        viewMode: 1,
+                        autoCropArea: 0.95,
+                        dragMode: 'move',
+                        guides: true,
+                        center: true
+                    });
+                } else {
+                    // Mất Internet/CDN vẫn chụp CCCD được: gửi ảnh gốc đã thu nhỏ.
+                    cropper = null;
+                    setStatus(scanStatus, 'Ảnh đã sẵn sàng. Bộ cắt ảnh nâng cao chưa tải; bấm GỬI để dùng ảnh gốc.', '#0b2240');
+                }
+
+            };
+
+            reader.readAsDataURL(file);
+
+        });
+
+
+
+        document.getElementById('retake-btn').addEventListener('click', () => openCamera(selectedSide));
+
+        document.getElementById('rotate-btn').addEventListener('click', () => { if (cropper) cropper.rotate(90); });
+
+        document.getElementById('cancel-btn').addEventListener('click', () => {
+
+            if (cropper) cropper.destroy();
+
+            cropper = null;
+
+            cropBox.style.display = 'none';
+
+            cameraInput.value = '';
+
+            setStatus(scanStatus, '', '#0b2240');
+
+        });
+
+
+
+        document.getElementById('send-btn').addEventListener('click', async () => {
+
+            if (!cropper && !cropImage.src) return;
+
+            setStatus(scanStatus, '⏳ Đang gửi ' + (selectedSide === 'front' ? 'mặt trước' : 'mặt sau') + ' về máy tính...', '#0b2240');
+
+            try {
+
+                let canvas;
+                if (cropper) canvas = cropper.getCroppedCanvas({ width: 800 });
+                else {
+                    canvas = document.createElement('canvas');
+                    const sw = cropImage.naturalWidth || 1200, sh = cropImage.naturalHeight || 800;
+                    const ratio = Math.min(1, 800 / Math.max(1, sw));
+                    canvas.width = Math.max(1, Math.round(sw * ratio));
+                    canvas.height = Math.max(1, Math.round(sh * ratio));
+                    canvas.getContext('2d').drawImage(cropImage, 0, 0, canvas.width, canvas.height);
+                }
+
+                const image = canvas.toDataURL('image/jpeg', 0.8);
+
+                const response = await fetch('/upload', {
+
+                    method: 'POST',
+
+                    headers: { 'Content-Type': 'application/json' },
+
+                    body: JSON.stringify({ side: selectedSide, image })
+
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) throw new Error(data.message || 'Không thể gửi ảnh');
+
+
+
+                const preview = document.getElementById(selectedSide + '-preview');
+
+                const state = document.getElementById(selectedSide + '-state');
+
+                preview.src = image;
+
+                preview.hidden = false;
+
+                state.textContent = '✅ Đã gửi về máy tính';
+
+                state.classList.add('done');
+
+                setStatus(scanStatus, '✅ Đã gửi ' + (selectedSide === 'front' ? 'mặt trước' : 'mặt sau') + '. Chụp tiếp mặt còn lại.', '#168b57');
+
+                if (cropper) cropper.destroy();
+
+                cropper = null;
+
+                cropBox.style.display = 'none';
+
+                cameraInput.value = '';
+
+            } catch (error) {
+
+                setStatus(scanStatus, '❌ ' + (error.message || 'Không thể gửi ảnh.'), '#dc3545');
+
+            }
+
+        });
+
+
+
+        function switchTab(tab) {
+
+            document.getElementById('scan-panel').classList.toggle('active', tab === 'scan');
+
+            document.getElementById('vneid-panel').classList.toggle('active', tab === 'vneid');
+
+            document.getElementById('price-panel').classList.toggle('active', tab === 'price');
+
+            document.getElementById('pawn-panel').classList.toggle('active', tab === 'pawn');
+
+            document.querySelectorAll('.tab-btn').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab));
+
+            if (tab === 'price') loadPrices();
+
+            if (tab !== 'pawn') stopPawnScanner().catch(() => {});
+
+            if (tab !== 'vneid') stopVneidScanner().catch(() => {});
+
+        }
+
+        document.querySelectorAll('.tab-btn').forEach((button) => button.addEventListener('click', () => switchTab(button.dataset.tab)));
+
+
+
+        function fillPrices(prices) {
+
+            renderDerivedCardsOnce();
+
+            priceKeys.forEach((key) => {
+
+                const input = document.getElementById(key);
+
+                if (input && prices && prices[key] !== undefined) input.value = Number(prices[key]) || 0;
+
+            });
+
+            const derived = derivePrices(prices || {});
+
+            priceKeys.forEach((key) => {
+
+                const input = document.getElementById(key);
+
+                if (input && derived[key] !== undefined) input.value = derived[key];
+
+            });
+
+        }
+
+
+
+        let derivedCardsReady = false;
+
+        function renderDerivedCardsOnce() {
+
+            if (derivedCardsReady) return;
+
+            const box = document.getElementById('derived-price-cards');
+
+            if (!box) return;
+
+            derivedCardsReady = true;
+
+            renderDerivedCards({});
+
+        }
+
+
+
+        async function loadPrices() {
+
+            try {
+
+                const response = await fetch('/api/prices', { cache: 'no-store' });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) throw new Error(data.message || 'Không lấy được bảng giá');
+
+                fillPrices(data.prices || {});
+
+                setStatus(priceStatus, '', '#0b2240');
+
+            } catch (error) {
+
+                setStatus(priceStatus, '❌ Không lấy được bảng giá hiện tại.', '#dc3545');
+
+            }
+
+        }
+
+
+
+        document.getElementById('price-form').addEventListener('submit', async (event) => {
+
+            event.preventDefault();
+
+            const raw = { price_sell_9999: Number(document.getElementById('price_sell_9999').value) || 0 };
+
+            spreadKeys.forEach((key) => { raw[key] = normalizeSpread(document.getElementById(key)?.value); });
+
+            const prices = derivePrices(raw);
+
+            setStatus(priceStatus, '⏳ Đang cập nhật...', '#0b2240');
+
+            try {
+
+                const token = document.getElementById('remote-token')?.value.trim() || sessionStorage.getItem('kbl_admin_token') || '';
+
+                if (token) sessionStorage.setItem('kbl_admin_token', token);
+
+                const response = await fetch('/api/prices', {
+
+                    method: 'POST',
+
+                    headers: { 'Content-Type': 'application/json', ...(token ? { 'X-KBL-Admin-Token': token } : {}) },
+
+                    body: JSON.stringify({ prices })
+
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) throw new Error(data.message || 'Không thể lưu bảng giá');
+
+                fillPrices(data.prices || prices);
+
+                setStatus(priceStatus, '✅ Đã cập nhật app và TV.', '#168b57');
+
+            } catch (error) {
+
+                setStatus(priceStatus, '❌ ' + (error.message || 'Không thể lưu bảng giá.'), '#dc3545');
+
+            }
+
+        });
+
+
+
+
+
+        // ============================================================
+
+        // KBL POS LAN · CAMERA + NGHIỆP VỤ PHIẾU CẦM
+
+        // ============================================================
+
+        const pawnCodeInput = document.getElementById('pawn-code');
+
+        const pawnStatus = document.getElementById('pawn-status');
+
+        const pawnResult = document.getElementById('pawn-result');
+
+        const pawnLastAction = document.getElementById('pawn-last-action');
+
+        let pawnScanner = null;
+
+        let pawnRobustQrScanner = null;
+
+        let pawnNativeStream = null;
+
+        let pawnNativeVideo = null;
+
+        let pawnNativeDetector = null;
+
+        let pawnNativeScanTimer = null;
+
+        let pawnInlineVideoObserver = null;
+
+        let pawnScanLocked = false;
+
+        let currentPawnRecord = null;
+
+
+
+        const pawnMoney = (value) => new Intl.NumberFormat('vi-VN').format(Number(value) || 0) + 'đ';
+
+        const pawnEscape = (value) => String(value === undefined || value === null ? '' : value)
+
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+
+
+        function parsePawnQr(value) {
+
+            let raw = String(value || '').trim().replace(/^["']|["']$/g, '');
+
+            for (let i = 0; i < 2; i += 1) {
+
+                try {
+
+                    const next = decodeURIComponent(raw.replace(/\+/g, '%20'));
+
+                    if (next === raw) break;
+
+                    raw = next.trim();
+
+                } catch (_) { break; }
+
+            }
+
+            if (!raw) return '';
+
+            const internal = raw.match(/^KBLPOS[-_:| ]*PAWN[-_:| ]*(.+)$/i);
+
+            if (internal) return internal[1].trim();
+
+            try {
+
+                const embedded = raw.match(/https?:\/\/[^\s<>"']+/i);
+
+                const url = new URL(embedded ? embedded[0] : raw, location.origin);
+
+                return url.searchParams.get('code') || url.searchParams.get('c') || url.searchParams.get('id')
+
+                    || url.searchParams.get('token') || url.searchParams.get('t') || raw;
+
+            } catch (_) {}
+
+            return raw;
+
+        }
+
+
+
+        function setPawnStatus(message, ok = null) {
+
+            pawnStatus.textContent = message || '';
+
+            pawnStatus.style.color = ok === true ? '#168b57' : ok === false ? '#c0392b' : '#0b2240';
+
+        }
+
+
+
+        function pawnRow(label, value) {
+
+            return `<div class="pawn-row"><b>${pawnEscape(label)}</b><span>${pawnEscape(value)}</span></div>`;
+
+        }
+
+
+
+        function transactionLabel(tx) {
+
+            return tx && tx.type === 'redeem' ? '🤝 Chuộc' : '💰 Đóng lãi + phí';
+
+        }
+
+
+
+        function renderPawn(record) {
+
+            currentPawnRecord = record || null;
+
+            if (!record) { pawnResult.classList.remove('show'); return; }
+
+            const closed = /đã\s*chuộc|đã\s*thanh\s*lý/i.test(String(record.status || ''));
+
+            const history = Array.isArray(record.paymentHistory) ? record.paymentHistory : [];
+
+            pawnResult.innerHTML = `
+
+                <h3>${pawnEscape(record.id || '')} · ${pawnEscape(record.status || 'Đang cầm')}</h3>
+
+                ${pawnRow('Khách hàng', record.name || '—')}
+
+                ${pawnRow('SĐT', record.phone || '—')}
+
+                ${pawnRow('CCCD', record.cccd || '—')}
+
+                ${pawnRow('Tài sản', record.asset || '—')}
+
+                ${pawnRow('Ngày cầm gốc', record.originalDateStart || '—')}
+
+                ${pawnRow('Kỳ lãi đang tính từ', record.accrualStart || '—')}
+
+                ${pawnRow('Số ngày kỳ hiện tại', (Number(record.days) || 0) + ' ngày')}
+
+                ${pawnRow('Lãi hiện tại', pawnMoney(record.currentInterest))}
+
+                ${pawnRow('Phí hiện tại', pawnMoney(record.currentFee))}
+
+                ${record.lastInterestPaidThrough ? pawnRow('Đã đóng lãi đến hết', record.lastInterestPaidThrough) : ''}
+
+                <div class="pawn-total"><small>${closed ? 'PHIẾU ĐÃ KẾT THÚC' : 'TỔNG TẤT TOÁN HIỆN TẠI'}</small><strong>${closed ? pawnEscape(record.status) : pawnMoney(record.totalDue)}</strong></div>
+
+                ${closed ? '' : `<div class="pawn-actions">
+
+                    <button type="button" class="btn btn-green" id="pawn-confirm-interest">✅ XÁC NHẬN ĐÃ THU LÃI + PHÍ<br><small>${pawnMoney(record.interestFeeDue)}</small></button>
+
+                    <button type="button" class="btn danger-confirm" id="pawn-confirm-redeem">🤝 XÁC NHẬN ĐÃ THU TIỀN & CHUỘC<br><small>${pawnMoney(record.totalDue)}</small></button>
+
+                </div>`}
+
+                <div class="pawn-history">
+
+                    <b>Lịch sử xác nhận (${history.length})</b>
+
+                    ${history.length ? history.map(tx => `<div class="pawn-history-item"><b>${pawnEscape(transactionLabel(tx))}</b> · ${pawnEscape(new Date(tx.confirmedAt || Date.now()).toLocaleString('vi-VN'))}<br>Kỳ: ${pawnEscape(tx.periodStartRaw || '')} → ${pawnEscape(tx.periodEndRaw || '')} · ${pawnMoney(tx.total || 0)}</div>`).join('') : '<div class="pawn-history-item">Chưa có lần đóng lãi/chuộc nào được xác nhận bằng hệ thống mới.</div>'}
+
+                </div>`;
+
+            pawnResult.classList.add('show');
+
+            document.getElementById('pawn-confirm-interest')?.addEventListener('click', confirmPawnInterest);
+
+            document.getElementById('pawn-confirm-redeem')?.addEventListener('click', confirmPawnRedeem);
+
+        }
+
+
+
+        async function lookupPawn(value = pawnCodeInput.value) {
+
+            const query = parsePawnQr(value);
+
+            if (!query) { setPawnStatus('❌ Chưa có mã phiếu hoặc QR.', false); return; }
+
+            pawnCodeInput.value = query;
+
+            setPawnStatus('⏳ Đang đọc phiếu trực tiếp từ POS...');
+
+            pawnLastAction.classList.remove('show');
+
+            try {
+
+                const response = await fetch('/api/pawn-lan/lookup?q=' + encodeURIComponent(query), { cache:'no-store' });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok || !data.success) throw new Error(data.message || 'Không tìm thấy phiếu');
+
+                renderPawn(data.record);
+
+                setPawnStatus('✅ Đã mở đúng phiếu trong kho POS.', true);
+
+            } catch (error) {
+
+                currentPawnRecord = null;
+
+                pawnResult.classList.remove('show');
+
+                setPawnStatus('❌ ' + (error.message || 'Không đọc được phiếu.'), false);
+
+            }
+
+        }
+
+
+
+        function renderLastAction(result) {
+
+            const tx = result && result.transaction;
+
+            if (!tx) return;
+
+            const isRedeem = tx.type === 'redeem';
+
+            pawnLastAction.innerHTML = `<b>✅ ${pawnEscape(result.message || 'Đã ghi nhận')}</b><br>
+
+                ${pawnEscape(transactionLabel(tx))} · ${pawnMoney(tx.total || 0)}
+
+                ${isRedeem
+
+                    ? '<div style="margin-top:7px;font-size:12px;color:#168b57;font-weight:800;">Phiếu đã ghi nhận ĐÃ CHUỘC vào POS · không cần in giấy xác nhận.</div>'
+
+                    : '<button type="button" class="btn btn-dark" id="pawn-print-pos">🖨️ IN GIẤY XÁC NHẬN ĐÓNG LÃI + PHÍ</button>'}`;
+
+            pawnLastAction.classList.add('show');
+
+            if (isRedeem) return;
+
+            document.getElementById('pawn-print-pos')?.addEventListener('click', async () => {
+
+                try {
+
+                    const response = await fetch('/api/pawn-lan/print-receipt', {
+
+                        method:'POST', headers:{'Content-Type':'application/json'},
+
+                        body:JSON.stringify({ query: currentPawnRecord?.id || pawnCodeInput.value, transactionId: tx.id })
+
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+
+                    if (!response.ok || !data.success) throw new Error(data.message || 'Không in được');
+
+                    setPawnStatus('✅ Đã gửi giấy xác nhận đóng lãi + phí sang máy POS để in.', true);
+
+                } catch (error) { setPawnStatus('❌ ' + error.message, false); }
+
+            });
+
+        }
+
+
+
+        async function confirmPawnInterest() {
+
+            if (!currentPawnRecord) return;
+
+            const amount = Number(currentPawnRecord.interestFeeDue) || 0;
+
+            if (amount <= 0) { setPawnStatus('Phiếu chưa phát sinh lãi/phí mới để xác nhận.', false); return; }
+
+            if (!confirm(`ĐÃ KIỂM TRA TIỀN THỰC NHẬN?\n\nXác nhận thu LÃI + PHÍ: ${pawnMoney(amount)}\nPhiếu: ${currentPawnRecord.id}\n\nSau xác nhận, kỳ lãi mới bắt đầu từ ngày kế tiếp.`)) return;
+
+            await postPawnAction('/api/pawn-lan/interest-payment');
+
+        }
+
+
+
+        async function confirmPawnRedeem() {
+
+            if (!currentPawnRecord) return;
+
+            const amount = Number(currentPawnRecord.totalDue) || 0;
+
+            if (!confirm(`ĐÃ KIỂM TRA ĐỦ TIỀN THỰC NHẬN?\n\nXác nhận CHUỘC phiếu ${currentPawnRecord.id}\nTổng tất toán: ${pawnMoney(amount)}\n\nThao tác này sẽ ghi trạng thái ĐÃ CHUỘC vào POS.`)) return;
+
+            await postPawnAction('/api/pawn-lan/redeem');
+
+        }
+
+
+
+        async function postPawnAction(endpoint) {
+
+            setPawnStatus('⏳ Đang ghi nhận vào POS...');
+
+            try {
+
+                const response = await fetch(endpoint, {
+
+                    method:'POST', headers:{'Content-Type':'application/json'},
+
+                    body:JSON.stringify({ query: currentPawnRecord?.id || pawnCodeInput.value })
+
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok || !data.success) throw new Error(data.message || 'Không ghi nhận được');
+
+                renderPawn(data.record);
+
+                renderLastAction(data);
+
+                setPawnStatus('✅ ' + (data.message || 'Đã ghi nhận vào POS.'), true);
+
+            } catch (error) { setPawnStatus('❌ ' + (error.message || 'Không ghi nhận được.'), false); }
+
+        }
+
+
+
+        function pawnIsIOSDevice() {
+
+            return /iPad|iPhone|iPod/i.test(navigator.userAgent || '')
+
+                || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        }
+
+
+
+        function pawnIsStandalonePwa() {
+
+            return window.matchMedia?.('(display-mode: standalone)')?.matches
+
+                || window.navigator.standalone === true;
+
+        }
+
+
+
+        async function pawnLeavePictureInPicture(video) {
+
+            try {
+
+                if (document.pictureInPictureElement === video && document.exitPictureInPicture) await document.exitPictureInPicture();
+
+            } catch (_) {}
+
+            try {
+
+                if (typeof video.webkitSetPresentationMode === 'function' && video.webkitPresentationMode !== 'inline') video.webkitSetPresentationMode('inline');
+
+            } catch (_) {}
+
+        }
+
+
+
+        function pawnForceInlineVideo(video) {
+
+            if (!video || video.dataset.kblInlineVideo === '1') return;
+
+            video.dataset.kblInlineVideo = '1';
+
+            video.autoplay = true; video.muted = true; video.controls = false; video.playsInline = true;
+
+            video.setAttribute('autoplay', ''); video.setAttribute('muted', ''); video.setAttribute('playsinline', '');
+
+            video.setAttribute('webkit-playsinline', ''); video.setAttribute('disablepictureinpicture', '');
+
+            video.setAttribute('controlslist', 'nodownload noplaybackrate noremoteplayback'); video.setAttribute('x-webkit-airplay', 'deny');
+
+            try { video.disablePictureInPicture = true; } catch (_) {}
+
+            try { video.disableRemotePlayback = true; } catch (_) {}
+
+            video.addEventListener('enterpictureinpicture', () => pawnLeavePictureInPicture(video));
+
+            video.addEventListener('webkitpresentationmodechanged', () => pawnLeavePictureInPicture(video));
+
+        }
+
+
+
+        function pawnWatchReaderVideos() {
+
+            if (pawnInlineVideoObserver) pawnInlineVideoObserver.disconnect();
+
+            const reader = document.getElementById('pawn-reader');
+
+            const apply = () => reader.querySelectorAll('video').forEach(pawnForceInlineVideo);
+
+            pawnInlineVideoObserver = new MutationObserver(apply);
+
+            pawnInlineVideoObserver.observe(reader, { childList:true, subtree:true });
+
+            apply();
+
+        }
+
+
+
+        function addPawnScanOverlay() {
+
+            const reader = document.getElementById('pawn-reader');
+
+            reader.querySelectorAll('.scan-frame,.scan-tip,.scan-close').forEach(node => node.remove());
+
+            const frame = document.createElement('div'); frame.className = 'scan-frame';
+
+            const laser = document.createElement('span'); laser.className = 'scan-laser'; frame.appendChild(laser);
+
+            const tip = document.createElement('div'); tip.className = 'scan-tip';
+
+            tip.textContent = 'Đưa QR Liên 2 vào giữa khung · camera sẽ tự nhận, không cần bấm chụp';
+
+            const close = document.createElement('button'); close.className = 'scan-close'; close.type = 'button'; close.setAttribute('aria-label','Đóng camera quét QR'); close.textContent = '×';
+
+            close.addEventListener('click', () => stopPawnScanner());
+
+            reader.append(frame, tip, close);
+
+        }
+
+
+
+        async function stopPawnScanner() {
+
+            pawnScanLocked = true;
+
+            if (pawnInlineVideoObserver) { pawnInlineVideoObserver.disconnect(); pawnInlineVideoObserver = null; }
+
+            if (pawnRobustQrScanner) {
+
+                try { await pawnRobustQrScanner.stop(); } catch (_) {}
+
+                try { pawnRobustQrScanner.destroy(); } catch (_) {}
+
+                pawnRobustQrScanner = null;
+
+            }
+
+            if (pawnNativeScanTimer) { clearInterval(pawnNativeScanTimer); pawnNativeScanTimer = null; }
+
+            if (pawnNativeStream) { pawnNativeStream.getTracks().forEach(track => track.stop()); pawnNativeStream = null; }
+
+            pawnNativeVideo = null; pawnNativeDetector = null;
+
+            if (pawnScanner) {
+
+                try { await pawnScanner.stop(); } catch (_) {}
+
+                try { pawnScanner.clear(); } catch (_) {}
+
+                pawnScanner = null;
+
+            }
+
+            const reader = document.getElementById('pawn-reader');
+
+            reader.replaceChildren(); reader.hidden = true; reader.classList.remove('scan-success');
+
+            document.body.classList.remove('pawn-qr-scanning');
+
+            document.getElementById('pawn-stop-scan').style.display = 'none';
+
+        }
+
+
+
+        function pawnScannerConfig() {
+
+            return {
+
+                fps:10,
+
+                qrbox:(width,height) => {
+
+                    const size = Math.floor(Math.min(width,height) * 0.68);
+
+                    return { width:Math.max(160,size), height:Math.max(160,size) };
+
+                },
+
+                ...(window.Html5QrcodeSupportedFormats ? { formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE] } : {})
+
+            };
+
+        }
+
+
+
+        async function pawnDecoded(text) {
+
+            if (pawnScanLocked || !text) return;
+
+            pawnScanLocked = true;
+
+            try { document.getElementById('pawn-reader').classList.add('scan-success'); } catch (_) {}
+
+            try { navigator.vibrate?.(60); } catch (_) {}
+
+            const query = parsePawnQr(text);
+
+            pawnCodeInput.value = query;
+
+            setPawnStatus('✅ Đã nhận mã QR · đang mở phiếu...', true);
+
+            await new Promise(resolve => setTimeout(resolve, 180));
+
+            await stopPawnScanner();
+
+            await lookupPawn(query);
+
+        }
+
+
+
+        async function startPawnRobustQrScanner() {
+
+            if (!window.QrScanner) throw new Error('robust-qr-engine-unavailable');
+
+            await stopPawnScanner();
+
+            pawnScanLocked = false;
+
+            const reader = document.getElementById('pawn-reader'); reader.hidden = false;
+
+            document.getElementById('pawn-stop-scan').style.display = 'block'; document.body.classList.add('pawn-qr-scanning');
+
+            const video = document.createElement('video'); pawnForceInlineVideo(video); pawnNativeVideo = video; reader.appendChild(video); pawnWatchReaderVideos(); addPawnScanOverlay();
+
+            pawnRobustQrScanner = new QrScanner(video, result => {
+
+                const text = typeof result === 'string' ? result : (result?.data || '');
+
+                if (text) pawnDecoded(text);
+
+            }, {
+
+                preferredCamera:'environment', maxScansPerSecond:12, highlightScanRegion:false, highlightCodeOutline:false,
+
+                returnDetailedScanResult:true,
+
+                calculateScanRegion:(sourceVideo) => {
+
+                    const width = Math.max(1, sourceVideo.videoWidth || 1280); const height = Math.max(1, sourceVideo.videoHeight || 720);
+
+                    const side = Math.max(1, Math.floor(Math.min(width,height) * 0.94)); const scaled = Math.min(960, side);
+
+                    return { x:Math.max(0,Math.floor((width-side)/2)), y:Math.max(0,Math.floor((height-side)/2)), width:side, height:side, downScaledWidth:scaled, downScaledHeight:scaled };
+
+                }
+
+            });
+
+            await pawnRobustQrScanner.start(); pawnForceInlineVideo(video);
+
+            setPawnStatus('Camera LIVE đang mở · đưa QR vào khung vàng, app sẽ tự nhận.', true);
+
+        }
+
+
+
+        async function startPawnNativeScanner() {
+
+            if (!navigator.mediaDevices?.getUserMedia || !('BarcodeDetector' in window)) throw new Error('native-qr-unavailable');
+
+            await stopPawnScanner(); pawnScanLocked = false;
+
+            const reader = document.getElementById('pawn-reader'); reader.hidden = false;
+
+            document.getElementById('pawn-stop-scan').style.display = 'block'; document.body.classList.add('pawn-qr-scanning');
+
+            const video = document.createElement('video'); pawnForceInlineVideo(video); pawnNativeVideo = video; pawnWatchReaderVideos(); reader.appendChild(video); addPawnScanOverlay();
+
+            try { pawnNativeDetector = new BarcodeDetector({ formats:['qr_code'] }); } catch (_) { pawnNativeDetector = new BarcodeDetector(); }
+
+            try { pawnNativeStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 } }, audio:false }); }
+
+            catch (_) { pawnNativeStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false }); }
+
+            video.srcObject = pawnNativeStream; await video.play();
+
+            setPawnStatus('Camera đang mở · đưa mã QR vào khung màu vàng.', true);
+
+            pawnNativeScanTimer = setInterval(async () => {
+
+                if (pawnScanLocked || !pawnNativeDetector || !pawnNativeVideo || pawnNativeVideo.readyState < 2) return;
+
+                try { const codes = await pawnNativeDetector.detect(pawnNativeVideo); if (codes?.[0]?.rawValue) pawnDecoded(codes[0].rawValue); } catch (_) {}
+
+            }, 180);
+
+        }
+
+
+
+        async function startPawnLegacyScanner() {
+
+            if (!window.Html5Qrcode) throw new Error('Bộ quét QR chưa tải xong.');
+
+            await stopPawnScanner(); pawnScanLocked = false;
+
+            const reader = document.getElementById('pawn-reader'); reader.hidden = false;
+
+            document.getElementById('pawn-stop-scan').style.display = 'block'; document.body.classList.add('pawn-qr-scanning');
+
+            pawnScanner = new Html5Qrcode('pawn-reader', { verbose:false }); pawnWatchReaderVideos();
+
+            const config = pawnScannerConfig(); config.fps = 15; config.disableFlip = true;
+
+            await pawnScanner.start({ facingMode:'environment' }, config, text => pawnDecoded(text), () => {});
+
+            reader.querySelectorAll('video').forEach(pawnForceInlineVideo); addPawnScanOverlay();
+
+            setPawnStatus('Camera đang mở · đưa mã QR vào khung màu vàng.', true);
+
+        }
+
+
+
+        async function startPawnScanner() {
+
+            setPawnStatus('Đang mở camera quét QR trực tiếp...');
+
+            if (!navigator.mediaDevices?.getUserMedia) throw new Error('LIVE_CAMERA_BLOCKED');
+
+            const preferRobust = pawnIsIOSDevice() || pawnIsStandalonePwa();
+
+            let robustError = null; let html5Error = null;
+
+            if (preferRobust && window.QrScanner) {
+
+                try { await startPawnRobustQrScanner(); return; } catch (error) { robustError = error; await stopPawnScanner(); }
+
+            }
+
+            try { await startPawnLegacyScanner(); return; } catch (error) { html5Error = error; await stopPawnScanner(); }
+
+            if (!preferRobust && window.QrScanner) {
+
+                try { await startPawnRobustQrScanner(); return; } catch (error) { robustError = error; await stopPawnScanner(); }
+
+            }
+
+            try { await startPawnNativeScanner(); return; }
+
+            catch (nativeError) { await stopPawnScanner(); const error = robustError || nativeError || html5Error; throw error; }
+
+        }
+
+
+
+        async function buildPawnQrImageVariants(file) {
+
+            const variants = [file];
+
+            if (typeof createImageBitmap !== 'function') return variants;
+
+            let bitmap = null;
+
+            try {
+
+                bitmap = await createImageBitmap(file);
+
+                const makeVariant = async (maxSide, contrast) => {
+
+                    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+
+                    const width = Math.max(1, Math.round(bitmap.width * scale)); const height = Math.max(1, Math.round(bitmap.height * scale));
+
+                    const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+
+                    const ctx = canvas.getContext('2d', { willReadFrequently:Boolean(contrast) });
+
+                    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bitmap,0,0,width,height);
+
+                    if (contrast) {
+
+                        const image = ctx.getImageData(0,0,width,height); const data = image.data;
+
+                        for (let i=0;i<data.length;i+=4) { const y=0.299*data[i]+0.587*data[i+1]+0.114*data[i+2]; const value=Math.max(0,Math.min(255,(y-128)*1.55+128)); data[i]=data[i+1]=data[i+2]=value; }
+
+                        ctx.putImageData(image,0,0);
+
+                    }
+
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/jpeg',0.96));
+
+                    return blob ? new File([blob], `kbl-pawn-qr-${maxSide}-${contrast?'contrast':'clean'}.jpg`, { type:'image/jpeg' }) : null;
+
+                };
+
+                for (const [size,contrast] of [[1600,false],[1200,true],[900,true]]) { const variant = await makeVariant(size,contrast); if (variant) variants.push(variant); }
+
+            } catch (error) { console.warn('Pawn QR image preprocessing skipped', error); }
+
+            finally { try { bitmap?.close?.(); } catch (_) {} }
+
+            return variants;
+
+        }
+
+
+
+        async function scanPawnImage(file) {
+
+            if (!file) return;
+
+            await stopPawnScanner(); setPawnStatus('Đang đọc ảnh QR...');
+
+            try {
+
+                let text = ''; let lastError = null; const variants = await buildPawnQrImageVariants(file);
+
+                if (window.Html5Qrcode) {
+
+                    for (const variant of variants) {
+
+                        const imageScanner = new Html5Qrcode('pawn-reader');
+
+                        try { text = await imageScanner.scanFile(variant,true); if (text) break; }
+
+                        catch (error) { lastError = error; }
+
+                        finally { try { imageScanner.clear(); } catch (_) {} }
+
+                    }
+
+                }
+
+                if (!text && 'BarcodeDetector' in window && typeof createImageBitmap === 'function') {
+
+                    for (const variant of variants) {
+
+                        try { const detector = new BarcodeDetector({ formats:['qr_code'] }); const bitmap = await createImageBitmap(variant); const codes = await detector.detect(bitmap); bitmap.close?.(); text = codes?.[0]?.rawValue || ''; if (text) break; }
+
+                        catch (error) { lastError = error; }
+
+                    }
+
+                }
+
+                if (!text) throw new Error(lastError?.message || 'Không nhận được mã QR trong ảnh. Hãy đưa QR gần hơn, chụp thẳng và đủ sáng.');
+
+                await pawnDecoded(text);
+
+            } catch (error) { setPawnStatus('❌ ' + (error.message || 'Không đọc được ảnh QR.'), false); }
+
+        }
+
+
+
+        document.getElementById('pawn-lookup').addEventListener('click', () => lookupPawn());
+
+        pawnCodeInput.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); lookupPawn(); } });
+
+        document.getElementById('pawn-scan').addEventListener('click', () => {
+
+            startPawnScanner().catch(error => {
+
+                // LAN HTTP có thể bị iPhone chặn getUserMedia; chỉ khi LIVE thật sự thất bại mới mở camera/chụp QR dự phòng.
+
+                document.getElementById('pawn-scan-file').click();
+
+                setPawnStatus('ℹ️ Trình duyệt đang chặn camera LIVE trên LAN HTTP. Đã chuyển sang camera/chụp QR để đọc tự động.');
+
+                console.warn('KBL LAN QR LIVE R8.2 scanner error', error);
+
+            });
+
+        });
+
+        document.getElementById('pawn-stop-scan').addEventListener('click', () => stopPawnScanner());
+
+        document.getElementById('pawn-scan-file').addEventListener('change', event => {
+
+            const [file] = event.target.files || []; scanPawnImage(file); event.target.value = '';
+
+        });
+
+        window.addEventListener('pagehide', () => stopPawnScanner().catch(() => {}));
+
+        document.addEventListener('visibilitychange', () => { if (document.hidden && document.body.classList.contains('pawn-qr-scanning')) stopPawnScanner().catch(() => {}); });
+
+
+
+
+        // ============================================================
+        // KBL 29/09/2026 · VNeID chạy trên POS REMOTE ĐIỆN THOẠI.
+        // Chỉ bổ sung luồng QR VNeID; CCCD, bảng giá và phiếu cầm cũ giữ nguyên.
+        // ============================================================
+        const vneidParams = new URLSearchParams(location.search);
+        const vneidTarget = ['buy','sale','pawn'].includes(String(vneidParams.get('target') || '').toLowerCase())
+            ? String(vneidParams.get('target')).toLowerCase()
+            : 'buy';
+        const vneidTargetName = () => vneidTarget === 'sale' ? 'Bán Hàng' : (vneidTarget === 'pawn' ? 'Cầm Đồ' : 'Phiếu Thu Mua');
+        const vneidStatus = document.getElementById('vneid-status');
+        const vneidReader = document.getElementById('vneid-reader');
+        const vneidVideo = document.getElementById('vneid-video');
+        let vneidQrScanner = null;
+        let vneidNativeStream = null;
+        let vneidNativeDetector = null;
+        let vneidNativeTimer = null;
+        let vneidLocked = false;
+
+        function setVneidStatus(message, ok = null) {
+            if (!vneidStatus) return;
+            vneidStatus.textContent = message || '';
+            vneidStatus.style.color = ok === true ? '#168b57' : (ok === false ? '#c0392b' : '#31537d');
+            vneidStatus.style.background = ok === true ? '#f2fff7' : (ok === false ? '#fff4f4' : '#eef4ff');
+        }
+
+        async function postVneidToPos(side, image) {
+            const response = await fetch('/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ side, image })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.success) throw new Error(data.message || 'POS không nhận dữ liệu VNeID.');
+            return data;
+        }
+
+        async function stopVneidScanner() {
+            vneidLocked = true;
+            if (vneidNativeTimer) { clearInterval(vneidNativeTimer); vneidNativeTimer = null; }
+            if (vneidNativeStream) {
+                try { vneidNativeStream.getTracks().forEach(track => track.stop()); } catch (_) {}
+                vneidNativeStream = null;
+            }
+            vneidNativeDetector = null;
+            if (vneidQrScanner) {
+                try { vneidQrScanner.stop(); } catch (_) {}
+                try { vneidQrScanner.destroy(); } catch (_) {}
+                vneidQrScanner = null;
+            }
+            if (vneidVideo) vneidVideo.srcObject = null;
+            if (vneidReader) vneidReader.style.display = 'none';
+            const stop = document.getElementById('vneid-stop');
+            if (stop) stop.style.display = 'none';
+        }
+
+        async function acceptVneidDecoded(raw) {
+            const value = String(raw || '').trim();
+            if (!value || vneidLocked) return;
+            vneidLocked = true;
+            try {
+                navigator.vibrate?.(60);
+            } catch (_) {}
+            const box = document.getElementById('vneid-raw');
+            if (box) box.value = value;
+            setVneidStatus('⏳ Đã đọc QR · đang gửi về ' + vneidTargetName() + '...', null);
+            try {
+                await postVneidToPos('vneid:' + vneidTarget, value);
+                setVneidStatus('✅ Đã gửi QR VNeID về ' + vneidTargetName() + '. Có thể chụp thêm khuôn mặt khách.', true);
+            } catch (error) {
+                vneidLocked = false;
+                setVneidStatus('❌ ' + (error.message || 'Không gửi được QR VNeID.'), false);
+                return;
+            }
+            await stopVneidScanner();
+        }
+
+        async function startVneidScanner() {
+            await stopVneidScanner();
+            vneidLocked = false;
+            if (vneidReader) vneidReader.style.display = 'block';
+            const stop = document.getElementById('vneid-stop');
+            if (stop) stop.style.display = 'block';
+            setVneidStatus('⏳ Đang mở camera sau của điện thoại...', null);
+
+            // Ưu tiên QrScanner vì Remote cũ đã nạp sẵn thư viện này.
+            if (window.QrScanner) {
+                try {
+                    vneidQrScanner = new QrScanner(vneidVideo, result => {
+                        const raw = typeof result === 'string' ? result : (result?.data || '');
+                        if (raw) acceptVneidDecoded(raw);
+                    }, {
+                        preferredCamera: 'environment',
+                        maxScansPerSecond: 12,
+                        highlightScanRegion: false,
+                        highlightCodeOutline: false,
+                        returnDetailedScanResult: true
+                    });
+                    await vneidQrScanner.start();
+                    setVneidStatus('Camera đang mở · đưa QR VNeID trên điện thoại khách vào giữa khung.', null);
+                    return;
+                } catch (_) {
+                    try { vneidQrScanner?.destroy(); } catch (_) {}
+                    vneidQrScanner = null;
+                }
+            }
+
+            // Fallback BarcodeDetector nếu trình duyệt hỗ trợ.
+            if (navigator.mediaDevices?.getUserMedia && 'BarcodeDetector' in window) {
+                try {
+                    vneidNativeDetector = new BarcodeDetector({ formats:['qr_code'] });
+                    vneidNativeStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode:{ ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 } },
+                        audio: false
+                    });
+                    vneidVideo.srcObject = vneidNativeStream;
+                    await vneidVideo.play();
+                    vneidNativeTimer = setInterval(async () => {
+                        if (vneidLocked || !vneidNativeDetector || !vneidVideo || vneidVideo.readyState < 2) return;
+                        try {
+                            const codes = await vneidNativeDetector.detect(vneidVideo);
+                            if (codes?.[0]?.rawValue) acceptVneidDecoded(codes[0].rawValue);
+                        } catch (_) {}
+                    }, 220);
+                    setVneidStatus('Camera đang mở · đưa QR VNeID trên điện thoại khách vào giữa khung.', null);
+                    return;
+                } catch (_) {
+                    await stopVneidScanner();
+                    vneidLocked = false;
+                }
+            }
+
+            // LAN HTTP trên một số iPhone/Android chặn camera live: dùng camera chụp QR.
+            setVneidStatus('ℹ️ Trình duyệt đang chặn camera LIVE. Đã chuyển sang camera chụp QR.', null);
+            document.getElementById('vneid-qr-file')?.click();
+        }
+
+        async function decodeVneidQrFile(file) {
+            if (!file) return;
+            setVneidStatus('⏳ Đang đọc ảnh QR VNeID...', null);
+            let raw = '';
+
+            if (window.QrScanner?.scanImage) {
+                try {
+                    const result = await QrScanner.scanImage(file, { returnDetailedScanResult:true });
+                    raw = typeof result === 'string' ? result : (result?.data || '');
+                } catch (_) {}
+            }
+
+            if (!raw && window.Html5Qrcode) {
+                const tempId = 'vneid-temp-reader-' + Date.now();
+                const temp = document.createElement('div');
+                temp.id = tempId;
+                temp.style.display = 'none';
+                document.body.appendChild(temp);
+                const scanner = new Html5Qrcode(tempId);
+                try { raw = await scanner.scanFile(file, true); }
+                catch (_) {}
+                finally {
+                    try { scanner.clear(); } catch (_) {}
+                    temp.remove();
+                }
+            }
+
+            if (raw) {
+                vneidLocked = false;
+                await acceptVneidDecoded(raw);
+                return;
+            }
+
+            // Nếu điện thoại chưa giải mã được, gửi ảnh nguyên vẹn về POS để bộ giải mã desktop thử tiếp.
+            const reader = new FileReader();
+            reader.onload = async () => {
+                try {
+                    await postVneidToPos('vneid-image:' + vneidTarget, String(reader.result || ''));
+                    setVneidStatus('✅ Đã gửi ảnh QR về ' + vneidTargetName() + ' để POS giải mã.', true);
+                } catch (error) {
+                    setVneidStatus('❌ ' + (error.message || 'Không đọc được QR trong ảnh.'), false);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        document.getElementById('vneid-target-label').textContent = 'Dữ liệu sẽ điền vào: ' + vneidTargetName();
+        document.getElementById('vneid-start').addEventListener('click', () => {
+            startVneidScanner().catch(error => {
+                setVneidStatus('ℹ️ Không mở được camera live. Chuyển sang camera chụp QR.', null);
+                document.getElementById('vneid-qr-file')?.click();
+                console.warn('KBL VNeID remote live scanner:', error);
+            });
+        });
+        document.getElementById('vneid-stop').addEventListener('click', () => stopVneidScanner());
+        document.getElementById('vneid-qr-file').addEventListener('change', event => {
+            const [file] = event.target.files || [];
+            decodeVneidQrFile(file);
+            event.target.value = '';
+        });
+        document.getElementById('vneid-send-raw').addEventListener('click', () => {
+            vneidLocked = false;
+            acceptVneidDecoded(document.getElementById('vneid-raw').value);
+        });
+        document.getElementById('vneid-send-face').addEventListener('click', () => {
+            const input = document.getElementById('vneid-face-file');
+            const [file] = input?.files || [];
+            if (!file) return setVneidStatus('Hãy chụp/chọn ảnh khuôn mặt khách trước.', false);
+            const reader = new FileReader();
+            reader.onload = async () => {
+                try {
+                    setVneidStatus('⏳ Đang gửi ảnh khuôn mặt về ' + vneidTargetName() + '...', null);
+                    await postVneidToPos('vneid-face:' + vneidTarget, String(reader.result || ''));
+                    setVneidStatus('✅ Đã gửi ảnh khuôn mặt về hồ sơ ' + vneidTargetName() + '.', true);
+                } catch (error) {
+                    setVneidStatus('❌ ' + (error.message || 'Không gửi được ảnh khuôn mặt.'), false);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+        window.addEventListener('pagehide', () => stopVneidScanner().catch(() => {}));
+
+        const pawnUrlParams = new URLSearchParams(location.search);
+
+        const initialVneid = pawnUrlParams.get('mode') === 'vneid';
+        if (initialVneid) {
+            switchTab('vneid');
+            setTimeout(() => setVneidStatus('Bấm BẮT ĐẦU QUÉT rồi đưa camera điện thoại này vào QR VNeID trên điện thoại khách.', null), 80);
+        }
+
+        const initialPawn = pawnUrlParams.get('pawn') === '1' || pawnUrlParams.get('code') || pawnUrlParams.get('token');
+
+        if (initialPawn) {
+
+            switchTab('pawn');
+
+            const initialQuery = pawnUrlParams.get('code') || pawnUrlParams.get('token') || '';
+
+            if (initialQuery) { pawnCodeInput.value = initialQuery; setTimeout(() => lookupPawn(initialQuery), 250); }
+
+        }
+
+
+
+        fetch('/api/shop-profile',{cache:'no-store'}).then(r=>r.json()).then(d=>{const n=d?.shop?.name||'TIỆM VÀNG';const e=document.getElementById('remote-shop-name');if(e)e.textContent=n;document.title=n+' Remote'}).catch(()=>{});
+
+        document.getElementById('tv-link').href = window.location.origin + '/tv';
+
+        document.getElementById('tv-link').textContent = '📺 Mở bảng giá TV: ' + window.location.origin + '/tv';
+
+        loadPrices();
+
+    </script>
+
+<style id="kbl-access-style">#kbl-access-gate{position:fixed;z-index:999999;inset:0;display:flex;align-items:center;justify-content:center;background:#eef3fa;font:16px Arial;color:#193756}#kbl-access-gate .auth-card{max-width:380px;width:90%;background:white;padding:26px;border-radius:17px;box-shadow:0 16px 55px #1234}#kbl-access-gate input,#kbl-access-gate button{width:100%;padding:14px;border-radius:9px;border:1px solid #ccd6df;margin-top:12px;box-sizing:border-box}#kbl-access-gate button{background:#0a4172;color:white;font-weight:bold}#kbl-access-gate p{font-size:13px;color:#687789}[hidden]{display:none!important}</style>
+<div id="kbl-access-gate"><div class="auth-card"><h2>Đăng nhập Remote cửa hàng</h2><p>Chỉ nhân viên được chủ tiệm cấp tài khoản mới có thể sử dụng Remote. Mở trang bảng giá TV không cần đăng nhập.</p><input id="kbl-access-user" placeholder="Tên tài khoản" autocomplete="username"><input id="kbl-access-pass" type="password" placeholder="Mật khẩu" autocomplete="current-password"><button id="kbl-access-login">Đăng nhập</button><p id="kbl-access-msg"></p></div></div>
+<script>(function(){const g=document.getElementById('kbl-access-gate');const msg=document.getElementById('kbl-access-msg');async function verify(){try{const r=await fetch('/api/remote/me',{cache:'no-store'}),d=await r.json();if(d.success){g.style.display='none';window.KBL_REMOTE_PERMISSIONS=d.user.permissions||[];applyPermissions(window.KBL_REMOTE_PERMISSIONS);return}}catch(_){}g.style.display='flex'}document.getElementById('kbl-access-login').onclick=async()=>{msg.textContent='Đang xác thực...';try{const r=await fetch('/api/remote/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('kbl-access-user').value,password:document.getElementById('kbl-access-pass').value})});const d=await r.json();if(!r.ok)throw Error(d.message||'Đăng nhập thất bại');document.getElementById('kbl-access-pass').value='';msg.textContent='';await verify()}catch(e){msg.textContent=e.message||'Đăng nhập thất bại'}};verify()})();</script>
+<script>
+// Roles affect visible controls; Windows LAN server separately enforces permissions.
+(function(){
+ const has=(p)=>Array.isArray(window.KBL_REMOTE_PERMISSIONS)&&window.KBL_REMOTE_PERMISSIONS.includes(p);
+ window.applyPermissions=function(p){
+  const allowed=new Set(p||[]),can=p=>allowed.has(p);
+  for(const [tab,permission] of [['scan','identity.upload'],['vneid','identity.upload'],['price','prices.read'],['pawn','pawn.read']]){
+   const btn=document.querySelector('[data-tab="'+tab+'"]');if(btn)btn.hidden=!can(permission);
+   const panel=document.getElementById(tab+'-panel');if(panel)panel.hidden=!can(permission);
+  }
+  const priceForm=document.getElementById('price-form');if(priceForm){priceForm.querySelectorAll('input,button,select').forEach(el=>el.disabled=!can('prices.write'))}
+  const state=document.getElementById('pawn-result');
+  if(state){state.querySelectorAll('#pawn-confirm-interest,#pawn-confirm-redeem').forEach(b=>b.hidden=!can('pawn.write'))}
+  const first=[...document.querySelectorAll('.tab-btn')].find(el=>!el.hidden);
+  const active=[...document.querySelectorAll('.tab-btn')].find(el=>el.classList.contains('active')&&!el.hidden);
+  if(!active&&first)first.click();
+ };
+ const target=document.getElementById('pawn-result');
+ if(target)new MutationObserver(()=>{const can=has('pawn.write');target.querySelectorAll('#pawn-confirm-interest,#pawn-confirm-redeem').forEach(b=>b.hidden=!can)}).observe(target,{childList:true,subtree:true});
+})();
+</script>
+</body>
+
+</html>

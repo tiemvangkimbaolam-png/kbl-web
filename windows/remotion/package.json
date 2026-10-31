@@ -1,0 +1,15 @@
+{
+  "name": "kbl-worker-remotion",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Bộ dựng video KBL. Chạy npm install trong thư mục này một lần nếu máy chưa có Remotion.",
+  "scripts": {
+    "render": "remotion render src/index.ts KBLVideo out/video.mp4 --codec=h264 --crf=23 --concurrency=2"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.539",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "remotion": "4.0.539"
+  }
+}

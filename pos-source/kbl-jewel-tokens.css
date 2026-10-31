@@ -1,0 +1,24 @@
+/* Hallmark · custom: Kim sac · palette locked to user's gold / navy / gemstone reference.
+   Screen-only tokens. No original application variables are replaced. */
+@media screen {
+ :root {
+  --kbl-diamond:url('kbl-jewel-diamond.svg');
+  --kbl-gold-glow:#f9cb5866;
+  --kbl-title-surface:linear-gradient(105deg,#ffe18766,#fffdf5 62%,#f4d37340);
+  --kbl-rich-card-shadow:0 3px 10px #68460918,inset 0 0 0 2px #fff8df,0 0 0 1px #f4d57644;
+  --kbl-rich-button-shadow:inset 0 1px 0 #fff8df,inset 0 -2px 0 #00000026,0 0 0 1px #fff1bc55,0 2px 5px #152b4628;
+  --kbl-contract-frame:0 0 0 2px #fff0a8,0 0 0 5px #007ec4,0 0 0 7px #d6a52c,0 0 14px #f9cb5844,0 8px 22px #007ec424;
+  --kbl-ink:#092747; --kbl-navy:#006fb3; --kbl-blue:#0798dc;
+  --kbl-gold:#d6a52c; --kbl-gold-dark:#9d6b12; --kbl-gold-light:#fff0a8;
+  --kbl-paper:#fffefa; --kbl-canvas:#f9f5e9; --kbl-white:#fff;
+  --kbl-field:#bfd2e7; --kbl-line:#e3ce91; --kbl-muted:#576b85;
+  --kbl-green:#087844; --kbl-ruby:#b71e36; --kbl-sapphire:#075fe0;
+  --kbl-amber:#b9520c; --kbl-slate:#50647b;
+  --kbl-focus:#1877d4; --kbl-display:Georgia,'Times New Roman',serif;
+  --kbl-gloss:linear-gradient(115deg,transparent 0 9%,#ffffff24 10%,transparent 11% 86%,#fff4b32b 87%,transparent 88%),linear-gradient(180deg,#ffffff36,transparent 44%,#00000015 52%,transparent);
+  --kbl-gold-surface:linear-gradient(115deg,#ba7d16 0%,#ffe494 17%,#fff9d2 35%,#f7cd58 64%,#ac7214 100%);
+  --kbl-card-shadow:0 3px 10px #68460912,inset 0 0 0 2px #fff8df;
+  --kbl-button-shadow:inset 0 1px 0 #ffffffaa,inset 0 -2px 0 #00000026,0 2px 3px #152b4620;
+  --kbl-spark:url('kbl-jewel-spark.svg');
+ }
+}
