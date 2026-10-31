@@ -34,7 +34,7 @@
   label.textContent = copy.unit;
   const grid = document.getElementById('price-grid');
   if (grid) grid.before(label);
-  // Approved sample 01: reflow existing live nodes; never copy demonstration prices.
+  // Approved sample 06: reflow existing live nodes; never copy demonstration prices.
   body.classList.add('kbl-home-57117');
   const world = document.getElementById('kbl-home-world-gold');
   if (grid && world && !grid.closest('.kbl-price-columns')) {
@@ -43,6 +43,8 @@
     const heading = document.createElement('div'); heading.className = 'kbl-rate-header';
     heading.innerHTML = '<span>Loại vàng</span><span>Mua vào</span><span>Bán ra</span>';
     grid.before(columns); rates.append(heading,grid); columns.append(rates,world);
+    const install = document.getElementById('kbl-widget-install');
+    if (install) rates.append(install);
   }
   // Home links now return to the first price section; service links remain intact.
   document.querySelectorAll('a[href="#home"]:not(.floating-top)').forEach(a => a.setAttribute('href','#prices'));
@@ -183,10 +185,11 @@
   function setupTopAndGreeting() {
     // Capture before the original smooth-anchor handler. #prices is below the header.
     document.addEventListener('click', event => {
-      const control = event.target.closest('.floating-top');
+      const control = event.target.closest('.floating-top,#kbl-pwa-reload');
       if (!control) return;
       event.preventDefault();
       event.stopImmediatePropagation();
+      if (control.id === 'kbl-pwa-reload') { window.location.reload(); return; }
       window.scrollTo({top:0,left:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
       const mainHeading = document.querySelector('.brand');
       if (mainHeading) mainHeading.focus({preventScroll:true});
@@ -210,13 +213,17 @@
     },1800);
   }
   function setupReloadUnderAI() {
-    // These controls can arrive after Home/PWA scripts. Move the real node once;
-    // its existing reload handler, attributes and content remain intact.
+    // Reuse an existing PWA control, or create the missing public reload control.
     const place = () => {
-      const reload = document.getElementById('kbl-pwa-reload');
+      let reload = document.getElementById('kbl-pwa-reload');
       const launcher = document.getElementById('kbl-ai-launcher') || document.querySelector('.kbl-ai-launcher');
       const dock = launcher && launcher.closest('.floating-contact');
-      if (!reload || !dock) return false;
+      if (!dock) return false;
+      if (!reload) {
+        reload = document.createElement('button'); reload.id = 'kbl-pwa-reload'; reload.type = 'button';
+        reload.title = 'Làm mới website'; reload.setAttribute('aria-label', 'Làm mới website');
+        reload.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.6-1L20 12M4 12l2.3 6A7 7 0 0 0 18 17"/></svg>';
+      }
       let anchor = launcher.closest('.kbl-ai-proactive') || launcher;
       while (anchor.parentElement && anchor.parentElement !== dock) anchor = anchor.parentElement;
       if (anchor.parentElement !== dock) return false;
