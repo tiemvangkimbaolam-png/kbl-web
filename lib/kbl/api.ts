@@ -2,6 +2,7 @@ import {recordTraffic,trafficSummary} from './traffic';
 import {readTVDesign,saveTVDesign} from './tv-design-api';
 import {handleCustomer} from './customer';
 import {handleHoldings} from './holdings';
+import {handleCustomerPlans} from './customer-plans';
 import {readShopPrices,SHOP_ADDRESS} from './shop-prices';
 import {handleTryOn} from './tryon';
 import {handleCustomerAdmin} from './customer-admin';
@@ -95,6 +96,7 @@ export async function handle(req: Request): Promise<Response> {
             if(path[1]==='traffic'&&method==='POST'){await rate(req,'traffic',120);return response(await recordTraffic(await body(req,1500)));}
             if(path[1]==='tv-design'&&method==='GET')return response(await readTVDesign());
             if(path[1]==='prices'&&method==='GET'){const shop=await readShopPrices();return response({prices:shop.prices,priceSnapshot:shop.snapshotId,priceSource:shop.source,sourceAt:shop.sourceAt,stale:shop.stale,address:SHOP_ADDRESS});}
+            if(path[1]==='customer-plans')return await handleCustomerPlans(req,path.slice(2));
             if(path[1]==='holdings')return await handleHoldings(req,path.slice(2));
             if(path[1]==='customer')return await handleCustomer(req,path.slice(2));
             if(path[1]==='try-on')return await handleTryOn(req,path.slice(2));

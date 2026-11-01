@@ -1,6 +1,8 @@
-// KIM BAO LAM — public gold price widget, version 1.2.0.
-// Only HTTPS GET to the KBL public price API; no login, tracking, remote code or POS writes.
-// Permissions used: its own local price cache. No contacts, photos, location or calendar.
+// KIM BAO LAM — public gold price widget, version 1.3.0.
+// HTTPS GET to KBL prices; an optional private goal uses the existing paired account.
+// No remote code, tracking or POS writes.
+// Permissions: local public-price cache; optional existing Scriptable Keychain pairing.
+// Goal data stays in memory, never in the public price cache. No contacts, photos or location.
 const KBL_ORIGIN = 'https://tiemvangkimbaolam.id.vn';
 const KBL_API = KBL_ORIGIN + '/api/public/prices';
 const KBL_THEME = '__KBL_THEME__';
@@ -10,6 +12,27 @@ const KBL_BACKGROUND_BASE64 = '__KBL_BACKGROUND__';
 /* KBL_CORE_START */
 __KBL_CORE__
 /* KBL_CORE_END */
+
+// This is a Keychain item NAME, not a token. The token is supplied on the customer's device.
+async function kblPrivateGoal() {
+  try {
+    if (typeof args !== 'undefined' && /^(ẩn|an|hide)$/i.test(String(args.widgetParameter || '').trim())) return null;
+    const item = 'kbl-holdings-token-v1';
+    if (typeof Keychain === 'undefined' || !Keychain.contains(item)) return null;
+    const token = Keychain.get(item);
+    if (!/^[a-f0-9]{64}$/.test(token)) return null;
+    const endpoint = KBL_ORIGIN + '/api/public/holdings/goal-widget';
+    const req = new Request(endpoint); req.method = 'GET'; req.timeoutInterval = 5; req.allowInsecureRequest = false;
+    req.headers = { Accept: 'application/json', Authorization: 'Bearer ' + token, 'Cache-Control': 'no-store' };
+    req.onRedirect = () => null;
+    const raw = await req.loadString();
+    if (req.response?.statusCode !== 200 || req.response.url !== endpoint || raw.length > 6000) return null;
+    const result = JSON.parse(raw), g = result.goal;
+    if (!Number.isFinite(result.generatedAt) || Math.abs(Date.now()-result.generatedAt)>90000 || !g?.showOnPriceWidget || !['9999','980','750','610','585','416'].includes(g.code) || !Number.isSafeInteger(g.targetUnits) || g.targetUnits<1 || !Number.isSafeInteger(g.currentUnits) || g.currentUnits<0) return null;
+    const ratio=Math.min(1,g.currentUnits/g.targetUnits);
+    return { code:g.code, title:String(g.title||'Mục tiêu tích lũy').slice(0,40), current:g.currentUnits, target:g.targetUnits, ratio, percent:ratio>=1?100:Math.floor(ratio*1000)/10 };
+  } catch (_) { return null; } // A private goal failure must never hide public shop prices.
+}
 
 async function runKblWidget() {
   const fm = FileManager.local();
@@ -29,6 +52,7 @@ async function runKblWidget() {
     try { fm.writeString(cachePath, JSON.stringify(next)); } catch (_) {}
   } catch (_) { offline = true; }
   const state = widgetState(snapshot, Date.now(), offline);
+  const goal = await kblPrivateGoal();
   const family = config.widgetFamily || 'medium';
   const small = family === 'small', large = family === 'large' || family === 'extraLarge';
   // Concept 06: light peach surfaces, navy ink, readable copper sell prices.
@@ -96,6 +120,22 @@ async function runKblWidget() {
       if (i < rows.length - 1) table.addSpacer(large ? 8 : 3);
     }
     frame.addSpacer();
+  }
+  if (goal) {
+    frame.addSpacer(large ? 12 : 2);
+    const qty=n=>new Intl.NumberFormat('vi-VN',{maximumFractionDigits:3}).format(n/1000);
+    const purity=goal.code==='9999'?'999.9':goal.code;
+    const line=frame.addStack();line.centerAlignContent();
+    if (!small) { text(line,large?goal.title:'Mục tiêu '+purity,large?12:8,colors.gold,true);line.addSpacer(); }
+    text(line,(small?purity+' · ':'')+qty(goal.current)+'/'+qty(goal.target)+' chỉ · '+goal.percent.toLocaleString('vi-VN')+'%',large?13:8,colors.ink,true);
+    // Explicit segment widths keep the bar aligned with the table without remote images.
+    if (!small) {
+      frame.addSpacer(2);
+      const bar=frame.addStack();bar.size=new Size(240,large?5:3);bar.cornerRadius=3;bar.backgroundColor=new Color('EAD1BF');
+      if(goal.ratio>0){const fill=bar.addStack();fill.size=new Size(Math.max(1,240*goal.ratio),large?5:3);fill.backgroundColor=new Color(colors.gold);fill.cornerRadius=3;}
+      bar.addSpacer();
+    }
+    frame.addSpacer(large?7:2);
   }
   text(frame, (offline?'Chưa kết nối · ':'')+(state.sourceAt ? widgetClock(state.sourceAt) : 'Chạm để mở website'), small ? 6 : 8, colors.muted);
   const address=text(frame,KBL_ADDRESS,small?6:large?9:7,colors.gold);address.lineLimit=small?3:2;

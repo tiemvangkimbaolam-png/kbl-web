@@ -37,14 +37,14 @@ test('cache is marked stale on network loss or old source; expires after 24h',()
 test('Vietnam money/time formatting is independent from browser timezone',()=>{
  assert.equal(widgetMoney(12780000),'12.780.000');assert.equal(widgetClock(now),'20:00 31/10');
 });
-async function runScript({theme='Dong',family='medium',status=200,responseURL='https://tiemvangkimbaolam.id.vn/api/public/prices',data=fixture(),cache=null,fail=false}={}) {
+async function runScript({theme='Dong',family='medium',status=200,responseURL='https://tiemvangkimbaolam.id.vn/api/public/prices',data=fixture(),cache=null,fail=false,goal=null,goalStatus=200,paired=false,hide=false}={}) {
  const requests=[],allText=[],files=new Map();if(cache)files.set('/local/kbl-public-prices-v1.json',JSON.stringify(cache));
  class Element { constructor(){this.elements=[];} addText(text){allText.push(String(text));const item={text:String(text)};this.elements.push(item);return item;} addStack(){const item=new Element();this.elements.push(item);return item;} addImage(){return {applyFittingContentMode(){}};}addSpacer(){} layoutVertically(){} centerAlignContent(){}setPadding(){} }
  class Widget extends Element { async presentSmall(){}async presentMedium(){}async presentLarge(){} }
  class FixedDate extends Date {constructor(...args){super(...(args.length?args:[now]));}static now(){return now;} }
  const context={Date:FixedDate,FileManager:{local:()=>({joinPath:(a,b)=>a+'/'+b,documentsDirectory:()=>'/local',fileExists:p=>files.has(p),readString:p=>files.get(p),writeString:(p,s)=>files.set(p,s)})},
-  Request:class {constructor(url){this.url=url;requests.push(this);}async loadString(){if(fail)throw Error('network down');this.response={statusCode:status,url:responseURL};return typeof data==='string'?data:JSON.stringify(data);}},
-  Data:{fromBase64String:value=>value},Image:{fromData:value=>value},ListWidget:Widget,LinearGradient:class {},Color:class {constructor(...args){this.value=args;}},Size:class {},Font:class {constructor(name,size){this.name=name;this.size=size;}static boldSystemFont(n){return n;}static systemFont(n){return n;}},config:{widgetFamily:family,runsInWidget:true},Script:{setWidget:w=>{context.widget=w;},complete:()=>{context.complete=true;}}};
+  Request:class {constructor(url){this.url=url;requests.push(this);}async loadString(){if(this.url.endsWith('/goal-widget')){this.response={statusCode:goalStatus,url:this.url};return JSON.stringify({goal,generatedAt:now});}if(fail)throw Error('network down');this.response={statusCode:status,url:responseURL};return typeof data==='string'?data:JSON.stringify(data);}},
+  args:{widgetParameter:hide?'ẩn':''},Keychain:{contains:()=>paired,get:()=>'a'.repeat(64)},Intl,Data:{fromBase64String:value=>value},Image:{fromData:value=>value},ListWidget:Widget,LinearGradient:class {},Color:class {constructor(...args){this.value=args;}},Size:class {},Font:class {constructor(name,size){this.name=name;this.size=size;}static boldSystemFont(n){return n;}static systemFont(n){return n;}},config:{widgetFamily:family,runsInWidget:true},Script:{setWidget:w=>{context.widget=w;},complete:()=>{context.complete=true;}}};
  vm.createContext(context);const script=fs.readFileSync(new URL('../public/tien-ich/widget-kbl/KBL_Gia_Vang_'+theme+'.js',import.meta.url),'utf8');
  await vm.runInContext('(async()=>{'+script+'})()',context,{timeout:1000});
  return {requests,allText,files,context};
@@ -97,3 +97,11 @@ test('approved light widget uses copper sell prices and navy buy prices in actua
  }
 });
 test('updated native board uses larger quote text, full purity labels and confirmed shop address',async()=>{const r=await runScript({family:'medium'}),texts=[];function walk(e){if(e.text)texts.push(e);for(const c of e.elements||[])walk(c);}walk(r.context.widget);assert.ok(texts.some(t=>t.text==='999.9'));assert.ok(!texts.some(t=>t.text==='Vàng 99...'));assert.ok(texts.some(t=>t.text==='12.780.000'&&t.font.size===15));assert.ok(texts.some(t=>t.text==='59/1 Nguyễn Thị Tươi, Phường Tân Đông Hiệp, Tp. Hồ Chí Minh'));assert.ok(!texts.some(t=>t.text.includes('BẢN LƯU')));assert.ok(r.requests[0].url.endsWith('/api/public/prices'));});
+
+const privateGoal={code:'9999',title:'Mục tiêu thử',targetUnits:8000,currentUnits:2000,showOnPriceWidget:true};
+for(const family of ['small','medium','large'])test('public native '+family+' puts private goal below quotes using the existing runtime Keychain pairing only',async()=>{
+ const r=await runScript({family,paired:true,goal:privateGoal});assert.equal(r.requests.length,2);assert.ok(r.allText.some(t=>t.includes('2/8 chỉ · 25%')));assert.ok(r.allText.indexOf(r.allText.find(t=>t.includes('2/8 chỉ')))>r.allText.indexOf('12.780.000'));assert.ok(r.allText.indexOf(r.allText.find(t=>t.includes('2/8 chỉ')))<r.allText.findIndex(t=>t.includes('19:59 31/10')));assert.equal(r.requests[0].headers.Authorization,undefined);assert.match(r.requests[1].headers.Authorization,/^Bearer /);assert.equal(r.requests[1].onRedirect({url:r.requests[1].url}),null);assert.ok(!r.requests[1].url.includes('?'));assert.ok(!r.files.get('/local/kbl-public-prices-v1.json').includes('Mục tiêu thử'));
+});
+test('opt-out, invalid/revoked goal and hide parameter suppress private goal without hiding public prices',async()=>{
+ for(const opts of [{goal:null},{goal:{...privateGoal,showOnPriceWidget:false}},{goal:{...privateGoal,targetUnits:0}},{goal:privateGoal,goalStatus:401},{goal:privateGoal,hide:true}]){const r=await runScript({paired:true,...opts});assert.ok(r.allText.includes('12.780.000'));assert.ok(!r.allText.some(t=>t.includes('2/8 chỉ')));if(opts.hide)assert.equal(r.requests.length,1);}
+});
