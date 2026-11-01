@@ -1,4 +1,4 @@
-// KIM BAO LAM — public gold price widget, version 1.3.0.
+// KIM BAO LAM — public gold price widget, version 1.3.1.
 // HTTPS GET to KBL prices; an optional private goal uses the existing paired account.
 // No remote code, tracking or POS writes.
 // Permissions: local public-price cache; optional existing Scriptable Keychain pairing.
@@ -126,7 +126,10 @@ async function runKblWidget() {
     const qty=n=>new Intl.NumberFormat('vi-VN',{maximumFractionDigits:3}).format(n/1000);
     const purity=goal.code==='9999'?'999.9':goal.code;
     const line=frame.addStack();line.centerAlignContent();
-    if (!small) { text(line,large?goal.title:'Mục tiêu '+purity,large?12:8,colors.gold,true);line.addSpacer(); }
+    if (!small) {
+      const name=goal.title==='Mục tiêu tích lũy'?'':goal.title.trim();
+      text(line,(name?name+' · ':'')+'Mục tiêu '+purity,large?12:8,colors.gold,true);line.addSpacer();
+    }
     text(line,(small?purity+' · ':'')+qty(goal.current)+'/'+qty(goal.target)+' chỉ · '+goal.percent.toLocaleString('vi-VN')+'%',large?13:8,colors.ink,true);
     // Explicit segment widths keep the bar aligned with the table without remote images.
     if (!small) {
