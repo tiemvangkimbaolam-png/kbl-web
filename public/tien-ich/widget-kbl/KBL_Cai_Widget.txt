@@ -1,16 +1,16 @@
 // KBL: chỉ cài mã từ bản GitHub cố định đã kiểm tra; không chạy mã tải về.
 try {
   if (config.runsInWidget) throw Error('Chạy bộ cài này trong ứng dụng Scriptable.');
-  const sha = 'ff8299bdb92e3d4e8b686806b44b77cd0e69c01d';
+  const sha = '6092d00beef36781a300a463e8806de6e1c3a1e9';
   const url = 'https://api.github.com/repos/tiemvangkimbaolam-png/kbl-web/git/blobs/' + sha;
   const r = new Request(url); r.timeoutInterval = 15; r.allowInsecureRequest = false; r.onRedirect = () => null;
   r.headers={Accept:'application/vnd.github+json','User-Agent':'KBL-Widget-Installer'};
   const raw = await r.loadString();
   if (r.response.statusCode !== 200 || r.response.url !== url || raw.length>300000) throw Error('Chưa tải được bản KBL. Chưa ghi đè file nào.');
   const blob=JSON.parse(raw);
-  if(blob.sha!==sha||blob.encoding!=='base64'||blob.size!==69157||typeof blob.content!=='string')throw Error('Chưa nhận đúng bản KBL cố định.');
+  if(blob.sha!==sha||blob.encoding!=='base64'||blob.size!==69249||typeof blob.content!=='string')throw Error('Chưa nhận đúng bản KBL cố định.');
   const code=Data.fromBase64String(blob.content.replace(/\s/g,'')).toRawString();
-  if (code.length !== 68957 || !code.startsWith('// KIM BAO LAM — public gold price widget, version 1.3.0.')) throw Error('Mã KBL chưa đầy đủ. Chưa ghi đè file nào.');
+  if (code.length !== 69043 || !code.startsWith('// KIM BAO LAM — public gold price widget, version 1.3.1.')) throw Error('Mã KBL chưa đầy đủ. Chưa ghi đè file nào.');
   let fm; try { fm = FileManager.iCloud(); fm.documentsDirectory(); } catch (_) { fm = FileManager.local(); }
   let name = 'KBL Gia Vang Dong', file = fm.joinPath(fm.documentsDirectory(), name + '.js');
   for (let n = 2; fm.fileExists(file) && n <= 100; n++) { name = 'KBL Gia Vang Dong (' + n + ')'; file = fm.joinPath(fm.documentsDirectory(), name + '.js'); }
