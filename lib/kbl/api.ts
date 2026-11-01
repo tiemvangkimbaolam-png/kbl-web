@@ -2,6 +2,7 @@ import {recordTraffic,trafficSummary} from './traffic';
 import {readTVDesign,saveTVDesign} from './tv-design-api';
 import {handleCustomer} from './customer';
 import {handleHoldings} from './holdings';
+import {readShopPrices,SHOP_ADDRESS} from './shop-prices';
 import {handleTryOn} from './tryon';
 import {handleCustomerAdmin} from './customer-admin';
 import {submitFeedback} from './feedback';
@@ -93,6 +94,7 @@ export async function handle(req: Request): Promise<Response> {
             if(path[1]==='fx'&&method==='GET')return response(await readVcbRate());
             if(path[1]==='traffic'&&method==='POST'){await rate(req,'traffic',120);return response(await recordTraffic(await body(req,1500)));}
             if(path[1]==='tv-design'&&method==='GET')return response(await readTVDesign());
+            if(path[1]==='prices'&&method==='GET'){const shop=await readShopPrices();return response({prices:shop.prices,priceSnapshot:shop.snapshotId,priceSource:shop.source,sourceAt:shop.sourceAt,stale:shop.stale,address:SHOP_ADDRESS});}
             if(path[1]==='holdings')return await handleHoldings(req,path.slice(2));
             if(path[1]==='customer')return await handleCustomer(req,path.slice(2));
             if(path[1]==='try-on')return await handleTryOn(req,path.slice(2));
@@ -102,8 +104,8 @@ export async function handle(req: Request): Promise<Response> {
                 return response(await readWorldMarket());
             if (method === 'GET' && path[1] === 'catalog') {
                 const cfg = await S.settings();
-                const posBound = await POS.locked(), cloudPrice = await publicCloudPrices();
-                return response({ cloudPrice, assistant: await readAssistantState(cfg), products: (await S.list('product', 500)).filter((p: any) => p.published && p.available && (!posBound || p.source === 'pos')), articles: await S.list('article', 30), prices: cloudPrice.active ? cloudPrice.prices : (await S.list('price', 40)).filter((p: any) => !posBound || p.id.startsWith('pos-')), company: { name: cfg.companyName, phone: cfg.phone, address: cfg.address, hours: cfg.hours }, posBound, connected: true });
+                const shop=await readShopPrices(),posBound=shop.bound,cloudPrice=shop.cloudPrice;
+                return response({ cloudPrice, assistant: await readAssistantState(cfg), products: (await S.list('product', 500)).filter((p: any) => p.published && p.available && (!posBound || p.source === 'pos')), articles: await S.list('article', 30), prices:shop.prices,priceSnapshot:shop.snapshotId,priceSource:shop.source, company: { name: cfg.companyName, phone: cfg.phone, address: SHOP_ADDRESS, hours: cfg.hours }, posBound, connected: true });
             }
             if (method === 'GET' && path[1] === 'article') {
                 const a = await S.get('article', path[2]);

@@ -37,7 +37,7 @@ test('cache is marked stale on network loss or old source; expires after 24h',()
 test('Vietnam money/time formatting is independent from browser timezone',()=>{
  assert.equal(widgetMoney(12780000),'12.780.000');assert.equal(widgetClock(now),'20:00 31/10');
 });
-async function runScript({theme='Dong',family='medium',status=200,responseURL='https://tiemvangkimbaolam.id.vn/api/public/catalog',data=fixture(),cache=null,fail=false}={}) {
+async function runScript({theme='Dong',family='medium',status=200,responseURL='https://tiemvangkimbaolam.id.vn/api/public/prices',data=fixture(),cache=null,fail=false}={}) {
  const requests=[],allText=[],files=new Map();if(cache)files.set('/local/kbl-public-prices-v1.json',JSON.stringify(cache));
  class Element { constructor(){this.elements=[];} addText(text){allText.push(String(text));const item={text:String(text)};this.elements.push(item);return item;} addStack(){const item=new Element();this.elements.push(item);return item;} addImage(){return {applyFittingContentMode(){}};}addSpacer(){} layoutVertically(){} centerAlignContent(){}setPadding(){} }
  class Widget extends Element { async presentSmall(){}async presentMedium(){}async presentLarge(){} }
@@ -55,15 +55,15 @@ for(const theme of ['Dong'])for(const family of ['small','medium','large'])test(
  assert.equal(result.requests[0].method,'GET');assert.equal(result.requests[0].allowInsecureRequest,false);
  assert.equal(result.requests[0].onRedirect({url:'https://evil.test/'}),null);
  assert.equal(result.requests[0].onRedirect({url:'https://tiemvangkimbaolam.id.vn.evil.test/'}),null);
- assert.ok(result.requests[0].onRedirect({url:'https://tiemvangkimbaolam.id.vn/api/public/catalog'}));
+ assert.ok(result.requests[0].onRedirect({url:'https://tiemvangkimbaolam.id.vn/api/public/prices'}));
  assert.equal(result.context.widget.url,'https://tiemvangkimbaolam.id.vn/#prices');
  const saved=JSON.parse(result.files.get('/local/kbl-public-prices-v1.json'));assert.equal(saved.products,undefined);assert.equal(saved.rows.length,6);
- if(family==='medium') {assert.ok(result.allText.includes('Vàng 980'));assert.ok(result.allText.includes('Vàng 610'));assert.ok(!result.allText.includes('Vàng 750'));}
- if(family==='large') {assert.ok(result.allText.includes('Vàng 980'));assert.ok(!result.allText.includes('Vàng 750'));}
+ if(family==='medium') {assert.ok(result.allText.includes('980'));assert.ok(result.allText.includes('610'));assert.ok(!result.allText.includes('750'));}
+ if(family==='large') {assert.ok(result.allText.includes('980'));assert.ok(!result.allText.includes('750'));}
 });
-for(const scenario of [{fail:true},{status:401},{status:500},{data:'<html>error</html>'},{responseURL:'https://evil.test/data'}])test('generated script falls back to explicitly marked cache on unavailable source',async()=>{
+for(const scenario of [{fail:true},{status:401},{status:500},{data:'<html>error</html>'},{responseURL:'https://evil.test/data'}])test('generated script shows cache timestamp and disconnection without the removed banner on unavailable source',async()=>{
  const result=await runScript({...scenario,cache:widgetSnapshot(fixture(),now)});
- assert.ok(result.allText.includes('BẢN LƯU · CHƯA CÓ GIÁ MỚI'));assert.ok(result.allText.includes('12.780.000'));
+ assert.ok(result.allText.some(t=>t.includes('Chưa kết nối · 19:59 31/10')));assert.ok(!result.allText.join(' ').includes('BẢN LƯU · CHƯA CÓ GIÁ MỚI'));assert.ok(result.allText.includes('12.780.000'));
 });
 test('expired cache and failed source do not expose stale numbers as live quotes',async()=>{
  const snapshot=widgetSnapshot(fixture(),now);snapshot.fetchedAt=now-25*3600000;snapshot.rows.forEach(r=>r.capturedAt=now-25*3600000);
@@ -96,3 +96,4 @@ test('approved light widget uses copper sell prices and navy buy prices in actua
   assert.ok(context.widget.backgroundImage.length>1000);
  }
 });
+test('updated native board uses larger quote text, full purity labels and confirmed shop address',async()=>{const r=await runScript({family:'medium'}),texts=[];function walk(e){if(e.text)texts.push(e);for(const c of e.elements||[])walk(c);}walk(r.context.widget);assert.ok(texts.some(t=>t.text==='999.9'));assert.ok(!texts.some(t=>t.text==='Vàng 99...'));assert.ok(texts.some(t=>t.text==='12.780.000'&&t.font.size===15));assert.ok(texts.some(t=>t.text==='59/1 Nguyễn Thị Tươi, Phường Tân Đông Hiệp, Tp. Hồ Chí Minh'));assert.ok(!texts.some(t=>t.text.includes('BẢN LƯU')));assert.ok(r.requests[0].url.endsWith('/api/public/prices'));});

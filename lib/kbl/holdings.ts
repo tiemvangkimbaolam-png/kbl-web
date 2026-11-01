@@ -1,16 +1,15 @@
 import * as S from './store';
-import * as POS from './pos';
 import {customer,customerJSON,customerBody,customerRate} from './customer';
-import {publicCloudPrices} from './cloud-price';
+import {readShopPrices} from './shop-prices';
 import {holdingEntry,ledgerPositions,holdingSummary,holdingSeries} from './holdings-core.mjs';
 function fail(message:string,status=400):never{throw Object.assign(Error(message),{status});}
 const kind='customer-holdings',pairKind='holdings-widget';
 const privateJSON=(v:any,status=200)=>customerJSON(v,status,{'Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex','Vary':'Cookie, Authorization'});
 async function valuation(id:string,withEntries=false){
- const [doc,cloud,bound,local,history]=await Promise.all([S.get(kind,id),publicCloudPrices(),POS.locked(),S.list('price',40),S.list('history-vn',30)]);
- const rows=cloud.active?cloud.prices:local.filter((p:any)=>!bound||p.id.startsWith('pos-')),entries=doc?.entries||[];
+ const [doc,shop,history]=await Promise.all([S.get(kind,id),readShopPrices(),S.list('history-vn',30)]);
+ const rows=shop.prices,entries=doc?.entries||[];
  const summary=holdingSummary(entries,rows),series=holdingSeries(entries,history,rows);
- return {version:doc?.version||0,...(withEntries?{entries}:{}),summary,series,generatedAt:Date.now(),method:'moving-average',basis:'shop-buy-price'};
+ return {priceSnapshot:shop.snapshotId,priceSource:shop.source,version:doc?.version||0,...(withEntries?{entries}:{}),summary,series,generatedAt:Date.now(),method:'moving-average',basis:'shop-buy-price'};
 }
 export async function handleHoldings(req:Request,path:string[]){
  const action=path[0]||'';

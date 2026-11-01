@@ -22,7 +22,7 @@ function render() {
     const rows = KBL_WIDGET_FEATURED.flatMap(code => state.rows.filter(row => row.code === code));
     for (const row of rows) { const line = node('div', '', 'widget-row'); ['Vàng ' + (row.code === '9999' ? '999.9' : row.code), widgetMoney(row.buy), widgetMoney(row.sell)].forEach(value => line.append(node('span', value))); body.append(line); }
   }
-  $('widget-freshness').textContent = state.rows.length ? (state.stale ? 'Bản lưu · kiểm tra giá mới' : 'Bảng giá KBL') : 'Chạm widget để mở website';
+  $('widget-freshness').textContent = state.rows.length ? 'Giá tại tiệm KBL' : 'Chạm widget để mở website';
   $('widget-time').textContent = state.sourceAt ? widgetClock(state.sourceAt) : '—';
   $('selection-summary').textContent = 'Hồng đào vàng đồng' + ' · Cỡ ' + labels[size] + ' đang xem trước';
   $('download-widget').href = './' + fileBase() + '.js'; $('download-widget').download = fileBase() + '.js';
@@ -44,7 +44,7 @@ async function refreshPrices() {
   const current = ++sequence; pendingController?.abort(); pendingController = new AbortController();
   const timer = setTimeout(() => pendingController?.abort(), 15000);
   try {
-    const response = await fetch('/api/public/catalog', { headers: { Accept: 'application/json' }, cache: 'no-store', signal: pendingController.signal });
+    const response = await fetch('/api/public/prices', { headers: { Accept: 'application/json' }, cache: 'no-store', signal: pendingController.signal });
     if (!response.ok) throw Error('Chưa lấy được giá. Xem bảng giá tại website của tiệm.');
     const data = await response.text(); if (data.length > 2000000) throw Error('Bảng giá chưa sẵn sàng.');
     const next = widgetSnapshot(JSON.parse(data));
