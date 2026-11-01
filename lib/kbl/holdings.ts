@@ -1,6 +1,7 @@
 import * as S from './store';
 import {customer,customerJSON,customerBody,customerRate} from './customer';
 import {readShopPrices} from './shop-prices';
+import {readGoal} from './customer-plans';
 import {holdingEntry,ledgerPositions,holdingSummary,holdingSeries} from './holdings-core.mjs';
 function fail(message:string,status=400):never{throw Object.assign(Error(message),{status});}
 const kind='customer-holdings',pairKind='holdings-widget';
@@ -8,8 +9,8 @@ const privateJSON=(v:any,status=200)=>customerJSON(v,status,{'Referrer-Policy':'
 async function valuation(id:string,withEntries=false){
  const [doc,shop,history]=await Promise.all([S.get(kind,id),readShopPrices(),S.list('history-vn',30)]);
  const rows=shop.prices,entries=doc?.entries||[];
- const summary=holdingSummary(entries,rows),series=holdingSeries(entries,history,rows);
- return {priceSnapshot:shop.snapshotId,priceSource:shop.source,version:doc?.version||0,...(withEntries?{entries}:{}),summary,series,generatedAt:Date.now(),method:'moving-average',basis:'shop-buy-price'};
+ const summary=holdingSummary(entries,rows),series=holdingSeries(entries,history,rows),goal=await readGoal(id,summary.positions);
+ return {...goal,priceSnapshot:shop.snapshotId,priceSource:shop.source,version:doc?.version||0,...(withEntries?{entries}:{}),summary,series,generatedAt:Date.now(),method:'moving-average',basis:'shop-buy-price'};
 }
 export async function handleHoldings(req:Request,path:string[]){
  const action=path[0]||'';
@@ -25,12 +26,12 @@ export async function handleHoldings(req:Request,path:string[]){
   if(used.meta.changes!==1)fail('Mã đã dùng. Tạo mã mới trên website.',409);
   return privateJSON({token,expiresAt:at+90*86400000});
  }
- if(action==='widget'&&req.method==='GET'){
+ if(['widget','goal-widget'].includes(action)&&req.method==='GET'){
   const token=req.headers.get('authorization')?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];if(!token)fail('Widget cần được ghép với tài khoản.',401);
   const found=await S.sql().prepare("SELECT id,data FROM records WHERE kind=? AND json_extract(data,'$.tokenHash')=?").bind(pairKind,await S.sha(token)).first<any>();
   if(!found)fail('Quyền widget đã thu hồi. Ghép lại trên website.',401);
   const data=JSON.parse(found.data),c=await S.get('customer',found.id);if(!c||c.authVersion!==data.authVersion||data.expiresAt<=Date.now())fail('Quyền widget đã hết hạn. Ghép lại trên website.',401);
-  const result=await valuation(found.id);return privateJSON(result);
+  if(action==='goal-widget'){const ledger=await S.get(kind,found.id),result=await readGoal(found.id,ledgerPositions(ledger?.entries||[]).positions);return privateJSON({goal:result.goal?.showOnPriceWidget?result.goal:null,generatedAt:Date.now()});}return privateJSON(await valuation(found.id));
  }
  const c=await customer(req); // Account always comes from the verified session, never client IDs.
  if(!action&&req.method==='GET')return privateJSON(await valuation(c.id,true));

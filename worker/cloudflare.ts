@@ -1,3 +1,4 @@
+import {processPriceNotifications} from '../lib/kbl/customer-plans';
 import {customerMaintenance} from '../lib/kbl/customer-maintenance';
 import {capturePriceHistory} from '../lib/kbl/price-history';
 import {deliverFeedback} from '../lib/kbl/feedback';
@@ -18,5 +19,5 @@ export default {
         if (checked instanceof Response) return checked;
         const result=await app.fetch(checked, env, ctx);if(new URL(request.url).hostname.endsWith('.workers.dev')){const headers=new Headers(result.headers);headers.set('X-Robots-Tag','noindex, follow');return new Response(result.body,{status:result.status,statusText:result.statusText,headers});}return result;
     },
-    async scheduled() { await runMaintenance({ tick: async()=>{try{await pollCloudPrice();}catch{await event('cloud-price-error','Chưa cập nhật nguồn BK/ASK; giữ giá có thời điểm.');}try{await tick();}finally{await processInboxReplies().catch(()=>{});await deliverFeedback().catch(()=>{});await capturePriceHistory().catch(()=>{});await customerMaintenance().catch(()=>{});}}, cleanup, event }); }
+    async scheduled() { await runMaintenance({ tick: async()=>{try{await pollCloudPrice();}catch{await event('cloud-price-error','Chưa cập nhật nguồn BK/ASK; giữ giá có thời điểm.');}try{await tick();}finally{await processInboxReplies().catch(()=>{});await deliverFeedback().catch(()=>{});await capturePriceHistory().catch(()=>{});await customerMaintenance().catch(()=>{});await processPriceNotifications().catch(()=>{});}}, cleanup, event }); }
 };
