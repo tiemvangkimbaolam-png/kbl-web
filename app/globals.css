@@ -20,38 +20,38 @@
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fffdfb;
+  --foreground: #102c43;
   --card: #ffffff;
-  --card-foreground: #171717;
+  --card-foreground: #102c43;
   --popover: #ffffff;
-  --popover-foreground: #171717;
-  --primary: #171717;
-  --primary-foreground: #fafafa;
-  --secondary: #f5f5f5;
-  --secondary-foreground: #171717;
-  --muted: #f5f5f5;
-  --muted-foreground: #737373;
-  --accent: #f5f5f5;
-  --accent-foreground: #171717;
+  --popover-foreground: #102c43;
+  --primary: #9b4d2d;
+  --primary-foreground: #ffffff;
+  --secondary: #fff0e7;
+  --secondary-foreground: #873f26;
+  --muted: #fff6f0;
+  --muted-foreground: #65717d;
+  --accent: #fff0e7;
+  --accent-foreground: #873f26;
   --destructive: #e7000b;
-  --border: #e5e5e5;
-  --input: #e5e5e5;
-  --ring: #a1a1a1;
+  --border: #ead1bf;
+  --input: #ead1bf;
+  --ring: #a95531;
   --chart-1: #f54900;
   --chart-2: #009689;
   --chart-3: #104e64;
   --chart-4: #ffb900;
   --chart-5: #fe9a00;
   --radius: 0.625rem;
-  --sidebar: #fafafa;
-  --sidebar-foreground: #171717;
-  --sidebar-primary: #171717;
+  --sidebar: #fffaf6;
+  --sidebar-foreground: #102c43;
+  --sidebar-primary: #9b4d2d;
   --sidebar-primary-foreground: #fafafa;
-  --sidebar-accent: #f5f5f5;
-  --sidebar-accent-foreground: #171717;
-  --sidebar-border: #e5e5e5;
-  --sidebar-ring: #a1a1a1;
+  --sidebar-accent: #fff0e7;
+  --sidebar-accent-foreground: #873f26;
+  --sidebar-border: #ead1bf;
+  --sidebar-ring: #a95531;
 }
 
 @theme inline {
@@ -157,17 +157,17 @@ html,body{overflow-x:clip;min-width:0}*{box-sizing:border-box}body{margin:0;back
 .kbl-product-gallery figcaption{font-size:12px;line-height:1.5;color:var(--color-ink-2,#586775);margin-top:8px}
 .kbl-product-thumbnails{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .kbl-product-thumbnails button{border:2px solid transparent;padding:2px;border-radius:8px;background:#fff}
-.kbl-product-thumbnails button[aria-pressed=true]{border-color:#006fb3}
+.kbl-product-thumbnails button[aria-pressed=true]{border-color:#9b4d2d}
 .kbl-product-thumbnails img{width:60px;height:60px;object-fit:contain;border-radius:5px}
-.kbl-product-no-image{display:grid;gap:12px;place-content:center;justify-items:center;min-height:220px;background:#f3f7fa;border-radius:12px;color:#586775;text-align:center;padding:20px}
+.kbl-product-no-image{display:grid;gap:12px;place-content:center;justify-items:center;min-height:220px;background:#fff6f0;border-radius:12px;color:#586775;text-align:center;padding:20px}
 .kbl-product-facts{margin:0;display:grid;gap:0;min-width:0}
-.kbl-product-facts>div{display:flex;gap:16px;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e1e9ee}
+.kbl-product-facts>div{display:flex;gap:16px;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ead1bf}
 .kbl-product-facts dt{font-size:13px;color:#586775}.kbl-product-facts dd{margin:0;text-align:right;font-size:14px;font-weight:600;overflow-wrap:anywhere}
-.kbl-product-total{font-size:1.6rem;margin-top:5px;color:#006fb3}
+.kbl-product-total{font-size:1.6rem;margin-top:5px;color:#9b4d2d}
 .kbl-admin-product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:16px;margin-top:20px}.kbl-admin-product-grid>.card{padding:16px;display:flex;flex-direction:column;gap:10px}.kbl-admin-product-photo{width:100%;aspect-ratio:1;background:#eef4f7;border:0;border-radius:10px;display:grid;place-items:center;color:#526b7d;overflow:hidden}.kbl-admin-product-photo img{width:100%;height:100%;object-fit:contain}.kbl-admin-product-grid p{margin:0}.kbl-admin-product-grid .row{margin-top:auto;flex-wrap:wrap}
 .kbl-social-app-form{width:100%;padding:16px;background:#f5f9fc;border:1px solid #cad9e5;border-radius:10px}.kbl-product-placement{border:1px solid #cad9e5;border-radius:8px;padding:10px;display:grid;gap:6px}.kbl-product-placement label{display:flex;align-items:center;gap:7px;font-size:12px}.kbl-product-placement input{width:auto}
 .list-row.kbl-social-provider{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:start}.kbl-social-provider>.description{grid-column:1;grid-row:1}.kbl-social-provider>.kbl-social-connect-action{grid-column:2;grid-row:1}.kbl-social-provider>.kbl-social-app-form{grid-column:1/-1;grid-row:2;box-sizing:border-box}@media(max-width:600px){.list-row.kbl-social-provider{grid-template-columns:minmax(0,1fr)}.kbl-social-provider>.kbl-social-connect-action{grid-column:1;grid-row:3}}
-.kbl-chat{width:min(410px,calc(100vw - 28px));max-height:85dvh;display:flex;flex-direction:column}.kbl-chat-messages{max-height:42dvh;overflow-y:auto;padding:12px 0;display:flex;flex-direction:column;gap:10px}.kbl-chat-bubble{padding:12px 14px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere;max-width:90%}.kbl-chat-bubble.user{background:#006aa4;color:#fff;align-self:flex-end}.kbl-chat-bubble.assistant{background:#edf4f8;align-self:flex-start}.kbl-chat textarea{min-height:64px}.kbl-history{padding:24px}.kbl-history h3{margin-top:24px}.kbl-history-chart{margin:20px 0}.kbl-history-chart svg{width:100%;max-height:350px}.kbl-history-chart figcaption{font-weight:600}.kbl-history table{width:100%;text-align:left}.kbl-history td,.kbl-history th{padding:12px;border-bottom:1px solid #dbe4ea}.kbl-tv{min-height:100dvh;background:#fff9eb;color:#092d4b;padding:2.5vh 3vw;display:flex;flex-direction:column;box-sizing:border-box}.kbl-tv h1{font-size:clamp(28px,4.2vw,90px);font-weight:900;margin:0}.kbl-tv-address{font-size:clamp(18px,1.9vw,40px);font-weight:700;margin:8px 0}.kbl-tv-tools{display:flex;justify-content:space-between;align-items:center;gap:12px}.kbl-tv-tools button{padding:8px 12px;border:1px solid #aab8c5;border-radius:7px;font-size:16px}.kbl-tv table{width:100%;border-collapse:collapse;table-layout:fixed;margin:auto 0}.kbl-tv thead{font-size:clamp(18px,3vw,65px)}.kbl-tv tbody{font-size:clamp(24px,5.3vw,120px);font-weight:900;line-height:1.3}.kbl-tv th,.kbl-tv td{text-align:center;padding:2.2vh .5vw;border-bottom:1px solid #d7c496;white-space:nowrap}.kbl-tv td{text-decoration:none;font-variant-numeric:tabular-nums}.kbl-tv footer{display:flex;justify-content:space-between;gap:12px;font-size:clamp(14px,1.3vw,28px);margin-top:14px}@media(max-width:600px){.kbl-tv tbody{font-size:5vw}.kbl-tv th,.kbl-tv td{padding:4vh 0}.kbl-history{padding:16px}.kbl-chat{right:14px;bottom:14px}}
+.kbl-chat{width:min(410px,calc(100vw - 28px));max-height:85dvh;display:flex;flex-direction:column}.kbl-chat-messages{max-height:42dvh;overflow-y:auto;padding:12px 0;display:flex;flex-direction:column;gap:10px}.kbl-chat-bubble{padding:12px 14px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere;max-width:90%}.kbl-chat-bubble.user{background:#9b4d2d;color:#fff;align-self:flex-end}.kbl-chat-bubble.assistant{background:#fff0e7;align-self:flex-start}.kbl-chat textarea{min-height:64px}.kbl-history{padding:24px}.kbl-history h3{margin-top:24px}.kbl-history-chart{margin:20px 0}.kbl-history-chart svg{width:100%;max-height:350px}.kbl-history-chart figcaption{font-weight:600}.kbl-history table{width:100%;text-align:left}.kbl-history td,.kbl-history th{padding:12px;border-bottom:1px solid #ead1bf}.kbl-tv{min-height:100dvh;background:#fff9eb;color:#092d4b;padding:2.5vh 3vw;display:flex;flex-direction:column;box-sizing:border-box}.kbl-tv h1{font-size:clamp(28px,4.2vw,90px);font-weight:900;margin:0}.kbl-tv-address{font-size:clamp(18px,1.9vw,40px);font-weight:700;margin:8px 0}.kbl-tv-tools{display:flex;justify-content:space-between;align-items:center;gap:12px}.kbl-tv-tools button{padding:8px 12px;border:1px solid #aab8c5;border-radius:7px;font-size:16px}.kbl-tv table{width:100%;border-collapse:collapse;table-layout:fixed;margin:auto 0}.kbl-tv thead{font-size:clamp(18px,3vw,65px)}.kbl-tv tbody{font-size:clamp(24px,5.3vw,120px);font-weight:900;line-height:1.3}.kbl-tv th,.kbl-tv td{text-align:center;padding:2.2vh .5vw;border-bottom:1px solid #d7c496;white-space:nowrap}.kbl-tv td{text-decoration:none;font-variant-numeric:tabular-nums}.kbl-tv footer{display:flex;justify-content:space-between;gap:12px;font-size:clamp(14px,1.3vw,28px);margin-top:14px}@media(max-width:600px){.kbl-tv tbody{font-size:5vw}.kbl-tv th,.kbl-tv td{padding:4vh 0}.kbl-history{padding:16px}.kbl-chat{right:14px;bottom:14px}}
 
 /* TV editor: shared SVG canvas keeps preview and television geometry identical. */
 .tv-board{display:block;width:100%;height:auto;aspect-ratio:16/9;user-select:none}

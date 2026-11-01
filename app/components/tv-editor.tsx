@@ -403,7 +403,7 @@ export function TVEditor() {
             disabled={busy}
           >
             <option value="">Chọn mẫu bắt đầu</option>
-            <option value="cream">Kem truyền thống</option>
+            <option value="peach">Hồng đào · Vàng đồng (website)</option>
             <option value="white">Trắng rõ nét</option>
             <option value="dark">Xanh đậm · giá vàng</option>
           </select>

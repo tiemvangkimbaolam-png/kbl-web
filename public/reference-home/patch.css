@@ -153,3 +153,35 @@ body.kbl-reference-home #prices #price-grid .price-value strong{font-size:clamp(
  body.kbl-reference-home #prices #price-grid .price-card-head{padding-left:5px!important}
  body.kbl-reference-home #prices #price-grid .price-value+ .price-value{padding-left:4px!important;margin-left:4px!important}
 }
+
+/* Complete concept 06 across the public home, beyond the live price board. */
+body.kbl-reference-home :is(.approved-btn--navy,.btn-navy,.btn-gold,.btn-gold-dark,.kbl-slide-btn.primary){background:linear-gradient(115deg,#9b4d2d,#ad603d)!important;color:#fff!important;border-color:#bd7b56!important;box-shadow:0 6px 18px #9b4d2d18!important}
+body.kbl-reference-home :is(.approved-btn--light,.btn-soft,.btn-outline-light,.kbl-slide-btn.secondary){background:#fff6f0!important;color:#873f26!important;border-color:#e5c2ad!important}
+body.kbl-reference-home :is(#tien-ich-kbl,#try-on,#pawn-estimator,#guide,#gop-y,#faq,#contact){background-color:#fffaf6!important;color:#102c43!important;border-color:#efddcf!important}
+body.kbl-reference-home :is(.kbl-slide-card,.guide-card,.promise-card,.faq-item,.pawn-estimator-card,.visit-card){background-color:#fffefd!important;color:#102c43!important;border-color:#efddcf!important;box-shadow:0 6px 24px #713d1d06!important}
+body.kbl-reference-home :is(.section-kicker,.section-tag,.eyebrow,.kbl-slide-eyebrow,.promise-icon,.guide-icon){color:#9b4d2d!important}
+body.kbl-reference-home :is(.kbl-slide-title,.section-title,.feature-title,.visit-title){color:#102c43!important}
+body.kbl-reference-home :is(.kbl-slide-desc,.section-desc,.feature-desc,.visit-text){color:#65717d!important}
+body.kbl-reference-home :is(.kbl-slider-dot.active,.kbl-slider-dot[aria-selected=true]){background:#a75b36!important;border-color:#a75b36!important}
+body.kbl-reference-home .site-footer{background:#fff3eb!important;color:#102c43!important;border-top:1px solid #ead1bf!important}
+body.kbl-reference-home .site-footer :is(a,p,span,small){color:#42596a!important}
+body.kbl-reference-home .site-footer :is(strong,h2,h3,.footer-brand){color:#9b4d2d!important}
+body.kbl-reference-home .site-footer :is(.footer-bottom,.footer-links){border-color:#ead1bf!important}
+body.kbl-reference-home .topbar{background:#fff3eb!important;color:#873f26!important;border-color:#ead1bf!important}
+body.kbl-reference-home :is(input,select,textarea):focus{border-color:#b97853!important;outline-color:#a95531!important;box-shadow:0 0 0 3px #b978531f!important}
+body.kbl-reference-home .kbl-chat-bubble.user{background:#9b4d2d;color:#fff}
+body.kbl-reference-home .kbl-chat-bubble.assistant{background:#fff0e7;color:#102c43}
+body.kbl-reference-home #contact{background:linear-gradient(115deg,#fff6f0,#ffede0)!important}
+body.kbl-reference-home #contact h2{color:#102c43!important}
+body.kbl-reference-home #contact>.container>div:first-child>p:not(.eyebrow){color:#65717d!important}
+body.kbl-reference-home{--gold-bright:#b97853;--gold-pale:#fff0e5;--gold-dark:#873f26;--kbl-ui-muted:#65717d!important;--kbl-focus:#a95531}
+body.kbl-reference-home #contact .contact-row{color:#65717d!important;border-color:#ead1bf!important}
+body.kbl-reference-home #contact .contact-row :is(strong,a){color:#102c43!important}
+body.kbl-reference-home #contact .contact-symbol{color:#9b4d2d!important;background:#fff3e9!important;border-color:#ead1bf!important}
+body.kbl-reference-home #contact .map-placeholder{background:#fffdfb!important;color:#873f26!important;border-color:#d9b69e!important}
+body.kbl-reference-home #contact .map-placeholder a{color:#873f26!important}
+body.kbl-reference-home #faq details{background:#fffefd!important;border-color:#ead1bf!important}
+body.kbl-reference-home .site-footer .footer-bottom{background:#fff3eb!important;color:#65717d!important;border-color:#ead1bf!important}
+body.kbl-reference-home .site-footer .footer-social button{background:#9b4d2d!important;color:#fff!important;border-color:#bd7b56!important}
+body.kbl-reference-home .kbl-ai-greeting{border-color:#ead1bf!important}
+body.kbl-reference-home .kbl-ai-greeting strong{color:#9b4d2d!important}

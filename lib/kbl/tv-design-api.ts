@@ -1,11 +1,11 @@
 import * as S from "./store";
-import { tvDesignSchema, defaultTVDesign } from "./tv-design";
+import { tvDesignSchema, defaultTVDesign, websiteTVTheme } from "./tv-design";
 import { z } from "zod";
 export async function readTVDesign() {
   const row = await S.get("tv-design", "main");
   const parsed = tvDesignSchema.safeParse(row?.design);
   return {
-    design: parsed.success ? parsed.data : defaultTVDesign(),
+    design: parsed.success ? websiteTVTheme(parsed.data) : defaultTVDesign(),
     version: row?.version || 0,
   };
 }
