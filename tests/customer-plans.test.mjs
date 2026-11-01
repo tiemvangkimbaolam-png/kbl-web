@@ -8,7 +8,7 @@ import {createECDH,randomBytes,createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {pathToFileURL} from 'node:url';
 import {goldGoal,goalProgress,priceAlert,alertHit,pushSubscription} from '../lib/kbl/customer-plans-core.mjs';
-const db=new DatabaseSync(':memory:');let handle,processPriceNotifications;
+const db=new DatabaseSync(':memory:');let handle,processPriceNotifications,beforeRun=null;
 const sha=s=>createHash('sha256').update(s).digest('hex');
 const seed=(kind,id,data)=>db.prepare('INSERT OR REPLACE INTO records(kind,id,data,created_at,updated_at) VALUES(?,?,?,?,?)').run(kind,id,JSON.stringify(data),Date.now(),Date.now());
 const get=(kind,id)=>{const r=db.prepare('SELECT * FROM records WHERE kind=? AND id=?').get(kind,id);return r?{...JSON.parse(r.data),id:r.id,version:r.version}:null;};
@@ -24,13 +24,13 @@ const register=async(headers,sub=subscription())=>{const r=await call('customer-
 const armed=async(headers)=>{await register(headers);const r=await call('customer-plans/alert',alert(),headers);assert.equal(r.status,200,JSON.stringify(r.data));};
 before(async()=>{
  for(const f of fs.readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(fs.readFileSync('drizzle/'+f,'utf8').replaceAll('--> statement-breakpoint',''));
- const DB={prepare(sql){let args=[];const stmt={bind(...v){args=v;return stmt;},async first(){return db.prepare(sql).get(...args)||null;},async all(){return{results:db.prepare(sql).all(...args)};},async run(){return{meta:{changes:Number(db.prepare(sql).run(...args).changes)}};}};return stmt;},async batch(statements){db.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());db.exec('COMMIT');return results;}catch(e){db.exec('ROLLBACK');throw e;}}};
+ const DB={prepare(sql){let args=[];const stmt={bind(...v){args=v;return stmt;},async first(){return db.prepare(sql).get(...args)||null;},async all(){return{results:db.prepare(sql).all(...args)};},async run(){if(beforeRun)beforeRun(sql,args);return{meta:{changes:Number(db.prepare(sql).run(...args).changes)}};}};return stmt;},async batch(statements){db.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());db.exec('COMMIT');return results;}catch(e){db.exec('ROLLBACK');throw e;}}};
  globalThis.__PLANS_ENV={DB,KBL_CUSTOMER_AUTH_PEPPER:randomBytes(32).toString('hex')};
  const {build}=createRequire(fs.realpathSync('node_modules/wrangler/package.json'))('esbuild');
  await build({stdin:{contents:"export {handle} from './lib/kbl/api'; export {processPriceNotifications} from './lib/kbl/customer-plans';",resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',external:['web-push'],outfile:'.sites-runtime/plans-tests.mjs',plugins:[{name:'env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env=globalThis.__PLANS_ENV;'}));}}]});
  ({handle,processPriceNotifications}=await import(pathToFileURL(path.resolve('.sites-runtime/plans-tests.mjs'))+'?'+Date.now()));
 });
-beforeEach(()=>{db.exec('DELETE FROM records');seed('price','pos-9999',quote());});
+beforeEach(()=>{beforeRun=null;db.exec('DELETE FROM records');seed('price','pos-9999',quote());});
 test('goals keep integer chi units, select one purity and never round incomplete targets to 100%',()=>{
  const g=goldGoal(goal()),p=goalProgress(g,[{code:'9999',units:2000},{code:'610',units:50000}]);assert.equal(p.currentUnits,2000);assert.equal(p.percent,25);assert.equal(p.remainingUnits,6000);assert.equal(goalProgress({...g,targetUnits:1000000},[{code:'9999',units:999999}]).percent,99.9);assert.equal(goalProgress(g,[{code:'9999',units:9000}]).percent,100);assert.equal(goalProgress(null,[]),null);
  for(const patch of [{targetChi:'0'},{targetChi:'-1'},{targetChi:'1e2'},{code:'XAU'},{title:'x'.repeat(41)},{showOnPriceWidget:'true'}])assert.throws(()=>goldGoal({...goal(),...patch}));
@@ -98,3 +98,28 @@ test('service worker displays safe notification content and ignores remote navig
 });
 
 test('an interrupted sending lease becomes unknown and is never retried automatically',async()=>{const a=auth();const subId=await register(a);seed('customer-push-job','interrupted',{customerId:'fixture-1',authVersion:1,subId,status:'sending',lease:'fixture-lease',expiresAt:Date.now()+60000,payload:{title:'fixture'}});db.prepare("UPDATE records SET updated_at=? WHERE kind='customer-push-job' AND id='interrupted'").run(Date.now()-180000);let sends=0;const fetcher=async()=>{sends++;return new Response('',{status:201});};await processPriceNotifications({fetcher});await processPriceNotifications({fetcher});assert.equal(get('customer-push-job','interrupted').status,'unknown');assert.equal(sends,0);});
+
+test('full push-job quota keeps the alert armed until capacity exists for every active device',async()=>{
+ const a=auth();await armed(a);await register(a,subscription('second'));await register(a,subscription('third'));const insert=db.prepare('INSERT INTO records(kind,id,data,created_at,updated_at) VALUES(?,?,?,?,?)'),now=Date.now();db.exec('BEGIN');for(let i=0;i<20000;i++)insert.run('customer-push-job','capacity-'+i,JSON.stringify({status:'accepted'}),now,now);db.exec('COMMIT');let sends=0;const fetcher=async()=>{sends++;return new Response('',{status:201});};
+ await processPriceNotifications({fetcher});assert.equal(records('customer-price-alert')[0].status,'armed');assert.equal(sends,0);
+ db.prepare("DELETE FROM records WHERE kind='customer-push-job' AND id='capacity-0'").run();await processPriceNotifications({fetcher});assert.equal(records('customer-price-alert')[0].status,'armed');assert.equal(sends,0);
+ db.prepare("DELETE FROM records WHERE kind='customer-push-job' AND id IN ('capacity-1','capacity-2')").run();await processPriceNotifications({fetcher});assert.equal(records('customer-price-alert')[0].status,'queued');assert.equal(sends,3);
+});
+test('re-enabling a disabled subscription needs an active slot; renewing an active device does not',async()=>{
+ const a=auth(),old=subscription('disabled');const id=await register(a,old);await call('customer-plans/unsubscribe',{id},a);const devices=[];for(let i=0;i<5;i++){const sub=subscription('active-'+i);devices.push(sub);await register(a,sub);}
+ assert.equal((await call('customer-plans/subscribe',{consent:true,subscription:old},a)).status,409);assert.equal((await call('customer-plans',undefined,a)).data.devices.length,5);await register(a,devices[0]);
+ const expiredId=sha(devices[1].endpoint),row=get('customer-push-sub',expiredId);seed('customer-push-sub',expiredId,{...row,expiresAt:Date.now()-1});await register(a,old);assert.equal((await call('customer-plans',undefined,a)).data.devices.length,5);
+});
+test('delete racing a cron version change returns conflict instead of falsely confirming removal',async()=>{
+ const a=auth();await armed(a);const rule=records('customer-price-alert')[0];beforeRun=(sql,args)=>{if(sql.startsWith('DELETE FROM records WHERE kind=? AND id=? AND version=?')&&args[0]==='customer-price-alert'){beforeRun=null;db.prepare("UPDATE records SET version=version+1 WHERE kind=? AND id=?").run('customer-price-alert',rule.id);}};
+ assert.equal((await call('customer-plans/remove-alert',{id:rule.id},a)).status,409);assert.ok(get('customer-price-alert',rule.id));assert.equal((await call('customer-plans/remove-alert',{id:rule.id},a)).status,200);assert.equal(get('customer-price-alert',rule.id),null);
+});
+test('provider HTTP 429 backs off and retries only the explicitly rejected request',async()=>{
+ const a=auth();await armed(a);const now=Date.now();let sends=0;const fetcher=async()=>{sends++;return sends===1?new Response('',{status:429,headers:{'Retry-After':'120'}}):new Response('',{status:201});};
+ await processPriceNotifications({fetcher,now});const job=records('customer-push-job')[0];assert.equal(job.status,'pending');assert.equal(job.attempts,1);assert.equal(job.nextAt,now+120000);await processPriceNotifications({fetcher,now:now+119999});assert.equal(sends,1);await processPriceNotifications({fetcher,now:now+120000});assert.equal(sends,2);assert.equal(get('customer-push-job',job.id).status,'accepted');
+});
+test('password-version change retires old rules visibly and frees the three-alert allowance',async()=>{
+ const a=auth();await register(a);for(let i=1;i<=3;i++)await call('customer-plans/alert',alert(i),a);seed('customer','fixture-1',{authVersion:2});seed('customer-session',sha('1'.repeat(64)),{customerId:'fixture-1',authVersion:2,expiresAt:Date.now()+100000});
+ let view=(await call('customer-plans',undefined,a)).data;assert.ok(view.alerts.every(r=>r.status==='needs-renewal'&&!r.enabled));assert.equal(view.devices.length,0);await register(a,subscription('new-auth-version'));assert.equal((await call('customer-plans/alert',alert(4),a)).status,200);
+ await processPriceNotifications({fetcher:async()=>new Response('',{status:201})});view=(await call('customer-plans',undefined,a)).data;assert.equal(view.alerts.filter(r=>r.status==='needs-renewal').length,3);assert.equal(view.alerts.filter(r=>r.enabled).length,1);
+});

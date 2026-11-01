@@ -56,6 +56,7 @@ const layerSchema = z
 export const tvDesignSchema = z
   .object({
     schema: z.literal(1),
+    themeVersion: z.literal(1).optional(),
     layers: z.array(layerSchema).max(20).default([]),
     background: color,
     lineColor: color,
@@ -113,15 +114,16 @@ export function defaultTVDesign(): TVDesign {
     size: number,
     weight: "400" | "600" | "700" | "900" = "700",
     align: "left" | "center" | "right" = "center",
-  ) => ({ font: "arial" as const, size, weight, color: "#092d4b", align });
+  ) => ({ font: "arial" as const, size, weight, color: "#102c43", align });
   return {
     schema: 1,
+    themeVersion: 1,
     layers: [],
-    background: "#fff9eb",
-    lineColor: "#d7c496",
-    rowBackground: "#f4e8cb",
+    background: "#fffdfb",
+    lineColor: "#ead1bf",
+    rowBackground: "#fff2e9",
     lines: true,
-    rowFill: false,
+    rowFill: true,
     titleText: "",
     addressText: "",
     subtitleText: "BẢNG GIÁ VÀNG · ĐỒNG / CHỈ",
@@ -131,20 +133,31 @@ export function defaultTVDesign(): TVDesign {
       title: { x: 50, y: 28, w: 1500, h: 100, visible: true },
       address: { x: 60, y: 136, w: 1480, h: 55, visible: true },
       subtitle: { x: 60, y: 206, w: 1480, h: 40, visible: true },
-      table: { x: 50, y: 276, w: 1500, h: 520, visible: true },
+      table: { x: 36, y: 276, w: 1500, h: 520, visible: true },
       footer: { x: 60, y: 835, w: 1480, h: 42, visible: true },
     },
     styles: {
-      title: { ...type(68, "900"), font: "times" },
-      address: type(26, "600"),
-      subtitle: type(25, "600"),
-      headers: type(52, "700"),
+      title: { ...type(68, "900"), font: "times", color: "#9b4d2d" },
+      address: { ...type(26, "600"), color: "#65717d" },
+      subtitle: { ...type(25, "600"), color: "#9b4d2d" },
+      headers: { ...type(52, "700"), color: "#9b4d2d" },
       labels: type(64, "900"),
       buy: type(70, "900"),
-      sell: type(70, "900"),
-      footer: type(24, "400", "left"),
+      sell: { ...type(70, "900"), color: "#9b4d2d" },
+      footer: { ...type(24, "400", "left"), color: "#65717d" },
     },
   };
+}
+export function websiteTVTheme(design: TVDesign): TVDesign {
+  if (design.themeVersion === 1) return design;
+  const next = structuredClone(design), theme = defaultTVDesign();
+  next.themeVersion = 1;
+  next.background = theme.background; next.lineColor = theme.lineColor;
+  next.rowBackground = theme.rowBackground; next.rowFill = true;
+  for (const part of Object.keys(next.styles) as (keyof TVDesign["styles"])[])
+    next.styles[part].color = theme.styles[part].color;
+  next.boxes.table.x = Math.max(0, next.boxes.table.x - 14);
+  return next;
 }
 export function tvPreset(name: string): TVDesign {
   const d = defaultTVDesign();
