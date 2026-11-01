@@ -1,4 +1,4 @@
-// KIM BAO LAM — private holdings widget, version 1.0.0.
+// KIM BAO LAM — private holdings widget, version 1.1.0.
 // Reads only your summary using a revocable token; never modifies trades or POS.
 // Token stays in Scriptable Keychain. No portfolio files, contacts, photos or location.
 const ORIGIN='https://tiemvangkimbaolam.id.vn',API=ORIGIN+'/api/public/holdings';
@@ -22,7 +22,7 @@ async function run(){
  let data=null,error='';try{if(!Keychain.contains(KEY))throw Error('Mở Scriptable để ghép với tài khoản của bạn.');data=await request('/widget',Keychain.get(KEY));}catch(e){error=e.message||'Chưa kết nối được.';}
  const s=data?.summary,valid=s&&Number.isSafeInteger(s.totalUnits)&&s.totalUnits>=0&&Number.isSafeInteger(s.costVnd)&&s.costVnd>=0&&Array.isArray(s.positions)&&s.positions.length<=6&&(s.valueVnd===null||Number.isSafeInteger(s.valueVnd))&&(s.gainVnd===null||Number.isSafeInteger(s.gainVnd))&&(s.gainPct===null||Number.isFinite(s.gainPct));
  const small=config.widgetFamily==='small',large=config.widgetFamily==='large'||config.widgetFamily==='extraLarge',hide=/^(ẩn|an|hide)$/i.test(String(args.widgetParameter||'').trim());
- const w=new ListWidget();w.backgroundColor=new Color('FFFAF5');w.setPadding(small?10:13,small?10:16,10,small?10:16);w.url=ORIGIN+'/vang-cua-toi';w.refreshAfterDate=new Date(Date.now()+15*60000);
+ const w=new ListWidget();w.backgroundColor=new Color('FFFAF5');w.setPadding(small?10:13,small?10:16,10,small?10:16);w.url=ORIGIN+'/vang-cua-toi';w.refreshAfterDate=new Date(Date.now()+5*60000);
  const ink='132E42',copper='9B4D2D',muted='727C82',gainColor=s?.gainVnd>0?'246C51':s?.gainVnd<0?'B34141':muted;
  function text(parent,value,size,color=ink,bold=false){const t=parent.addText(String(value));t.font=bold?Font.boldSystemFont(size):Font.systemFont(size);t.textColor=new Color(color);t.lineLimit=1;t.minimumScaleFactor=.65;return t;}
  const money=n=>hide?'••••••':n===null||n===undefined?'—':String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+' đ',qty=n=>hide?'•••':String(n/1000).replace('.',',');
@@ -44,7 +44,8 @@ async function run(){
   else if(!small)text(w,hide?'Đã ẩn thông tin tài sản':'Chưa đủ hai mốc giá thật để vẽ đường',9,muted);
   if(large){w.addSpacer(8);for(const p of s.positions.slice(0,3)){const row=w.addStack();text(row,'Vàng '+(p.code==='9999'?'999.9':p.code)+' · '+qty(p.units)+' chỉ',11,ink,true);row.addSpacer();text(row,money(p.valueVnd),11,copper,true);w.addSpacer(4);}if(s.positions.length>3)text(w,'Và '+(s.positions.length-3)+' loại vàng khác',9,muted);w.addSpacer(3);text(w,'Vốn còn giữ · '+money(s.costVnd),11,muted);}
   w.addSpacer();
-  text(w,(s.stale?'GIÁ ĐÃ CŨ · ':'')+'Lãi/lỗ tạm tính',small?7:9,s.stale?copper:muted);
+  text(w,small?'Vốn · '+money(s.costVnd):'Lãi/lỗ tạm tính theo giá mua vào',small?8:9,muted);
+  if(!small){const a=text(w,'59/1 Nguyễn Thị Tươi, Phường Tân Đông Hiệp, Tp. Hồ Chí Minh',large?8:7,copper);a.lineLimit=2;}
   if(s.sourceAt){const d=new Date(s.sourceAt+7*3600000),pad=n=>String(n).padStart(2,'0');text(w,'Giá mua vào · '+pad(d.getUTCHours())+':'+pad(d.getUTCMinutes())+' '+pad(d.getUTCDate())+'/'+pad(d.getUTCMonth()+1),small?7:8,muted);}
  }
  Script.setWidget(w);if(!config.runsInWidget){if(small)await w.presentSmall();else if(large)await w.presentLarge();else await w.presentMedium();}Script.complete();return w;

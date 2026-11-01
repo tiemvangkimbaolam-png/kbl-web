@@ -16,5 +16,8 @@ for (const [theme, suffix, name] of [['copper', 'Dong', 'KBL Gia Vang Dong']]) {
 }
 console.log('Generated the approved peach/copper self-contained Scriptable widget and matching browser price parser.');
 
-const rescue = fs.readFileSync(path.join(root, 'scripts/scriptable-rescue.js'), 'utf8');
+const native=fs.readFileSync(path.join(output,'KBL_Gia_Vang_Dong.js'));
+const blobSha=createHash('sha1').update(Buffer.from('blob '+native.length+'\0')).update(native).digest('hex');
+const rescue = fs.readFileSync(path.join(root, 'scripts/scriptable-rescue.template.js'), 'utf8').replace('__KBL_WIDGET_BLOB_SHA__',blobSha).replace('__KBL_WIDGET_BYTES__',String(native.length)).replace('__KBL_WIDGET_LENGTH__',String(native.toString('utf8').length));
+fs.writeFileSync(path.join(root,'scripts/scriptable-rescue.js'),rescue);
 fs.writeFileSync(path.join(output, 'KBL_Cai_Widget.txt'), rescue);

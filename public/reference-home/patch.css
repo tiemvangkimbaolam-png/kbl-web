@@ -145,3 +145,11 @@ body.kbl-reference-home #prices #price-grid .price-card{column-gap:0!important}
  body.kbl-reference-home #prices #price-grid .price-card,
  body.kbl-reference-home #prices .kbl-rate-header{grid-template-columns:minmax(0,26fr) minmax(0,37fr) minmax(0,37fr)!important;padding-right:18px!important;column-gap:0!important}
 }
+/* Increase the phone quote text without shifting the sell column off screen. */
+body.kbl-reference-home #prices #price-grid .price-value strong{font-size:clamp(24px,2.4vw,31px)!important}
+@media(max-width:760px){
+ body.kbl-reference-home #prices #price-grid .price-value strong{font-size:clamp(18px,5.15vw,24px)!important;letter-spacing:-.05em!important}
+ body.kbl-reference-home #prices #price-grid h3{font-size:clamp(18px,4.9vw,23px)!important}
+ body.kbl-reference-home #prices #price-grid .price-card-head{padding-left:5px!important}
+ body.kbl-reference-home #prices #price-grid .price-value+ .price-value{padding-left:4px!important;margin-left:4px!important}
+}
