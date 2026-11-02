@@ -1,0 +1,139 @@
+import { before, test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+import { createRequire } from 'node:module';
+import { createHash,randomBytes } from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
+import { bindingHealth } from '../lib/kbl/health.mjs';
+import { runMaintenance } from '../lib/kbl/scheduled.mjs';
+const { build } = createRequire(fs.realpathSync('node_modules/wrangler/package.json'))('esbuild');
+const db = new DatabaseSync(':memory:');
+// Synthetic identity and runtime-generated test-only secrets; no user credentials.
+const owner = { 'oai-authenticated-user-id': 'owner-fixture', 'oai-authenticated-user-email': 'owner@fixture.invalid', 'Content-Type': 'application/json' };
+let handle;
+function prepare(query) {
+    let params = [];
+    const stmt = { bind(...values) { params = values; return stmt; }, async first() { return db.prepare(query).get(...params) || null; }, async all() { return { results: db.prepare(query).all(...params) }; }, async run() { const result = db.prepare(query).run(...params); return { success: true, meta: { changes: Number(result.changes) } }; } };
+    return stmt;
+}
+async function call(route, value, headers = owner) {
+    const res = await handle(new Request('https://kbl.test/api/' + route, { method: value === undefined ? 'GET' : 'POST', headers, ...(value === undefined ? {} : { body: Buffer.isBuffer(value) ? value : JSON.stringify(value) }) }));
+    return { status: res.status, data: await res.json() };
+}
+before(async () => {
+    for (const file of fs.readdirSync('drizzle').filter(f => f.endsWith('.sql')).sort()) db.exec(fs.readFileSync('drizzle/' + file, 'utf8').replaceAll('--> statement-breakpoint', ''));
+    const blobs = new Map();
+    globalThis.__KBL_RECOVERY_ENV = { OWNER_EMAIL:'owner@fixture.invalid', DB: { prepare, async batch(stmts) { db.exec('BEGIN'); try { const result = []; for (const stmt of stmts) result.push(await stmt.run()); db.exec('COMMIT'); return result; } catch (e) { db.exec('ROLLBACK'); throw e; } } }, BUCKET: { async head(id) { return blobs.has(id) ? { size: blobs.get(id).byteLength } : null; }, async put(id, data) { blobs.set(id, data); }, async get(id) { return blobs.has(id) ? { body: blobs.get(id), size: blobs.get(id).byteLength } : null; }, async delete(id) { blobs.delete(id); } } };
+    await build({ entryPoints: ['lib/kbl/api.ts'], bundle: true, platform: 'node', format: 'esm', outfile: '.sites-runtime/api-recovery.mjs', plugins: [{ name: 'recovery-env', setup(b) { b.onResolve({ filter: /^cloudflare:workers$/ }, () => ({ path: 'env', namespace: 'fixture' })); b.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'export const env = globalThis.__KBL_RECOVERY_ENV;', loader: 'js' })); } }] });
+    handle = (await import(pathToFileURL(path.resolve('.sites-runtime/api-recovery.mjs')).href)).handle;
+    await call('admin/settings', { autoResearch: false, autoConsult: false });
+});
+test('health proves migrations and storage permissions rather than binding existence', async () => {
+    assert.equal((await call('health')).status, 200);
+    const state = await bindingHealth({ DB: { prepare() { throw Error('table missing'); } }, BUCKET: { async head() { throw Error('denied'); } } });
+    assert.equal(state.ok, false);
+    assert.equal(state.checks.database, 'schema-or-access-required');
+    assert.equal(state.checks.files, 'access-required');
+});
+test('late original lease can recover image upload and dispatch; wrong or completed lease cannot', async () => {
+    const worker = (await call('admin/workers', { label: 'Recovery Windows fixture' })).data;
+    const account = (await call('admin/accounts', { provider: 'gemini', label: 'Recovery account fixture', workerId: worker.id })).data;
+    const story = (await call('admin/stories', { title: 'Late result fixture', topic: 'Only fixture' })).data;
+    const lease = randomBytes(32).toString('hex'), hash = createHash('sha256').update(lease).digest('hex'), jobId = 'late-image-fixture';
+    db.prepare('INSERT INTO jobs(id,story_id,stage,status,owner,lease_hash,lease_until,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)').run(jobId, story.id, 'image', 'attention', account.id, hash, Date.now() - 1000, Date.now(), Date.now());
+    const headers = { 'x-kbl-worker-token': worker.token, 'x-kbl-job-id': jobId, 'x-kbl-job-lease': lease, 'Content-Type': 'image/png' };
+    const bytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 77]);
+    assert.equal((await call('worker/assets?storyId=' + story.id, bytes, { ...headers, 'x-kbl-job-lease': randomBytes(32).toString('hex') })).status, 409);
+    assert.equal((await call('worker/assets?storyId=' + story.id, bytes, headers)).status, 200);
+    assert.equal((await call('worker/jobs/' + jobId + '/dispatch', { lease }, { 'x-kbl-worker-token': worker.token, 'Content-Type': 'application/json' })).status, 200);
+    const active = db.prepare('SELECT * FROM jobs WHERE id=?').get(jobId);
+    assert.equal(active.status, 'running');
+    assert.ok(active.lease_until > Date.now());
+    db.prepare("UPDATE jobs SET status='complete' WHERE id=?").run(jobId);
+    assert.equal((await call('worker/assets?storyId=' + story.id, bytes, headers)).status, 409);
+});
+test('confirmed retry reopens story and preserves the previous blocker in private audit', async () => {
+    const story = (await call('admin/stories', { title: 'Manual retry fixture', topic: 'Only fixture' })).data;
+    const job = db.prepare('SELECT * FROM jobs WHERE story_id=?').get(story.id);
+    db.prepare("UPDATE jobs SET status='blocked',error='Original blocker fixture' WHERE id=?").run(job.id);
+    const row = db.prepare("SELECT data FROM records WHERE kind='story' AND id=?").get(story.id);
+    db.prepare("UPDATE records SET data=? WHERE kind='story' AND id=?").run(JSON.stringify({ ...JSON.parse(row.data), status: 'blocked' }), story.id);
+    assert.equal((await call('admin/jobs/' + job.id, {})).status, 422);
+    assert.equal((await call('admin/jobs/' + job.id, { confirmOriginalStopped: true })).status, 200);
+    assert.equal(JSON.parse(db.prepare("SELECT data FROM records WHERE kind='story' AND id=?").get(story.id).data).status, 'working');
+    assert.match(db.prepare("SELECT message FROM events WHERE type='job-requeued' AND story_id=?").get(story.id).message, /Original blocker fixture/);
+});
+test('cron cleanup remains independent if tick fails and reports failure without dropping jobs', async () => {
+    let cleaned = false;
+    const events = [];
+    await assert.rejects(runMaintenance({ async tick() { throw Error('fixture'); }, async cleanup() { cleaned = true; }, async event(type) { events.push(type); } }), /incomplete/);
+    assert.equal(cleaned, true);
+    assert.deepEqual(events, ['scheduler-error']);
+});
+
+test('pair command is delivered to its worker; the pairing code never reaches the account record or export', async () => {
+    const worker = (await call('admin/workers', { label: 'Pairing Windows fixture' })).data;
+    const account = (await call('admin/accounts', { provider: 'gemini', label: 'Pairing account fixture', workerId: worker.id })).data;
+    assert.equal((await call('admin/commands', { accountId: account.id, operation: 'delete-profile' })).status, 422);
+    const pair = await call('admin/commands', { accountId: account.id, operation: 'pair' });
+    assert.equal(pair.status, 200);
+    const headers = { 'x-kbl-worker-token': worker.token, 'Content-Type': 'application/json' };
+    const heartbeat = await call('worker/heartbeat', { version: '2.2.0-fixture', capabilities: ['browser'], accounts: [{ id: account.id, status: 'attention', paired: true, message: 'Fixture extension paired.' }] }, headers);
+    assert.equal(heartbeat.status, 200);
+    assert.ok(heartbeat.data.commands.some(c => c.id === pair.data.id));
+    const code = 'KBL42-' + 'c'.repeat(24);
+    assert.equal((await call('worker/commands/' + pair.data.id, { ok: true, message: 'Mã ghép ' + code + ' · dùng một lần trong 10 phút.' }, headers)).status, 200);
+    const state = await call('admin/state');
+    const saved = state.data.accounts.find(a => a.id === account.id);
+    assert.equal(saved.paired, true);
+    assert.equal(saved.pairCode, undefined);
+    assert.match(state.data.commands.find(c => c.id === pair.data.id).message, /KBL42-/);
+    assert.equal(JSON.stringify((await call('admin/export')).data).includes(code), false);
+});
+test('public catalog uses cloud snapshot while Windows is offline; only the bound worker can hand over private config', async () => {
+    const source = (await call('admin/workers', { label: 'Cloud price source fixture' })).data;
+    const other = (await call('admin/workers', { label: 'Other price source fixture' })).data;
+    const now=Date.now();
+    db.prepare("INSERT OR REPLACE INTO records(kind,id,data,created_at,updated_at) VALUES('pos-binding','main',?,?,?)").run(JSON.stringify({workerId:source.id}),now,now);
+    globalThis.__KBL_RECOVERY_ENV.KBL_PRICE_ENCRYPTION_KEY=randomBytes(32).toString('hex');
+    const config={enabled:true,symbol:'BK',relayUrl:'https://script.google.com/macros/s/fixtureRelayIdentifier/exec',relayToken:randomBytes(32).toString('hex'),markupVnd:100000,pollMs:60000,spreads:{'9999':300000,'980':300000,'750':500000,'610':400000,'585':500000,'416':500000}};
+    const headers=token=>({'x-kbl-worker-token':token,'Content-Type':'application/json'});
+    assert.equal((await call('worker/pos-cloud-price-config',{config,revision:1},headers(other.token))).status,409);
+    assert.equal((await call('worker/pos-cloud-price-config',{config,revision:1},headers(source.token))).status,200);
+    const fetchBefore=globalThis.fetch;
+    try {
+        globalThis.fetch=async()=>new Response(JSON.stringify({status:'success',symbol:'BK',ask:'139000',bid:'138900'}),{headers:{'Content-Type':'application/json'}});
+        assert.equal((await call('admin/cloud-price/poll',{})).status,200);
+    } finally {globalThis.fetch=fetchBefore;}
+    // No heartbeat or POS process exists in this fixture; price is generated by server polling alone.
+    const catalog=await call('public/catalog',undefined,{});
+    assert.equal(catalog.status,200);assert.equal(catalog.data.cloudPrice.active,true);
+    assert.equal(catalog.data.prices.find(p=>p.code==='9999').sell,14000000);
+    assert.equal(catalog.data.prices[0].timestampKind,'fetched-from-relay');
+    assert.equal(JSON.stringify(catalog.data).includes(config.relayToken),false);
+    const exported=await call('admin/export');assert.equal(JSON.stringify(exported.data).includes(config.relayToken),false);
+});
+
+test('saved AI schedules override defaults and lightweight admin views avoid unrelated tables',async()=>{
+    assert.equal((await call('admin/settings',{productHours:[11],goldSchedule:['09:45'],publicationSpacingMinutes:35})).status,200);
+    const queries=[],original=globalThis.__KBL_RECOVERY_ENV.DB.prepare;
+    globalThis.__KBL_RECOVERY_ENV.DB.prepare=q=>{queries.push(q);return original(q);};
+    try{
+        const r=await call('admin/state?view=ket-noi');assert.equal(r.status,200);
+        assert.deepEqual(r.data.settings.productHours,[11]);assert.deepEqual(r.data.settings.goldSchedule,['09:45']);assert.equal(r.data.settings.publicationSpacingMinutes,35);
+        assert.deepEqual(r.data.products,[]);assert.deepEqual(r.data.jobs,[]);assert.equal(r.data.storage,null);
+        assert.ok(!queries.some(q=>/SUM\(bytes\)|FROM jobs|FROM editions|FROM receipts/.test(q)));
+        assert.equal((await call('admin/state?view=invalid')).status,400);
+        assert.equal((await call('admin/state?view=ket-noi',undefined,{})).status,401);
+    }finally{globalThis.__KBL_RECOVERY_ENV.DB.prepare=original;}
+});
+test('compact worker queue includes held completed attempts for late ACK reconciliation without returning completed history',async()=>{
+    const w=(await call('admin/workers',{label:'Compact queue fixture'})).data,headers={'x-kbl-worker-token':w.token};
+    for(let n=0;n<500;n++)db.prepare("INSERT INTO jobs(id,story_id,stage,status,created_at,updated_at) VALUES(?,?,'write','complete',?,?)").run('compact-'+n,'compact-story-'+n,n,n);
+    const route='worker/queue?active=1&held='+encodeURIComponent(JSON.stringify(['compact-2']));
+    const r=await call(route,undefined,headers);assert.equal(r.status,200);assert.ok(r.data.jobs.some(j=>j.id==='compact-2'));assert.ok(!r.data.jobs.some(j=>j.id==='compact-3'));
+    assert.equal((await call(route,undefined,{})).status,401);
+    assert.equal((await call('worker/queue?active=1&held='+encodeURIComponent(JSON.stringify(['bad id'])),undefined,headers)).status,422);
+});

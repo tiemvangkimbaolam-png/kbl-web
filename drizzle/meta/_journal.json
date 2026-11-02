@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1792982992632,
+      "tag": "0000_sticky_dexter_bennett",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793002235152,
+      "tag": "0001_pos_lookup",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793417361018,
+      "tag": "0002_publication_variants",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793579411072,
+      "tag": "0003_read_budget_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793583164886,
+      "tag": "0004_active_work_indexes",
+      "breakpoints": true
+    }
+  ]
+}

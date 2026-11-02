@@ -1,0 +1,8 @@
+BAN VA NHO - KHONG DOI CONFIG / KHONG DOI POS / KHONG DOI CHROME
+1. Giai nen TOAN BO file trong ZIP vao thu muc KBL_WINDOWS_MOI dang su dung (noi co kbl-config.json), dong y chep de file source.
+2. Chay CAP_NHAT_AUTODANG.cmd mot lan. Chi khoi dong lai node worker trong dung thu muc, khong dong Chrome.
+3. Admin -> Ban tin & Video -> Bat luong 08:00 / 13:00 / 19:00. Ket noi va chon dung 4 kenh Facebook Page, Instagram Professional, Threads, YouTube.
+4. Can FFmpeg/ffprobe va HoaiMy node-edge-tts da co trong worker. Chua san sang thi hang doi cho, khong coi la da dang.
+Moi luot 3 SKU chua dung; YouTube video 3 canh va giong doc; Facebook/Instagram/Threads nhan anh JPEG co gia, QR va hashtag. Dang mat phan hoi thi giu attention de doi soat, khong lap bai.
+
+Neu truoc do dang mo BAT_DAU.cmd, nhan Ctrl+C trong cua so do truoc khi chay cap nhat. Script se kiem tra release 2.2.0 tai may local, khong bao thanh cong neu worker cu van chay.

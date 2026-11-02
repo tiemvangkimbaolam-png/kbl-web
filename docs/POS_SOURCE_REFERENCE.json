@@ -1,0 +1,36 @@
+{
+  "reviewedAt": "2026-10-26",
+  "mode": "read-only source review; original files not copied into project",
+  "files": [
+    {
+      "file": "package(1).json",
+      "bytes": 1202,
+      "sha256": "2776d2ab948174b40c2eb9a9b46bb7186b5ee2cdd81fb84d770c0c1f05c9e3e0"
+    },
+    {
+      "file": "pawn.html",
+      "bytes": 237173,
+      "sha256": "760ad5390cc335fa9a67aff3b2f04a813da79dbbd0f8825dc0e0f6ee40bb1535"
+    },
+    {
+      "file": "renderer(1).js",
+      "bytes": 634571,
+      "sha256": "00661078da086f29309459e0ef348cdaca39f22dcae6ed8a73c69ef51d04c2e0"
+    },
+    {
+      "file": "index.html",
+      "bytes": 296887,
+      "sha256": "7b03e300d1bdcf1284d7535e4a35b5ae4d63d4d7ac28b8820bf9b7b4ebe159d9"
+    },
+    {
+      "file": "kbl-product-photos(1).cjs",
+      "bytes": 8074,
+      "sha256": "840d883a54af1305a4d65342caee81cb29c01cdd39e248f24fe90695e0312e85"
+    },
+    {
+      "file": "main.js",
+      "bytes": 50356,
+      "sha256": "3213b959a3d9ff518f76692bc6c1ff5c5ec91e778fcdfee82ef355d2efb0a511"
+    }
+  ]
+}

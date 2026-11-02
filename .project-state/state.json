@@ -1,0 +1,176 @@
+{
+  "schema": 1,
+  "goal": "Mẫu ảnh/video local worker sản phẩm và giá vàng; giao diện POS đồng bộ website; nối Cloudflare và phân vai đội AI, tuyệt đối giữ công thức và dữ liệu POS.",
+  "created_at": "2026-10-31T13:54:50.812082+00:00",
+  "stages": {
+    "specify": {
+      "status": "done",
+      "note": "Ưu tiên mẫu ảnh/video; khóa công thức POS; nguồn GitHub e3081b4 và màu bảng TV live đã đọc.",
+      "evidence": [
+        {
+          "path": ".project-state\\contract.md",
+          "sha256": "f1410117006b93992c78f1e7cea4b875559c389f68ac17315abb2e3012c83b46",
+          "bytes": 3524
+        }
+      ],
+      "at": "2026-11-02T03:44:16.666380+00:00"
+    },
+    "build": {
+      "status": "done",
+      "note": "308/308 tests passed; Cloudflare build passed; full tsc existing errors documented.",
+      "evidence": [
+        {
+          "path": "windows\\cards.cjs",
+          "sha256": "88e332a3970a042d09adf6805a9861b002f0fa9356b920cf4ae34d2ff2e62a35",
+          "bytes": 11316
+        },
+        {
+          "path": "windows\\pos-void.cjs",
+          "sha256": "05d443af0e87487a7f9a5ebadcda79d763c5eb083094a524b626af714f09bc9c",
+          "bytes": 2167
+        },
+        {
+          "path": "docs\\LOCAL_WORKER_MAU_20261102.md",
+          "sha256": "ddcc4451e426954f5832f3e1d97dd8acd7827ff11ebf52e81022cf0fb7490c0e",
+          "bytes": 4602
+        }
+      ],
+      "at": "2026-11-02T04:17:37.941932+00:00"
+    },
+    "demonstrate": {
+      "status": "done",
+      "note": "Actual 20s HoaiMy/word-boundaries video and desktop POS preview inspected; previews retained in local outputs.",
+      "evidence": [
+        {
+          "path": ".project-state\\verification.md",
+          "sha256": "994942442dbff65b3bc773a122da561ecc4b75e653e6123af2d43890a61dc315",
+          "bytes": 5830
+        }
+      ],
+      "at": "2026-11-02T04:17:38.046121+00:00"
+    },
+    "integrate": {
+      "status": "in_progress",
+      "note": "Report contrast follow-up installed CSS only. Seven POS/visualizer hashes unchanged; original gradients/white labels overridden. 136 DOM contrast samples >=5.428:1, desktop and 1366 layout inspected. Existing AI/social blockers preserved.",
+      "evidence": [
+        {
+          "path": "windows\\pos-cloudflare-theme.css",
+          "sha256": "75a8f28c933e15d41a8d6d2c6fdaa5c627ac6d8b535fd7a116789b3b5e3b0d98",
+          "bytes": 10835
+        },
+        {
+          "path": ".project-state\\verification.md",
+          "sha256": "4c753817740fa8bb8da05538eea20c1a56780a99a030b94f2b772db02ff2ed7f",
+          "bytes": 7731
+        }
+      ],
+      "at": "2026-11-02T04:55:09.952553+00:00"
+    }
+  },
+  "next_action": "Complete pending Chrome AI pairing and actual publication checks; report CSS installed, normal POS reload still user-controlled.",
+  "history": [
+    {
+      "at": "2026-10-31T13:56:42.601346+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": ""
+    },
+    {
+      "at": "2026-10-31T14:09:54.435386+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "60 checks passed; Cloudflare build passed; static browser layout/control checks; real iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T14:09:54.497716+00:00",
+      "stage": "demonstrate",
+      "status": "not_tested",
+      "note": "Web preview verified; actual native iPhone display/import unavailable."
+    },
+    {
+      "at": "2026-10-31T14:09:54.557971+00:00",
+      "stage": "integrate",
+      "status": "blocked",
+      "note": "Wrangler is not authenticated; no DNS or database changes."
+    },
+    {
+      "at": "2026-10-31T18:19:32.658095+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "69 checks passed; Cloudflare build passed; five browser widths balanced; clipboard success/fallback VM verified; native iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T18:23:55.252147+00:00",
+      "stage": "integrate",
+      "status": "blocked",
+      "note": "PR #12 merged into kbl-web-moi at c3bc65b53e0fdb8bde34e2c4017519f5b4e0bd64; Cloudflare production still requires authenticated session. Patch ZIP apply/idempotency/conflict checks passed."
+    },
+    {
+      "at": "2026-10-31T18:54:29.708673+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Customer authorized private holdings ledger, gain/percent arrows and real-point chart; separate Scriptable widget, preserve POS/theme/auth."
+    },
+    {
+      "at": "2026-10-31T18:54:29.741564+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "API/SQLite and native widget VM tests pass; browser fixture form/privacy/chart flows pass; Cloudflare build passes. Native iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T18:55:32.283786+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "88 targeted tests pass; Cloudflare build passes. Browser fixture chart/privacy/add/edit/sale flows checked at four widths. No new typecheck errors; existing social-connections/remotion errors remain. Native iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T18:56:40.929105+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "88 targeted tests passed; final API/native 19 tests rerun after type narrowing fix. Final Cloudflare build passed. Browser fixture chart/privacy/add/edit/sale checked; native iPhone not_tested. Existing unrelated typecheck errors remain."
+    },
+    {
+      "at": "2026-11-02T03:44:16.666380+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Ưu tiên mẫu ảnh/video; khóa công thức POS; nguồn GitHub e3081b4 và màu bảng TV live đã đọc."
+    },
+    {
+      "at": "2026-11-02T04:17:37.941932+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "308/308 tests passed; Cloudflare build passed; full tsc existing errors documented."
+    },
+    {
+      "at": "2026-11-02T04:17:38.046121+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Actual 20s HoaiMy/word-boundaries video and desktop POS preview inspected; previews retained in local outputs."
+    },
+    {
+      "at": "2026-11-02T04:17:38.149472+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Awaiting deployed API and local link cutover; AI pairing/product photos not ready."
+    },
+    {
+      "at": "2026-11-02T04:29:51.403268+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Local loopback cutover and deployed anonymous-void API verified. Protected POS code hashes match. Owner sign-in and real account pairing still required; product photo mismatch/insufficient three-product set remains open."
+    },
+    {
+      "at": "2026-11-02T04:40:29.439429+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Owner authenticated. Specialist routing saved; five enabled profiles assigned to current live Windows worker, zero Chrome connections. db46f54 deployment success; six POS source hashes unchanged. Product photos/API providers/publishing still open."
+    },
+    {
+      "at": "2026-11-02T04:55:09.952553+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Report contrast follow-up installed CSS only. Seven POS/visualizer hashes unchanged; original gradients/white labels overridden. 136 DOM contrast samples >=5.428:1, desktop and 1366 layout inspected. Existing AI/social blockers preserved."
+    }
+  ],
+  "updated_at": "2026-11-02T04:55:09.952553+00:00"
+}

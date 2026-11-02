@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-26",
+  "target": "Cloudflare account owned by user; deployment not performed",
+  "testsPassed": 31,
+  "typescript": "passed",
+  "cloudflareBuild": "passed",
+  "wranglerDryRun": "passed",
+  "upload": "993.23 KiB / gzip: 288.49 KiB",
+  "auth": "Cloudflare Access signed owner application JWT; no trust in client Sites identity",
+  "workerName": "kbl-web-moi",
+  "newDatabase": "kbl-web-moi-db",
+  "newPrivateBucket": "kbl-web-moi-media",
+  "sitesProjectIdentity": "unchanged",
+  "oldWorkerAndDns": "unchanged",
+  "requiresUserSetup": [
+    "Wrangler OAuth login",
+    "New D1 Database ID",
+    "Private R2 bucket",
+    "Cloudflare Access team domain/AUD/policy"
+  ],
+  "sitesDefaultBuild": "passed"
+}

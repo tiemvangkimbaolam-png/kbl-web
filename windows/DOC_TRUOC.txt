@@ -1,0 +1,28 @@
+KBL WINDOWS MỚI 2.2 · GHÉP TIỆN ÍCH CHROME TỪ ADMIN VÀ RELAY POS CHỈ ĐỌC
+
+POS: trang http://127.0.0.1:39878/ → Lấy cấu hình POS trên máy này. Nhập URL local và mã local vào phần đồng bộ website sẵn có trong POS, kiểm tra đường dẫn data/product-photos. Không sửa file code POS. Chỉ cấu hình khi website mới đã triển khai các endpoint POS; source mới này chưa deploy lên web. Hướng dẫn đầy đủ: docs/POS_SYNC.md trong gói source, hoặc POS_SYNC.md đi kèm bộ Windows tải từ Admin.
+
+0. Tạm dừng bộ AI cũ và tắt tiện ích KBL cũ trong các hồ sơ sẽ dùng cho bộ mới; giữ nguyên dữ liệu và đăng nhập Chrome. Tránh hai bộ cùng điều khiển một tab.
+1. Cần Node.js 24, Google Chrome. Để dựng video cần FFmpeg, ffprobe và thư viện node-edge-tts đã có ở bộ worker cũ. Bộ dựng mới dùng Remotion trong thư mục remotion; nếu máy chưa có, mở thư mục đó và chạy npm install một lần. Khi không tìm thấy Remotion, worker tự dùng FFmpeg như trước. Đặt bộ mới trong một thư mục con của worker hiện tại để dùng lại công cụ, không dùng lại token server cũ. Dịch vụ giọng đọc cần Internet, chưa có xác nhận trực tiếp trên máy của bạn.
+2. Admin mới → Kết nối → Kết nối Windows → Tải kbl-config.json, đặt cạnh KBL_WINDOWS.cjs. File cấu hình có mã riêng, không gửi vào chat.
+3. Bấm BAT_DAU.cmd. Mở http://127.0.0.1:39878. Bộ mới dùng SQLite trong LOCALAPPDATA\KBL-New, không sửa dữ liệu bộ cũ.
+4. Nếu muốn giữ phiên Chrome cũ: trang local có danh sách các hồ sơ được quản lý cũ; chọn đúng hồ sơ và bấm Dùng hồ sơ này trước khi Mở đăng nhập. Không sao chép cookie. Nếu hồ sơ đang mở nhưng tiện ích chưa kết nối, bộ mới không tự mở tab khác.
+5. Admin → Đội AI → Thêm tài khoản. Windows nhận danh sách sau khoảng 15 giây và tự mở đúng hồ sơ Chrome. Bấm Mở Chrome + lấy mã trên thẻ tài khoản để Windows gửi mã KBL42 về thẻ.
+6. Trong đúng Chrome, mở chrome://extensions, bật Chế độ nhà phát triển, Tải tiện ích đã giải nén → chọn EXTENSION. Chrome yêu cầu người dùng tự nạp tiện ích; bộ cài không âm thầm thay chính sách bảo mật.
+7. Mở tiện ích KBL · Đội AI trong đúng cửa sổ Chrome, dán mã KBL42 từ thẻ tài khoản (dùng một lần trong 10 phút), bật nhận việc → Lưu → Kiểm tra kết nối và phiên. Mất mã thì bấm Lấy mã ghép mới trên thẻ. Phiên AI đăng nhập bằng trang chính thức của nhà cung cấp.
+8. Admin → Đội AI → Bắt đầu. Tạo bản tin. Bật đăng website trong Bản tin & Video khi muốn cho phép bài đủ điều kiện được xuất bản.
+
+Chạy nền: CHAY_AN.vbs. Tự chạy khi đăng nhập Windows: mở PowerShell chạy CAI_TU_KHOI_DONG.ps1 (nếu Windows cho phép script). Tắt nhận việc từ Admin trước khi đóng tiến trình. Bộ cũ cổng 39877 không bị tắt tự động.
+
+Ẩn cửa sổ: tiện ích chỉ ẩn cửa sổ Chrome đã xác minh bằng dấu ngẫu nhiên. Tab không liên quan không bị ẩn. Đăng nhập từ Admin mở lại đúng tab đã ghép trong 5 phút. Chrome phải tiếp tục chạy; không bấm dấu X. Trình duyệt đóng hoặc đăng nhập hết hạn có thể cần thao tác người dùng, hệ thống không vượt CAPTCHA.
+
+Tạo ảnh hỗ trợ adapter Gemini/ChatGPT. Duyệt ảnh hỗ trợ Gemini/Claude và đòi ảnh thật đính kèm. Grok có adapter văn bản ban đầu, cần kiểm tra selector trên tài khoản thật; không giao tạo ảnh cho Grok khi chưa có adapter ảnh. Các adapter phụ thuộc giao diện nhà cung cấp; kiểm thử giả lập không chứng minh tài khoản thật đã chạy.
+
+Video: Node Edge TTS xuất giọng và mốc chữ; bộ mới chỉ nhận mốc khớp lời đọc, không tự ước lượng toàn bộ phụ đề. Bộ dựng Remotion tạo video dọc 1080x1920 từ hai ảnh đã duyệt, bố cục sáng, tiêu đề theo bản tin, ba điểm chính và phụ đề khớp giọng; máy thiếu Remotion tự lùi về FFmpeg. File gốc giữ ở Windows; website chỉ dọn video tạm khi đủ biên nhận.
+
+BỘ THIẾT LẬP BỔ SUNG:
+MO_CAU_HINH.cmd tự chạy worker nền, chờ cổng local sẵn sàng rồi mới mở trang thiết lập. CHAY_NEN.cmd chỉ chạy nền, không mở trình duyệt. BAT_TU_KHOI_DONG.cmd và BO_TU_KHOI_DONG.cmd bật/bỏ shortcut của tài khoản Windows hiện tại. Không cần quyền Administrator; không đổi chính sách ExecutionPolicy. Nếu PowerShell chặn script, Windows báo lỗi và không ghi nhận cài thành công.
+
+Launcher giữ một phiên mỗi cấu hình, không giết Chrome hay worker cũ. Worker lỗi sẽ thử lại tối đa 5 lượt rồi dừng; log tại LOCALAPPDATA\KBL-New\worker-ID\worker-console.log. Tắt nhận việc tại Admin trước khi bảo trì. Bỏ tự khởi động không xóa dữ liệu hoặc dừng tiến trình đang làm. Không đóng cửa sổ Chrome bằng dấu X nếu muốn tiếp tục nhận việc.
+
+GIÁ CLOUD BK/ASK KHI TẮT MÁY: bản này có bàn giao cấu hình nguồn Google từ settings POS một lần. Đọc GIA_CLOUD_KHI_TAT_MAY.md trong gói. Không cần chạy Windows để bộ giá server tiếp tục sau khi Admin đã xác nhận nguồn; AI/video vẫn cần Windows. Khóa mã hóa chỉ tạo nếu Worker chưa có; TAO_KHOA_GIA_CLOUD.cmd sao chép khóa ngẫu nhiên, không in khóa. Đừng gửi mã/khóa vào chat.

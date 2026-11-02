@@ -1,41 +1,58 @@
-# Runtime dependencies
-node_modules/
+# Dependencies
+/node_modules/
+/.pnp
+.pnp.*
+# Keep authored Yarn tooling if the project adopts Yarn.
+/.yarn/*
+!/.yarn/patches/
+!/.yarn/plugins/
+!/.yarn/releases/
+!/.yarn/versions/
 
-# Secrets / environment
-.env
-.env.*
-!.env.example
-*.key
+# Generated builds and framework state
+/dist/
+/.next/
+/.vinext/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Test output
+/coverage/
+
+# Package-manager logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local environment and keys
+.env*
+.dev.vars*
 *.pem
-*.p12
-*.pfx
 
-# KBL runtime data - never commit customer/business live data
-data/
-logs/
-tmp/
-backups/
-deploy-backups/
-audit/
+# Checkout-local tool state
+/.wrangler/
+/.sites-runtime/
 
-# Runtime/generated media
-public/uploads/
+# Workspace scaffolding and publication archives
+/.agents/
+/.codex/
+/outputs/
+/work/
 
-# Temporary/editor files
-*.log
-*.tmp
-*.swp
-*.swo
+# OS metadata
 .DS_Store
-Thumbs.db
-.vscode/
-.idea/
 
-# Local archives
-*.7z
-*.rar
-*.tar
-*.tar.gz
+# Operational data and credentials must never enter source or publication.
+/windows/kbl-config.json
+/windows/.kbl-render-runtime/
+/windows/work/
+/windows/output/
+**/*.sqlite
+**/*.sqlite-wal
+**/*.sqlite-shm
 
-# Server source is never a public browser asset
-/public/app.js
+/windows/remotion/node_modules/
+/windows/remotion/.kbl-render/
+/windows/remotion/out/
