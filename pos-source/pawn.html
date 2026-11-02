@@ -2025,6 +2025,13 @@
     }
 
     function pawnUpdateRateLabels(rates) {
+        // A saved print blueprint may predate the rate-label class. Rebind
+        // only its metadata line; keep the saved layout and customer fields.
+        document.querySelectorAll('#lien-1 .label-id, #lien-2 .label-id').forEach(id => {
+            const group = id.parentElement && id.parentElement.parentElement;
+            const label = Array.from(group ? group.children : []).find(el => /^LS\s*:/.test(el.textContent.trim()) && !el.querySelector('.label-id'));
+            if (label) label.classList.add('label-pawn-rates');
+        });
         const percent = value => Number(value).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + '%';
         const line = `LS: ${percent(rates.interestRate)} | PTĐ: ${percent(rates.appraisalRate)} | PĐQ: ${percent(rates.valuationRate)} | CPBG: ${percent(rates.storageRate)}`;
         document.querySelectorAll('.label-pawn-rates').forEach(el => el.textContent = line);
@@ -2945,6 +2952,7 @@
         }
         // Giữ blueprint cũ; chỉ chèn phần nhận tiền nếu bản lưu cũ chưa có.
         ensurePawnDisbursementPrintBlock();
+        pawnUpdateRateLabels(pawnCurrentFormRates(parseFloat(document.getElementById('inp-money').value) || 0));
     }
 
     function setTabFilter(type) {

@@ -23,3 +23,17 @@ test('same day counts as one, thirty calendar days count as thirty, leap day and
 test('historical closed loans keep saved rates, projections stay closed and reading does not mutate source object',()=>{const{ctx,fields}=fixture(),closed=record(120000000,{status:'Đã chuộc',tienLai:1800000,tienPhi:1800000}),before=JSON.stringify(closed);assert.equal(ctx.pawnCalculateDue(closed,'2026-11-02').fee,1800000);assert.equal(ctx.pawnSyncSafeRecord(closed).totalDue,0);assert.equal(ctx.pawnLanView(closed).totalDue,0);fields['inp-id']={value:closed.id};ctx.window.__kblPawnClosedRateSnapshot=closed;assert.equal(ctx.pawnCurrentFormRates(120000000).feeRate,1.5);fields['inp-id'].value='NEW-FIXTURE';assert.equal(ctx.pawnCurrentFormRates(120000000).feeRate,1);assert.equal(JSON.stringify(closed),before);});
 test('confirmed interest payment and redemption store the rate actually charged; no duplicate charge',()=>{for(const action of['pawnApplyInterestPayment','pawnApplyRedeem']){const{ctx,persisted}=fixture(),r=record(120000000),rows=[r],result=ctx[action](r,rows);assert.equal(result.success,true);assert.equal(result.transaction.interest,1800000);assert.equal(result.transaction.fee,1200000);assert.equal(r.interestRate,1.5);assert.equal(r.feeRate,1);assert.equal(persisted.length,1);assert.equal(ctx[action](r,rows).success,false);assert.equal(persisted.length,1);}});
 test('top-up crossing the threshold records new principal and the new tier without changing paid history on the old loan',()=>{const{ctx,persisted}=fixture(),r=record(100000000),result=ctx.pawnApplyTopUp(r,[r],20000000);assert.equal(result.success,true);assert.equal(result.due.interestFee,3000000);assert.equal(result.oldRecord.feeRate,1.5);assert.equal(result.newRecord.money,120000000);assert.equal(result.newRecord.interestRate,1.5);assert.equal(result.newRecord.feeRate,1);assert.equal(result.newRecord.paidInterestTotal,0);assert.equal(result.newRecord.paidFeeTotal,0);assert.equal(persisted.length,1);});
+test('loading a legacy saved print blueprint rebinds both unlabeled rate lines without rewriting storage or other print content',()=>{
+ const {ctx,fields}=fixture(),labels=[],ids=[];
+ for(let i=0;i<2;i++){
+  const classes=new Set(),label={textContent:i?'LS: 1,66% | PTĐ:0.34%, PĐQ:0.4%, CPBG:0.4%':'LS: 1,5% | Phí:1.5%',classList:{add:name=>classes.add(name)},querySelector:()=>null,classes};
+  const id={parentElement:null},row={textContent:'Mã số: FIXTURE',querySelector:()=>id},group={children:[row,label]};row.parentElement=group;id.parentElement=row;ids.push(id);labels.push(label);
+ }
+ ctx.document.querySelectorAll=selector=>selector.includes('#lien-1 .label-id')?ids:selector==='.label-pawn-rates'?labels.filter(l=>l.classes.has('label-pawn-rates')):[];
+ fields['inp-money']={value:'120000000'};
+ const savedBlueprint='<div>FIXTURE saved custom layout, signatures and metadata</div>';
+ ctx.localStorage={getItem:key=>key==='kbl_pawn_full_blueprint'?savedBlueprint:null,setItem:()=>assert.fail('Must not rewrite the saved blueprint')};
+ ctx.ensurePawnDisbursementPrintBlock=()=>{};vm.runInContext(functions.get('loadSavedTemplates'),ctx);ctx.loadSavedTemplates();
+ assert.equal(fields['print-wrapper-blueprint'].innerHTML,savedBlueprint);
+ assert.equal(labels[0].textContent,labels[1].textContent);assert.match(labels[1].textContent,/LS: 1,5%.*PTĐ: 0,4%.*PĐQ: 0,3%.*CPBG: 0,3%/);
+});

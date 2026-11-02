@@ -11,7 +11,7 @@
   "patched": {
     "main.js": "81868b4c7a4a86c9165a2b6d4c9f12f299c695b7b649cdae561ca176a49662a5",
     "renderer.js": "a8fba9a15d6cd74dc8ecb8203bf22c2c942a599b501ed3c31ceb185d56d38703",
-    "pawn.html": "4c988adbf0c4bfdeb2431e5fbc4c7a64033f50736d53d6b3d88fc1f03cbf811b",
+    "pawn.html": "d5ce3323e33fe000a5c67b5bd29c289ddd1ca9faa3d86ee1d8ac45f36cee8d5a",
     "index.html": "4247d39006c75c48d60b5745b665a0ff29a02ddc4a789af691044c41ee6ccbcd",
     "package.json": "2776d2ab948174b40c2eb9a9b46bb7186b5ee2cdd81fb84d770c0c1f05c9e3e0",
     "kbl-product-photos.cjs": "840d883a54af1305a4d65342caee81cb29c01cdd39e248f24fe90695e0312e85"
@@ -65,5 +65,13 @@
     "closedHistory": "preserved; no data migration",
     "installedBaseSha256": "760ad5390cc335fa9a67aff3b2f04a813da79dbbd0f8825dc0e0f6ee40bb1535",
     "installedPatchedSha256": "a64f12b39751616dbfdf03bd24a27b93680841bea959da483d6949a3506d4e08"
+  },
+  "pawnBlueprintPresentation20261102": {
+    "changedFunctions": [
+      "pawnUpdateRateLabels",
+      "loadSavedTemplates"
+    ],
+    "financialFunctionsUnchanged": true,
+    "savedBlueprintNotRewritten": true
   }
 }

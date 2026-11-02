@@ -5,69 +5,69 @@
   "stages": {
     "specify": {
       "status": "done",
-      "note": "Owner explicit exception permits only principal-tier pawn rates; all unrelated formulas and finalized records protected. AI flexible FIFO with publication receipts and frozen snapshots.",
+      "note": "Owner requested lien2 display and exchange layout fixes; owner confirmed review and second image were not sent.",
       "evidence": [
         {
           "path": ".project-state\\contract.md",
-          "sha256": "2219eaead771bddb2e715870b512afb9c2d56f92dbd34b1a056416c3c0d08cfa",
-          "bytes": 4971
+          "sha256": "4c45e8f11b9417a9a8d76565f645a08feda6f9b3ab946237999f6281773fe96e",
+          "bytes": 6089
         }
       ],
-      "at": "2026-11-02T10:30:47.749289+00:00"
+      "at": "2026-11-02T14:16:58.126472+00:00"
     },
     "build": {
       "status": "done",
-      "note": "TV cells independent; 331/331 tests and Cloudflare build passed. Real browser local fixture drag, resize and per-cell typography checked.",
+      "note": "335 tests and Cloudflare build pass; five-file worker patch installed, first image and run retained.",
       "evidence": [
         {
-          "path": "lib\\kbl\\tv-design.ts",
-          "sha256": "a6db05774103a05c2da2b94527363bed58bef1a1a6e86f039f634f067e24fc76",
-          "bytes": 9853
+          "path": "tests\\browser-scene-handoff.test.mjs",
+          "sha256": "7aea96e390decc84749a2cd50f9c7dbf338acf6233e169acb70a6547d2bedf89",
+          "bytes": 3537
         },
         {
-          "path": "app\\components\\tv-board.tsx",
-          "sha256": "59fdc27760cdfb4edd16c02eff106b63b96132e073de783c97f2f94b924d77ee",
-          "bytes": 15384
+          "path": "tests\\pawn-rate-policy.test.mjs",
+          "sha256": "4c0a47c8d5c557bf902b370b1f0e94c03eccc3f510859fdc96bba14b43c43790",
+          "bytes": 7923
         },
         {
-          "path": "app\\components\\tv-editor.tsx",
-          "sha256": "99b864f21fb68084c04987287984effbaf2b50494cea0ddcff58ec74c73c898b",
-          "bytes": 31470
-        },
-        {
-          "path": "tests\\tv-cells.test.mjs",
-          "sha256": "aa78b5d09602a1b1604c4d663a44142c3201751d1d1bbe538b1b8f7845169d1f",
-          "bytes": 3562
+          "path": "windows\\pos-compact-runtime.js",
+          "sha256": "123b28903de255a944327ea5df2f46cf1ed610ccc41231711eb965dc7a69ea88",
+          "bytes": 11626
         }
       ],
-      "at": "2026-11-02T10:45:11.611143+00:00"
+      "at": "2026-11-02T14:16:58.230695+00:00"
     },
     "demonstrate": {
       "status": "done",
-      "note": "Offline POS fixture visually checked both liens and inclusive-date examples; actual Admin flexible setting and nine paired accounts inspected. No physical print or completed publication claimed.",
+      "note": "Offline browser fixture verified two old-blueprint liens at100m/120m and exchange modes back to sale, preserved controls/handlers. Not physical POS or print.",
       "evidence": [
         {
-          "path": ".project-state\\verification.md",
-          "sha256": "cd1c797f7adc3f733d25b36f4bfd3293de55710dfa894b8a9d2117e3218d6668",
-          "bytes": 10235
+          "path": "docs\\POS_LIEN2_BO_CUC_VA_KHOI_PHUC_AI_20261102.md",
+          "sha256": "9cfe14fad854bd6a61f8d0db795c0603aa2c5d56602ff3583b9a9aec219d72bb",
+          "bytes": 4898
         }
       ],
-      "at": "2026-11-02T10:30:48.016529+00:00"
+      "at": "2026-11-02T14:16:58.342871+00:00"
     },
     "integrate": {
       "status": "in_progress",
-      "note": "Cloudflare 0120ce2 production success 2026-11-02T10:27:22Z. Two owner-confirmed held consults requeued in Admin; old runs expired with evidence retained. New research claim observed on Gemini. Actual Chrome send/response and complete publication receipts still unverified; owner asked to inspect three profiles.",
+      "note": "API deployed; worker installed. POS package locked by open app; original archive/source unchanged. One real image accepted, no publication receipt.",
       "evidence": [
         {
-          "path": "docs\\POS_LAI_CAM_DO_VA_DOI_AI_20261102.md",
-          "sha256": "97cb4fbeefca1cc6e136456473de322d9607585bb60e2a89efcd049e3c4736d6",
-          "bytes": 6019
+          "path": ".project-state\\verification.md",
+          "sha256": "c63e58334ffb25c91faa05d98eb11a89101a4448aed39143c6508f8d225549c3",
+          "bytes": 11716
+        },
+        {
+          "path": "docs\\POS_LIEN2_BO_CUC_VA_KHOI_PHUC_AI_20261102.md",
+          "sha256": "9cfe14fad854bd6a61f8d0db795c0603aa2c5d56602ff3583b9a9aec219d72bb",
+          "bytes": 4898
         }
       ],
-      "at": "2026-11-02T10:29:59.900794+00:00"
+      "at": "2026-11-02T14:16:58.449419+00:00"
     }
   },
-  "next_action": "Deploy TV update and apply readable layout to actual saved template; verify public TV.",
+  "next_action": "Owner closes POS normally then rerun ../install-pos-presentation.py; owner reloads KBL extension2.1.2 in Gemini Bun, continuation flag already set. Verify actual second image and publication receipt.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -224,7 +224,49 @@
       "stage": "build",
       "status": "done",
       "note": "TV cells independent; 331/331 tests and Cloudflare build passed. Real browser local fixture drag, resize and per-cell typography checked."
+    },
+    {
+      "at": "2026-11-02T10:50:59.259424+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requested larger TV prices and independent draggable cells; protect all POS/price/AI behavior and preserve saved branding."
+    },
+    {
+      "at": "2026-11-02T10:50:59.373559+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Actual pointer drag and resize on local fixture, per-cell styling and save/reload passed. Live /tv visually inspected with actual quotes after production save v4."
+    },
+    {
+      "at": "2026-11-02T10:50:59.502967+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "TV scope achieved: Cloudflare 28d98ca success, actual Admin saved readable design v4, public API and live TV screenshot confirmed. Physical TV needs normal reload. Broader prior AI end-to-end publishing verification remains open; no running AI jobs altered by TV change."
+    },
+    {
+      "at": "2026-11-02T14:16:58.126472+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requested lien2 display and exchange layout fixes; owner confirmed review and second image were not sent."
+    },
+    {
+      "at": "2026-11-02T14:16:58.230695+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "335 tests and Cloudflare build pass; five-file worker patch installed, first image and run retained."
+    },
+    {
+      "at": "2026-11-02T14:16:58.342871+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Offline browser fixture verified two old-blueprint liens at100m/120m and exchange modes back to sale, preserved controls/handlers. Not physical POS or print."
+    },
+    {
+      "at": "2026-11-02T14:16:58.449419+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "API deployed; worker installed. POS package locked by open app; original archive/source unchanged. One real image accepted, no publication receipt."
     }
   ],
-  "updated_at": "2026-11-02T10:45:11.611143+00:00"
+  "updated_at": "2026-11-02T14:16:58.449419+00:00"
 }

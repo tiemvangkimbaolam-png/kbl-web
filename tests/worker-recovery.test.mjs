@@ -60,6 +60,14 @@ test('native two-image job survives scene restart, renews original lease and rec
         const firstBody = { runId: first.runId, nonce: first.nonce, base64: image(1).toString('base64'), mime: 'image/png', transcript: 'Fixture scene one', attachments: [] };
         const second = (await hub.result(account, firstBody)).nextTask;
         assert.ok(second); assert.notEqual(second.nonce, first.nonce);
+        const sceneOne=structuredClone(hub.view().runs.find(r=>r.id===first.runId).rows);
+        await assert.rejects(hub.continueUnsentImage(first.runId,1,false),/xác nhận/);
+        await assert.rejects(hub.continueUnsentImage(first.runId,0,true),/Cảnh đã thay đổi/);
+        await hub.continueUnsentImage(first.runId,1,true);
+        const continuation=(await hub.poll(account,{ready:true,acceptWork:true,currentRunId:first.runId,continuity:'extension-52r1'})).task;
+        assert.equal(continuation.ownerConfirmedUnsentImage,true);assert.equal(continuation.nonce,second.nonce);assert.ok(continuation.acceptedSceneNonces.includes(first.nonce));
+        assert.deepEqual(hub.view().runs.find(r=>r.id===first.runId).rows,sceneOne);assert.equal(claims,1);assert.equal(uploads,1);
+        await assert.rejects(hub.continueUnsentImage(first.runId,1,true),/Đã xác nhận/);
         const originalPrompt = (await bridge.getJob(job.id)).prompt;
         job.lease_until = Date.now() + 30 * 60000;
         bridge = create({ config, ledger }); await bridge.sync();

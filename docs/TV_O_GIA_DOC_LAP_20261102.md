@@ -13,4 +13,4 @@ Kiểm chứng:
 - 331/331 bài kiểm thử hệ thống đạt, build Cloudflare đạt. Các tệp TV thay đổi không có lỗi TypeScript; toàn dự án còn năm lỗi cũ ở social-connections/Remotion.
 - API với SQLite thử kiểm tra lưu/tải tọa độ và kiểu chữ riêng, từ chối sửa đồng thời, dữ liệu giá client, khóa ô không hợp lệ và tràn khung.
 - Trình duyệt chạy đúng TVEditor/TVBoard với API local và giá mẫu: kéo ô mua 999.9 từ (506,401) sang (454,375), 11 ô khác không đổi; hoàn tác khôi phục. Kéo tay nắm bên phải đổi rộng 500→535 trong khi X/Y không đổi. Chỉnh cỡ 100 của một ô giữ ô bán cạnh bên ở 94. Các phép thử này không ghi lên máy chủ cửa hàng.
-- Kiểm tra triển khai, lưu mẫu thật và giá live được bổ sung trong bàn giao sau khi áp dụng.
+- Cloudflare kbl-web-moi xác nhận commit 28d98ca thành công lúc 10:48:33 UTC (17:48 giờ Việt Nam). Đã áp dụng qua Admin và lưu mẫu thật phiên bản 4. Đọc API công khai xác nhận 12 ô, giá 94, khoảng cách 52; tên/địa chỉ, màu, lớp và vị trí các phần khác khớp bản trước. Trang /tv thật đã được mở, kiểm tra chữ/số với dữ liệu giá đang đồng bộ và chụp ảnh. Chưa thao tác trên TV vật lý của chủ tiệm; cần tải lại trang TV một lần để nhận mã mới.

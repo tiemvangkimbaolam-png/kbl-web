@@ -283,6 +283,20 @@ function createHub({bridge,dataDir,now=Date.now}) {
     }finally{busy=false;}
   }
   function unblock(id){const a=state.accounts.find(a=>a.id===id);if(!a)throw fault('ACCOUNT_MISSING','Không có hồ sơ.');if(Object.values(state.runs).some(r=>r.accountId===id&&r.status==='attention'))throw fault('REVIEW_RUN_FIRST','Có phiên chưa rõ kết quả. Kiểm tra phiên chat và xử lý hồ sơ trước; chưa tự gửi prompt lần nữa.');a.blocked=false;save();}
-  return {view,add,auth,enabled,tick,poll,result,asset,failure,unblock,retry,reconcile,pairing,issuePairing,redeemPairing,requestLogin,loginStatus};
+  async function continueUnsentImage(id,scene,confirmed){
+    if(confirmed!==true)throw fault('OWNER_CONFIRM','Chủ tiệm cần xác nhận cảnh ảnh này chưa được gửi.');
+    if(busy)throw fault('BUSY','Worker đang xử lý; thử lại sau.');busy=true;
+    try{
+      const r=state.runs[id];
+      if(!r||r.kind!=='images'||r.rows?.length!==1||scene!==1||r.task?.scene!==1||!['dispatched','attention'].includes(r.status)||r.raw||r.submission)throw fault('SCENE_CHANGED','Cảnh đã thay đổi hoặc có kết quả; chưa giao lại.');
+      const s=await bridge.sync(),c=s.claims?.[r.jobId];
+      if(!s.connected||!claimFor(r,c)||s.outbox.some(o=>receiptFor(r,o)&&!['confirmed','discarded'].includes(o.status)))throw fault('RESULT_PENDING','Giữ kết quả/lease hiện có để đối soát.');
+      if(r.task.ownerConfirmedUnsentImage)throw fault('ALREADY_CONFIRMED','Đã xác nhận cảnh này; không gửi thêm lệnh.');
+      ledger.set('owner-unsent-image:'+r.id+':'+r.task.nonce,{runId:r.id,nonce:r.task.nonce,scene,confirmedAt:now(),retainedSceneAsset:r.rows[0].assetId});
+      r.task.ownerConfirmedUnsentImage=true;r.task.acceptedSceneNonces=Object.keys(r.acceptedNonces||{});r.status='dispatched';r.updatedAt=now();r.message='Chủ xác nhận cảnh 2 chưa gửi; tiếp tục đúng cảnh, giữ ảnh 1 và mã lượt.';save();
+      return {message:r.message};
+    }finally{busy=false;}
+  }
+  return {view,add,auth,enabled,tick,poll,result,asset,failure,unblock,retry,reconcile,pairing,issuePairing,redeemPairing,requestLogin,loginStatus,continueUnsentImage};
 }
 module.exports={createHub,PROTOCOL,hash};
