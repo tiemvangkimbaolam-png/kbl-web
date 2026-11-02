@@ -33,7 +33,7 @@ export default function AdminApp({ view, userName, signOut }: {
     catch (e: any) {
         setError(e.message);
     } }
-    useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, []);
+    useEffect(() => { load(); const t = setInterval(() => { if (!document.hidden) void load(); }, 15000); return () => { ++loadSequence.current; clearInterval(t); }; }, []);
     async function action(path: string, body: any, ok = 'Đã lưu.', method = 'POST') { setBusy(true); setMessage(''); try {
         const r = await api('admin/' + path, method, body);
         setMessage(ok);
