@@ -51,23 +51,28 @@
     },
     "integrate": {
       "status": "in_progress",
-      "note": "Report contrast follow-up installed CSS only. Seven POS/visualizer hashes unchanged; original gradients/white labels overridden. 136 DOM contrast samples >=5.428:1, desktop and 1366 layout inspected. Existing AI/social blockers preserved.",
+      "note": "Completed compact UI request and A4 signature gap +8mm. Original presentation prefix preserved; eight other source/style hashes unchanged. Fixture browser preserved209 controls/111 handlers after summary refresh; no duplicate IDs; help and top button checked. Actual printing not tested.",
       "evidence": [
         {
-          "path": "windows\\pos-cloudflare-theme.css",
-          "sha256": "75a8f28c933e15d41a8d6d2c6fdaa5c627ac6d8b535fd7a116789b3b5e3b0d98",
-          "bytes": 10835
+          "path": "pos-source\\kbl-jewel-ui.js",
+          "sha256": "1bd2e1325e95ac8e93f52660cc6c2eeaec713eb181b5b83a23334d1783e3728a",
+          "bytes": 14580
+        },
+        {
+          "path": "docs\\POS_GON_GIAO_DIEN_20261102.md",
+          "sha256": "d44b1c1e56854c7823cc75961b0b14f86abbca3e7d9c90d4e27cd90db3844619",
+          "bytes": 2646
         },
         {
           "path": ".project-state\\verification.md",
-          "sha256": "4c753817740fa8bb8da05538eea20c1a56780a99a030b94f2b772db02ff2ed7f",
-          "bytes": 7731
+          "sha256": "d19453d23d91db6e1d4c8f2e3e0756e93a3670ce9c20ca2cc2d68ae6af16c6e1",
+          "bytes": 8734
         }
       ],
-      "at": "2026-11-02T04:55:09.952553+00:00"
+      "at": "2026-11-02T08:23:22.773645+00:00"
     }
   },
-  "next_action": "Complete pending Chrome AI pairing and actual publication checks; report CSS installed, normal POS reload still user-controlled.",
+  "next_action": "Compact POS UI is installed; normal POS reload remains user-controlled. Resume pending actual Chrome pairing, provider and publication verification separately.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -170,7 +175,13 @@
       "stage": "integrate",
       "status": "in_progress",
       "note": "Report contrast follow-up installed CSS only. Seven POS/visualizer hashes unchanged; original gradients/white labels overridden. 136 DOM contrast samples >=5.428:1, desktop and 1366 layout inspected. Existing AI/social blockers preserved."
+    },
+    {
+      "at": "2026-11-02T08:23:22.773645+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Completed compact UI request and A4 signature gap +8mm. Original presentation prefix preserved; eight other source/style hashes unchanged. Fixture browser preserved209 controls/111 handlers after summary refresh; no duplicate IDs; help and top button checked. Actual printing not tested."
     }
   ],
-  "updated_at": "2026-11-02T04:55:09.952553+00:00"
+  "updated_at": "2026-11-02T08:23:22.773645+00:00"
 }

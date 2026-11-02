@@ -21,3 +21,5 @@ Căn bảng giá mobile: khoảng hở 12px của grid cũ cộng thêm trên t�
 
 02/11/2026 — yêu cầu hiện tại: ưu tiên mẫu ảnh/video local worker cho sản phẩm và bảng giá vàng, tông trắng ngà/hồng đào/đồng giống bảng giá live. Sau đó sửa giao diện POS chỉ bằng CSS và nối các luồng chưa ổn sang Cloudflare. Tuyệt đối không sửa công thức, logic bán hàng/bù trừ/hóa đơn/cầm đồ, dữ liệu hoặc giá POS. Giữ các luồng đang hoạt động; giá mới không hủy edition/lease/receipt đang làm. Không xóa bộ cũ.
 Mẫu phải dựng bằng mã, ảnh sản phẩm gốc và snapshot đã chốt; không dùng AI vẽ số hoặc hàng thật. Bản preview không tự đăng.
+
+02/11/2026 — chủ tiệm yêu cầu làm gọn POS theo bảy ảnh: thay các thanh nhảy mục bằng một nút lên đầu trang ở góc phải; đưa hướng dẫn/ghép hồ sơ xuống dưới mục 4–5; bỏ tiêu đề và giải thích giao diện thừa; gom thanh tìm kiếm/in tem với bộ lọc kho, đưa cấu hình máy in xuống dưới kho. Giữ mọi chức năng, công thức, trạng thái và dữ liệu đã chốt. Cho phép tăng khoảng ký giữa Bảng kê thu mua và Giấy đề nghị bán vàng; phần bổ sung trình bày tách khỏi mã nghiệp vụ.
