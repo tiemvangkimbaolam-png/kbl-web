@@ -17,25 +17,25 @@
     },
     "build": {
       "status": "done",
-      "note": "308/308 tests passed; Cloudflare build passed; full tsc existing errors documented.",
+      "note": "325/325 tests and Cloudflare build pass; compact worker queue aligns with FIFO and keeps held/consult jobs. Pawn installed source passed 6 tests, other POS files unchanged.",
       "evidence": [
         {
-          "path": "windows\\cards.cjs",
-          "sha256": "88e332a3970a042d09adf6805a9861b002f0fa9356b920cf4ae34d2ff2e62a35",
-          "bytes": 11316
+          "path": "lib\\kbl\\api.ts",
+          "sha256": "daf9455aa324d17f9593879a188fffc7e4f68a3b042ba1fb77d9f0a3b2f3c64a",
+          "bytes": 46071
         },
         {
-          "path": "windows\\pos-void.cjs",
-          "sha256": "05d443af0e87487a7f9a5ebadcda79d763c5eb083094a524b626af714f09bc9c",
-          "bytes": 2167
+          "path": "tests\\api-recovery.test.mjs",
+          "sha256": "9215c4acd75eb6406a205ee1f8bc88c9a67e423f0304bcea0eab16c8bfe83eba",
+          "bytes": 14366
         },
         {
-          "path": "docs\\LOCAL_WORKER_MAU_20261102.md",
-          "sha256": "ddcc4451e426954f5832f3e1d97dd8acd7827ff11ebf52e81022cf0fb7490c0e",
-          "bytes": 4602
+          "path": "docs\\POS_LAI_CAM_DO_VA_DOI_AI_20261102.md",
+          "sha256": "dc7c40722f0c2bdfaf4f8da5a574b7f4099a682c192ee9f2806e71932e8c383c",
+          "bytes": 5744
         }
       ],
-      "at": "2026-11-02T04:17:37.941932+00:00"
+      "at": "2026-11-02T10:25:22.300087+00:00"
     },
     "demonstrate": {
       "status": "done",
@@ -77,7 +77,7 @@
       "at": "2026-11-02T10:10:43.196285+00:00"
     }
   },
-  "next_action": "Push tested code, verify Cloudflare deployment and real AI progress/publication receipts; preserve uncertain running jobs and existing financial records.",
+  "next_action": "Deploy queue follow-up and verify real worker progress without test posts.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -198,7 +198,13 @@
       "stage": "integrate",
       "status": "in_progress",
       "note": "Installed owner-authorized pawn tier policy only; seven other POS files unchanged, no data migration or forced reload. Actual source tests pass and offline two-copy print labels checked. 324 tests and final Cloudflare build pass. Nine AI accounts observed paired with real work accepted; flexible routing saved. Receipt-gated followups and scheduled outlook backlog fix ready for deployment."
+    },
+    {
+      "at": "2026-11-02T10:25:22.300087+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "325/325 tests and Cloudflare build pass; compact worker queue aligns with FIFO and keeps held/consult jobs. Pawn installed source passed 6 tests, other POS files unchanged."
     }
   ],
-  "updated_at": "2026-11-02T10:10:43.196285+00:00"
+  "updated_at": "2026-11-02T10:25:22.300087+00:00"
 }

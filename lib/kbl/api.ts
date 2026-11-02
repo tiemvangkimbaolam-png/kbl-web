@@ -20,6 +20,7 @@ import { env } from 'cloudflare:workers';
 import { z } from 'zod';
 import * as S from './store';
 import * as P from './pipeline';
+import {oldestUnfinishedStoryId} from './story-order';
 import * as POS from './pos';
 import { admin, worker } from './auth';
 import { assistantState } from './assistant-state.mjs';
@@ -414,7 +415,11 @@ export async function handle(req: Request): Promise<Response> {
                     let held:any=[];try{held=JSON.parse(u.searchParams.get('held')||'[]');}catch{fail('Danh sách công việc chưa hợp lệ.');}
                     if(!Array.isArray(held)||held.length>40||held.some((id:any)=>typeof id!=='string'||!/^[a-zA-Z0-9:_-]{1,160}$/.test(id)))fail('Danh sách công việc chưa hợp lệ.');
                     const cols='id,story_id,stage,status,owner,exclude_account,lease_until,attempt,result,result_hash,error,created_at,updated_at';
-                    const active=await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE status IN ('queued','leased','running','attention','blocked','waiting-revision') ORDER BY created_at ASC LIMIT 300`).all<any>();
+                    // Older Windows builds choose a higher-stage task first.
+                    // Offer only queued tasks the FIFO gate can actually grant;
+                    // otherwise a later write task can hide the head research.
+                    const oldest=await oldestUnfinishedStoryId();
+                    const active=await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE status IN ('queued','leased','running','attention','blocked','waiting-revision') AND (? IS NULL OR stage='consult' OR story_id=? OR status<>'queued') ORDER BY created_at ASC LIMIT 300`).bind(oldest,oldest).all<any>();
                     const claimed=held.length?await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(held)).all<any>():{results:[]};
                     return response({jobs:[...new Map([...active.results,...claimed.results].map((j:any)=>[j.id,j])).values()],settings:await S.settings()});
                 }

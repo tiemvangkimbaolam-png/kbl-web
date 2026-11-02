@@ -27,8 +27,14 @@ Không thêm tài khoản, không đổi khóa/quyền hay chọn thêm kênh đ
 
 ## Kiểm chứng
 
-- 324/324 bài kiểm thử hệ thống qua với SQLite thật trong bộ mô phỏng D1/R2.
+- 325/325 bài kiểm thử hệ thống qua với SQLite thật trong bộ mô phỏng D1/R2.
 - Sáu bài kiểm thử chính sách cầm đồ cũng chạy trực tiếp trên tệp POS đã cài. Bao gồm 99.999.999đ, đúng 100 triệu, 100.000.001đ, 120 triệu; một ngày, 30 ngày, năm nhuận; đóng lãi/chuộc trùng, phiếu đã chốt và lấy thêm tiền vượt ngưỡng. Tác động ghi/in/gửi trong phép thử đều được mô phỏng.
 - Kiểm tra AST: chỉ mười hàm cầm đồ liên quan tỷ lệ thay đổi và bốn helper được thêm; hàm đếm ngày và toàn bộ markup khác ngoài bốn nhãn tỷ lệ giữ nguyên.
 - Bản xem thử trình duyệt dùng dữ liệu mẫu: hai liên ghi đúng, không tràn chữ; đúng 100 triệu một ngày có 50.000đ lãi + 50.000đ phí; 120 triệu một ngày có 60.000đ lãi + 40.000đ phí. Chưa thử máy in thật.
 - Build Cloudflare qua. Kiểm tra triển khai và tiến trình tài khoản thật được ghi riêng trong bàn giao cuối.
+
+## Đồng bộ đầu hàng đợi Windows
+
+Gói việc gửi Windows chỉ đưa việc tin tức đang tới lượt; giữ nguyên các việc đã nhận và tư vấn độc lập. Điều này tránh worker chọn bước viết của tin mới rồi bị máy chủ từ chối trong khi bước tìm nguồn của tin cũ vẫn đang chờ. Các việc tin sau vẫn nguyên trong dữ liệu, tự xuất hiện khi tin trước hoàn tất và đủ biên nhận. Kiểm thử xác nhận việc đang chạy không bị ẩn, không xóa hay giao lại.
+
+Bản triển khai đầu c966fe1 đã được Cloudflare kbl-web-moi xác nhận thành công lúc 10:14 UTC ngày 02/11/2026. Trang thật đã hiện điều phối linh hoạt; chín tài khoản ghép được quan sát. Sau chủ tiệm xác nhận chưa thấy yêu cầu gửi, lượt tư vấn bị giữ ở Gemini đã được giao lại qua Admin và một ChatGPT khác nhận. Chưa có bằng chứng bản tin đã xuất bản đủ kênh; không dùng trạng thái kết nối làm bằng chứng hoàn thành.

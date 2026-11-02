@@ -137,3 +137,19 @@ test('compact worker queue includes held completed attempts for late ACK reconci
     assert.equal((await call(route,undefined,{})).status,401);
     assert.equal((await call('worker/queue?active=1&held='+encodeURIComponent(JSON.stringify(['bad id'])),undefined,headers)).status,422);
 });
+
+test('compact queue exposes the FIFO head rather than a later high-priority write, while preserving consultation and held work',async()=>{
+    db.prepare("UPDATE records SET data=json_set(data,'$.status','fixture-finished') WHERE kind='story'").run();
+    const w=(await call('admin/workers',{label:'FIFO queue fixture'})).data,headers={'x-kbl-worker-token':w.token};
+    for(const [id,at]of[['fifo-head',1],['fifo-later',2]])db.prepare("INSERT INTO records(kind,id,data,created_at,updated_at) VALUES('story',?,?,?,?)").run(id,JSON.stringify({status:'working',kind:'news'}),at,at);
+    const insert=db.prepare('INSERT INTO jobs(id,story_id,stage,status,created_at,updated_at) VALUES(?,?,?,?,?,?)');
+    insert.run('fifo-research','fifo-head','research','queued',1,1);
+    insert.run('fifo-write','fifo-later','write','queued',2,2);
+    insert.run('fifo-held','fifo-later','review','running',3,3);
+    insert.run('fifo-consult','visitor-fixture','consult','queued',4,4);
+    const r=await call('worker/queue?active=1',undefined,headers);assert.equal(r.status,200);
+    const ids=r.data.jobs.map(j=>j.id);assert.ok(ids.includes('fifo-research'));assert.ok(!ids.includes('fifo-write'));assert.ok(ids.includes('fifo-consult'));assert.ok(ids.includes('fifo-held'));
+    assert.equal(db.prepare("SELECT status FROM jobs WHERE id='fifo-write'").get().status,'queued','Future work is retained rather than cancelled');
+    db.prepare("UPDATE records SET data=json_set(data,'$.status','published') WHERE kind='story' AND id='fifo-head'").run();
+    const next=await call('worker/queue?active=1',undefined,headers);assert.ok(next.data.jobs.some(j=>j.id==='fifo-write'));
+});
