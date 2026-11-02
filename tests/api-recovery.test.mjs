@@ -37,7 +37,7 @@ test('health proves migrations and storage permissions rather than binding exist
     assert.equal(state.checks.database, 'schema-or-access-required');
     assert.equal(state.checks.files, 'access-required');
 });
-test('late original lease can recover image upload and dispatch; wrong or completed lease cannot', async () => {
+test('late original lease can collect images without hiding owner attention or renewing the lease; wrong or completed lease cannot', async () => {
     const worker = (await call('admin/workers', { label: 'Recovery Windows fixture' })).data;
     const account = (await call('admin/accounts', { provider: 'gemini', label: 'Recovery account fixture', workerId: worker.id })).data;
     const story = (await call('admin/stories', { title: 'Late result fixture', topic: 'Only fixture' })).data;
@@ -49,8 +49,12 @@ test('late original lease can recover image upload and dispatch; wrong or comple
     assert.equal((await call('worker/assets?storyId=' + story.id, bytes, headers)).status, 200);
     assert.equal((await call('worker/jobs/' + jobId + '/dispatch', { lease }, { 'x-kbl-worker-token': worker.token, 'Content-Type': 'application/json' })).status, 200);
     const active = db.prepare('SELECT * FROM jobs WHERE id=?').get(jobId);
-    assert.equal(active.status, 'running');
-    assert.ok(active.lease_until > Date.now());
+    assert.equal(active.status, 'attention');
+    assert.ok(active.lease_until < Date.now());
+    assert.equal(active.error, null);
+    const retry=await call('worker/jobs/' + jobId + '/dispatch',{lease},{'x-kbl-worker-token':worker.token,'Content-Type':'application/json'});
+    assert.equal(retry.data.reviewRequired,true);
+    assert.equal(db.prepare('SELECT lease_until FROM jobs WHERE id=?').get(jobId).lease_until,active.lease_until);
     db.prepare("UPDATE jobs SET status='complete' WHERE id=?").run(jobId);
     assert.equal((await call('worker/assets?storyId=' + story.id, bytes, headers)).status, 409);
 });

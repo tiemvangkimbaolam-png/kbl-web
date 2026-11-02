@@ -443,8 +443,11 @@ export async function handle(req: Request): Promise<Response> {
                 if (method === 'POST' && path[3] === 'dispatch') {
                     if (!['leased', 'running', 'attention'].includes(job.status))
                         fail('Lượt đã bị dừng; không gửi prompt.', 409);
-                    await S.sql().prepare('UPDATE jobs SET status=\'running\',lease_until=?,updated_at=? WHERE id=? AND status IN (\'leased\',\'attention\') AND lease_hash=?').bind(Date.now() + 30 * 60000, Date.now(), job.id, job.lease_hash).run();
-                    return response({ ok: true });
+                    // Old extensions poll held results and call dispatch again.
+                    // Reading a held conversation is not a new send and must
+                    // not hide the owner's attention state or renew its lease.
+                    await S.sql().prepare('UPDATE jobs SET status=\'running\',lease_until=?,updated_at=? WHERE id=? AND status=\'leased\' AND lease_hash=?').bind(Date.now() + 30 * 60000, Date.now(), job.id, job.lease_hash).run();
+                    return response({ ok: true, reviewRequired: job.status === 'attention' });
                 }
                 if (method === 'POST' && path[3] === 'complete')
                     return response(await P.complete(wid, job.id, lease, v.result));
