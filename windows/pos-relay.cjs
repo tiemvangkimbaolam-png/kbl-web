@@ -97,7 +97,7 @@ function create({ ledger, bridge, config, now = Date.now }) {
         const digest = hash(data), old = queue.find(x => x.key === key);
         if (old?.digest === digest) return old;
         const ack = acknowledgements[key];
-        if (!old && ack?.digest === digest && now() - ack.at < 60000) return { ...ack, key, confirmed: true };
+        if (!old && ack?.digest === digest && (key !== 'prices' || now() - ack.at < 60000)) return { ...ack, key, confirmed: true };
         const seq = (ledger.get('pos-sequence') || 0) + 1;
         const item = { key, endpoint, digest, seq, data: { ...data, revision: seq }, queuedAt: now(), nextAt: 0 };
         const next = queue.filter(x => x.key !== key).concat(item);
@@ -234,6 +234,8 @@ function create({ ledger, bridge, config, now = Date.now }) {
         finally { if (currentBackend()) ledger.set('pos-photo-pending', pending); photosBusy = false; }
     }
     function syncLocalSnapshot() {
+        // Resume only a folder previously selected by the owner (or explicit config).
+        if(!ledger.get('pos-relay-active')&&(ledger.get('pos-data-dir')||config.posDataDir))ledger.set('pos-relay-active',true);
         if (!ledger.get('pos-relay-active') || now() < nextLocalRead) return;
         nextLocalRead = now() + 60000;
         // No POS module is loaded/executed. Read only two known JSON files;

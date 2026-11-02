@@ -190,3 +190,10 @@ for (const tamper of [false, true]) test(`native gold prompt preserves authentic
         else { assert.match(task.prompt, /đã đối chiếu hash với priceSnapshot/); assert.match(task.prompt, /Dùng đúng rows, đơn vị đồng\/chỉ và observedAt/); assert.doesNotMatch(task.prompt, /Mở\/đọc nguồn trước khi duyệt/); assert.doesNotMatch(task.prompt, /sourceEvidence do hệ thống lấy thật từ URL bài gốc/); }
     } finally { globalThis.fetch = oldFetch; }
 });
+
+test('idle queue polling backs off, retains held jobs for ACK and automatically retries after network recovery',async()=>{
+    const ledger=ledgerModule.open(temp()),oldFetch=globalThis.fetch;let at=1000,online=true,gets=0;
+    ledger.set('claims',{'held-job':{token:'held-lease',attempt:1,accountId:'owner',job:{id:'held-job',stage:'write'}}});
+    globalThis.fetch=async(url)=>{const u=new URL(url);assert.equal(u.searchParams.get('active'),'1');assert.deepEqual(JSON.parse(u.searchParams.get('held')),['held-job']);gets++;if(!online)throw Error('offline');return Response.json({jobs:[],settings:{teamEnabled:true}});};
+    try{const bridge=create({config:{serverUrl:'https://fixture.invalid',token:'f'.repeat(64)},ledger,now:()=>at});assert.equal((await bridge.sync()).connected,true);await bridge.sync();assert.equal(gets,1);at+=60000;online=false;assert.equal((await bridge.sync()).connected,false);await bridge.sync();assert.equal(gets,2);at+=60000;online=true;assert.equal((await bridge.sync()).connected,true);assert.equal(gets,3);assert.ok(bridge.view().claims['held-job']);}finally{globalThis.fetch=oldFetch;}
+});

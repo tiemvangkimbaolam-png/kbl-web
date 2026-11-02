@@ -192,11 +192,21 @@ test('tick recovers an older finished stage instead of repeatedly selecting only
     await P.complete('win', writer.job.id, writer.lease, textResult('old'));
     db.prepare("DELETE FROM jobs WHERE story_id=? AND stage='review'").run(story);
     db.prepare("DELETE FROM records WHERE kind='job-transition' AND json_extract(data,'$.jobId')=?").run(writer.job.id);
-    db.prepare("UPDATE jobs SET updated_at=1 WHERE id=?").run(writer.job.id);
+    db.prepare("UPDATE jobs SET updated_at=1,transitioned_result=NULL WHERE id=?").run(writer.job.id);
     for (let i = 0; i < 8; i++) {
         const other = await P.createStory({ title: 'Newer fixture ' + i });
         db.prepare("UPDATE jobs SET status='complete',owner='researcher',lease_hash='fixture-hash',result=?,result_hash=?,updated_at=? WHERE story_id=? AND stage='research'").run(JSON.stringify({ items: [source('good')] }), 'fixture-result-' + i, 100 + i, other);
     }
     await P.tick();
     assert.equal(row('review', story).status, 'queued');
+});
+
+test('cron repairs a missing transition marker using its receipt without advancing the job a second time',async()=>{
+    const story=await researchedStory('marker recovery'),writer=await claim(story,'write','writer-a');await P.complete('win',writer.job.id,writer.lease,textResult('marker'));
+    const review=row('review',story);assert.equal(review.status,'queued');
+    db.prepare("UPDATE jobs SET status='attention',error='Keep this active review' WHERE id=?").run(review.id);
+    db.prepare('UPDATE jobs SET transitioned_result=NULL WHERE id=?').run(writer.job.id);
+    await P.tick({housekeeping:false});assert.equal(row('review',story).status,'attention');
+    const completed=row('write',story);assert.equal(completed.transitioned_result,completed.attempt+':'+completed.result_hash);
+    const before=JSON.stringify(row('review',story));await P.tick({housekeeping:false});assert.equal(JSON.stringify(row('review',story)),before);
 });
