@@ -5,63 +5,58 @@
   "stages": {
     "specify": {
       "status": "done",
-      "note": "Customer authorized private holdings ledger, gain/percent arrows and real-point chart; separate Scriptable widget, preserve POS/theme/auth.",
+      "note": "Ưu tiên mẫu ảnh/video; khóa công thức POS; nguồn GitHub e3081b4 và màu bảng TV live đã đọc.",
       "evidence": [
         {
-          "path": ".project-state/contract.md",
-          "sha256": "697415cb5dd112dba0d88c578fceebae1b4fc7a57023bc4f35495e8e18c995ca",
-          "bytes": 2806
+          "path": ".project-state\\contract.md",
+          "sha256": "f1410117006b93992c78f1e7cea4b875559c389f68ac17315abb2e3012c83b46",
+          "bytes": 3524
         }
       ],
-      "at": "2026-10-31T18:54:29.708660+00:00"
+      "at": "2026-11-02T03:44:16.666380+00:00"
     },
     "build": {
       "status": "done",
-      "note": "88 targeted tests passed; final API/native 19 tests rerun after type narrowing fix. Final Cloudflare build passed. Browser fixture chart/privacy/add/edit/sale checked; native iPhone not_tested. Existing unrelated typecheck errors remain.",
+      "note": "308/308 tests passed; Cloudflare build passed; full tsc existing errors documented.",
       "evidence": [
         {
-          "path": "lib/kbl/holdings-core.mjs",
-          "sha256": "8b3e0270081bee5e61d0f09fb40898960b31cda543cc6a71979ed19f4cf7eeef",
-          "bytes": 6080
+          "path": "windows\\cards.cjs",
+          "sha256": "88e332a3970a042d09adf6805a9861b002f0fa9356b920cf4ae34d2ff2e62a35",
+          "bytes": 11316
         },
         {
-          "path": "lib/kbl/holdings.ts",
-          "sha256": "75d0b08414d0ff43882424800c729d553a5bca1cd36565dee825da92d3577099",
-          "bytes": 5975
+          "path": "windows\\pos-void.cjs",
+          "sha256": "05d443af0e87487a7f9a5ebadcda79d763c5eb083094a524b626af714f09bc9c",
+          "bytes": 2167
         },
         {
-          "path": "public/tien-ich/vang-cua-toi/page.js",
-          "sha256": "37d97ddbb7a91a0197ed5366e19d93cb837072d072f2c18574e768f3d64d6030",
-          "bytes": 10796
-        },
-        {
-          "path": ".project-state/verification.md",
-          "sha256": "5b35eb8589c9314ff3ab8ac356ebb3c550b6af9ec6665306cb6b733fb1e8b18f",
-          "bytes": 5106
+          "path": "docs\\LOCAL_WORKER_MAU_20261102.md",
+          "sha256": "ddcc4451e426954f5832f3e1d97dd8acd7827ff11ebf52e81022cf0fb7490c0e",
+          "bytes": 4602
         }
       ],
-      "at": "2026-10-31T18:56:40.929090+00:00"
+      "at": "2026-11-02T04:17:37.941932+00:00"
     },
     "demonstrate": {
-      "status": "not_tested",
-      "note": "Web preview verified; actual native iPhone display/import unavailable.",
+      "status": "done",
+      "note": "Actual 20s HoaiMy/word-boundaries video and desktop POS preview inspected; previews retained in local outputs.",
       "evidence": [
         {
-          "path": ".project-state/verification.md",
-          "sha256": "2e02d31213134d024f11eac15931c685f3c13da22663403ce3a38a04c0c8e73e",
-          "bytes": 1379
+          "path": ".project-state\\verification.md",
+          "sha256": "994942442dbff65b3bc773a122da561ecc4b75e653e6123af2d43890a61dc315",
+          "bytes": 5830
         }
       ],
-      "at": "2026-10-31T14:09:54.497702+00:00"
+      "at": "2026-11-02T04:17:38.046121+00:00"
     },
     "integrate": {
-      "status": "blocked",
-      "note": "PR #12 merged into kbl-web-moi at c3bc65b53e0fdb8bde34e2c4017519f5b4e0bd64; Cloudflare production still requires authenticated session. Patch ZIP apply/idempotency/conflict checks passed.",
+      "status": "in_progress",
+      "note": "Awaiting deployed API and local link cutover; AI pairing/product photos not ready.",
       "evidence": [],
-      "at": "2026-10-31T18:23:55.252135+00:00"
+      "at": "2026-11-02T04:17:38.149472+00:00"
     }
   },
-  "next_action": "Merge GitHub source and deliver update ZIP; production needs Cloudflare authentication and iPhone pairing check.",
+  "next_action": "Push tested commit and verify correct Workers Builds target.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -122,7 +117,31 @@
       "stage": "build",
       "status": "done",
       "note": "88 targeted tests passed; final API/native 19 tests rerun after type narrowing fix. Final Cloudflare build passed. Browser fixture chart/privacy/add/edit/sale checked; native iPhone not_tested. Existing unrelated typecheck errors remain."
+    },
+    {
+      "at": "2026-11-02T03:44:16.666380+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Ưu tiên mẫu ảnh/video; khóa công thức POS; nguồn GitHub e3081b4 và màu bảng TV live đã đọc."
+    },
+    {
+      "at": "2026-11-02T04:17:37.941932+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "308/308 tests passed; Cloudflare build passed; full tsc existing errors documented."
+    },
+    {
+      "at": "2026-11-02T04:17:38.046121+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Actual 20s HoaiMy/word-boundaries video and desktop POS preview inspected; previews retained in local outputs."
+    },
+    {
+      "at": "2026-11-02T04:17:38.149472+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Awaiting deployed API and local link cutover; AI pairing/product photos not ready."
     }
   ],
-  "updated_at": "2026-10-31T18:56:40.929108+00:00"
+  "updated_at": "2026-11-02T04:17:38.149472+00:00"
 }

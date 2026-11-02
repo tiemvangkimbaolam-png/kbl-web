@@ -17,3 +17,7 @@ SHA256 ảnh mẫu đã chọn: 4023986244cb2bf058a8aa814c30e6c47d77f977f6708406
 Căn bảng giá mobile: khoảng hở 12px của grid cũ cộng thêm trên tổng 100% bề rộng ba cột đẩy giá bán vượt mép phải. Bỏ khoảng hở thừa và chừa thêm 6px bên phải ở cả tiêu đề/các dòng; không đổi giá, cỡ chữ hay công thức. Kiểm tra mép chữ thay vì chỉ bề rộng khung.
 
 01/11/2026 — Vàng của tôi: người dùng cho phép làm trước bảng theo dõi vàng sở hữu riêng theo tài khoản, giao dịch mua/bán tự nhập, lãi/lỗ VND và % theo giá mua vào, mũi tên và đồ thị từ mốc giá thật; widget Scriptable riêng nhỏ/vừa/lớn, ghép một lần và thu hồi được. Giữ mẫu 06, chữ dễ đọc và widget bảng giá hiện có. Không nối/ghi dữ liệu POS, không sinh giá hay đường tăng giả. Dùng records hiện có, không sửa migration/schema. Mã widget chỉ đọc tóm tắt, token trong Keychain, không đưa token vào URL/log. Không hứa chạy khi người dùng đi ngủ; hoàn tất trong lượt hoạt động và báo rõ phần chưa kiểm tra thiết bị/deploy.
+
+
+02/11/2026 — yêu cầu hiện tại: ưu tiên mẫu ảnh/video local worker cho sản phẩm và bảng giá vàng, tông trắng ngà/hồng đào/đồng giống bảng giá live. Sau đó sửa giao diện POS chỉ bằng CSS và nối các luồng chưa ổn sang Cloudflare. Tuyệt đối không sửa công thức, logic bán hàng/bù trừ/hóa đơn/cầm đồ, dữ liệu hoặc giá POS. Giữ các luồng đang hoạt động; giá mới không hủy edition/lease/receipt đang làm. Không xóa bộ cũ.
+Mẫu phải dựng bằng mã, ảnh sản phẩm gốc và snapshot đã chốt; không dùng AI vẽ số hoặc hàng thật. Bản preview không tự đăng.

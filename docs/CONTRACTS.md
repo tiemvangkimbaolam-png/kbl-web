@@ -56,3 +56,7 @@ Lịch sử tiệm khóa bản chụp thật mốc 13 giờ theo giờ Việt Na
 
 ## Nhịp tự động và quota D1 — 02/11/2026
 Cache chỉ cho JSON giá/danh mục/mẫu TV công khai, TTL lần lượt 5/30/60 giây tại từng điểm Cloudflare; không cache API khách hoặc Admin. SSR bảng giá chỉ đọc giá. Cron giá/AI/inbox/lịch sử/cảnh báo tách lỗi; dọn định kỳ theo giờ. Migration 0004 phải đi trước code, thêm marker chuyển bước theo attempt/hash từ biên nhận và index; không đổi POS. Worker 2.2.1 giữ thư mục POS đã chọn, biên nhận và hàng đợi qua khởi động; kho/cấu hình chỉ gửi khi đổi, giá vẫn định kỳ. Hàng đợi active cộng tối đa 40 job đang giữ để đối soát muộn, endpoint cũ giữ tương thích. Xem docs/POS_AUTO_AND_D1.md về kiểm thử, nhịp cụ thể và bước triển khai thật.
+
+
+## Hoàn tác khách lẻ qua worker — 02/11/2026
+POST /api/worker/pos-void nhận projection đã đối chiếu read-only từ sales_db.json và state loyalty trên máy POS. Chỉ mode=ban không điện thoại, không giao dịch gốc và không có dấu vết cộng/trừ điểm. Batch lưu biên nhận theo invoiceId, hủy trạng thái bảo hành và tạm ẩn kho; snapshot POS mới hơn quyết định tồn kho. Replay đúng fingerprint không áp dụng lại, payload khác bị chặn. Không gửi lợi nhuận/giá vốn/thông tin khách, không tính lại hoặc ghi ngược POS. Các phiếu có điểm/đổi/trả cần ledger gốc và bị từ chối rõ ràng. Chi tiết: LOCAL_WORKER_MAU_20261102.md.

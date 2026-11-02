@@ -9,7 +9,7 @@ function Read-WorkerHealth {try {return Invoke-RestMethod -Uri 'http://127.0.0.1
 $old=Read-WorkerHealth
 if($old){throw 'The old local worker is still running. If BAT_DAU.cmd is open, press Ctrl+C in that window and run this update again. No unrelated process was stopped.'}
 & (Join-Path $root 'CAI_TU_KHOI_DONG.ps1') -Mode enable
-Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c',('"'+(Join-Path $root 'CHAY_NEN.cmd')+'"')) -WorkingDirectory $root
+Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c',('"'+(Join-Path $root 'CHAY_NEN.cmd')+'"')) -WorkingDirectory $root -WindowStyle Hidden
 $ready=$false
 for($attempt=0;$attempt -lt 12;$attempt++){Start-Sleep -Milliseconds 750;$health=Read-WorkerHealth;if($health.protocol -eq 'kbl-chrome-bridge-v1' -and $health.release -eq '2.2.1'){$ready=$true;break}}
 if(-not $ready){throw 'Worker 2.2.1 has not confirmed startup. Open BAT_DAU.cmd to see the error; do not reconnect or replace your config.'}

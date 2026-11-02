@@ -174,3 +174,33 @@ export async function transaction(workerId: string, input: any) {
     const result = await S.sql().batch(statements);
     return { success: true, count: ids.length, stockSkipped: result[0].meta.changes !== 1, wroteToPOS: false };
 }
+// Anonymous sale cancellation only. POS still owns deletion, money, and stock.
+// Loyalty-bearing/return/exchange invoices require the original ledger and are
+// deliberately rejected by the connection projection instead of fake-ACKed.
+export async function voidSale(workerId: string, input: any) {
+    const V = (await import('../../windows/pos-void.cjs')).default;
+    const p = V.validate(input), revision = revisionOf(input);
+    if (revision === undefined) fail('Hoàn tác cần số thứ tự của worker.', 409);
+    await bind(workerId);
+    const id = await S.sha('anonymous-void:' + p.invoiceId), fingerprint = await S.sha(JSON.stringify(p));
+    const before = await S.get('pos-void', id);
+    if (before) {
+        if (before.fingerprint !== fingerprint) fail('Hóa đơn đã có nội dung hoàn tác khác; cần đối soát.', 409);
+        return { success: true, duplicate: true, invoiceId: p.invoiceId, wroteToPOS: false };
+    }
+    const at = Date.now(), marker = S.id(), ids = await Promise.all(p.skus.map(async (sku: string) => 'pos-' + await S.sha(sku)));
+    const marked = "EXISTS(SELECT 1 FROM records WHERE kind='pos-import' AND id=?)";
+    const results = await S.sql().batch([
+        S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'pos-import',?,'{}',?,? WHERE NOT EXISTS(SELECT 1 FROM records WHERE kind='pos-void' AND id=?) AND (SELECT COUNT(*) FROM records WHERE kind='pos-void')<20000 AND NOT EXISTS(SELECT 1 FROM records WHERE kind='pos-warranty' AND json_extract(data,'$.invoiceId')=? AND COALESCE(json_extract(data,'$.phone'),'')<>'')").bind(marker, at, at, id, p.invoiceId),
+        S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'pos-void',?,?,?,? WHERE " + marked).bind(id, JSON.stringify({ ...p, workerId, revision, fingerprint, at }), at, at, marker),
+        S.sql().prepare("UPDATE records SET data=json_set(data,'$.available',json('false')),version=version+1,updated_at=? WHERE kind='product' AND json_extract(data,'$.source')='pos' AND id IN(SELECT value FROM json_each(?)) AND " + marked + ' AND ' + stockGuard).bind(at, JSON.stringify(ids), marker, revision, revision, revision),
+        S.sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'pos-stock','main',?,?,? WHERE " + marked + ' AND ' + stockGuard + " ON CONFLICT(kind,id) DO UPDATE SET data=excluded.data,version=records.version+1,updated_at=excluded.updated_at").bind(JSON.stringify({ revision, digest: fingerprint, workerId, operation: 'void' }), at, at, marker, revision, revision, revision),
+        S.sql().prepare("UPDATE records SET data=json_set(data,'$.posStatus','canceled','$.posEventRevision',?),version=version+1,updated_at=? WHERE kind='pos-warranty' AND json_extract(data,'$.invoiceId')=? AND json_extract(data,'$.productSku') IN(SELECT value FROM json_each(?)) AND COALESCE(json_extract(data,'$.posEventRevision'),0)<? AND " + marked).bind(revision, at, p.invoiceId, JSON.stringify(p.skus), revision, marker),
+        S.sql().prepare("DELETE FROM records WHERE kind='pos-import' AND id=?").bind(marker)
+    ]);
+    if (results[0].meta.changes !== 1) {
+        if ((await S.get('pos-void', id))?.fingerprint === fingerprint) return { success: true, duplicate: true, invoiceId: p.invoiceId, wroteToPOS: false };
+        fail('Chưa lưu được biên nhận hoàn tác; giữ nguyên POS.', 507);
+    }
+    return { success: true, invoiceId: p.invoiceId, warrantiesCanceled: results[4].meta.changes, loyalty: { skipped: true, reason: 'anonymous-pos-sale' }, wroteToPOS: false };
+}

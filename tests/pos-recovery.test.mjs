@@ -14,6 +14,21 @@ function memoryLedger() {
 }
 const config = { id: 'worker-a', token: 'a'.repeat(64), serverUrl: 'https://kbl-fixture.workers.dev' };
 const inventory = { mode: 'snapshot', inventory: [{ code: 'SKU-01', name: 'Nhẫn fixture', type: '9999', weightLy: 100, sellWage: 1000, status: 'Đang bán', purchaseCost: 'NEVER-SEND' }] };
+
+test('explicit loopback cutover accepts only the selected POS existing token, leaves settings unchanged and never forwards it', async()=>{
+    const dir=fs.mkdtempSync(path.join(os.tmpdir(),'kbl-local-cutover-'));
+    try {
+        const secret='fixture-old-pos-token-'.repeat(3), file=path.join(dir,'settings.json');
+        fs.writeFileSync(file,JSON.stringify({web_sync_token:secret}));const before=fs.readFileSync(file);
+        const ledger=memoryLedger(),calls=[],bridge={async request(route,method,data){calls.push({route,data});return{success:true};}};
+        let relay=create({ledger,bridge,config:{...config,posDataDir:dir}});
+        assert.equal(relay.auth(secret),false);
+        relay=create({ledger,bridge,config:{...config,posDataDir:dir,acceptPosSettingsToken:true}});
+        assert.equal(relay.auth(secret),true);assert.equal(relay.auth('wrong-token-'.repeat(6)),false);
+        await relay.accept('prices',{prices:{price_buy_9999:13000000,price_sell_9999:14000000}});
+        assert(!JSON.stringify(calls).includes(secret));assert.deepEqual(fs.readFileSync(file),before);
+    } finally {fs.rmSync(dir,{recursive:true,force:true});}
+});
 test('backend identity resets ACK/photo evidence and replays only safe snapshots; domain cutover keeps receipts', async () => {
     const ledger = memoryLedger(), calls = [];
     const bridge = { async request(route, method, data) { calls.push({ route, data }); return { success: true }; } };

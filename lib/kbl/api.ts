@@ -365,6 +365,7 @@ export async function handle(req: Request): Promise<Response> {
             if (method === 'POST' && path[1] === 'pos-pawn') return response(await POS.pawns(wid, await body(req, 3000000)));
             if (method === 'POST' && path[1] === 'pos-warranty') return response(await POS.warranties(wid, await body(req), u.origin));
             if (method === 'POST' && path[1] === 'pos-transaction') return response(await POS.transaction(wid, await body(req)));
+            if (method === 'POST' && path[1] === 'pos-void') return response(await POS.voidSale(wid, await body(req)));
             if (method === 'POST' && path[1] === 'pos-photo') {
                 await POS.bind(wid);
                 const sku = text(u.searchParams.get('sku'), 60), product = await S.get('product', 'pos-' + await S.sha(sku));

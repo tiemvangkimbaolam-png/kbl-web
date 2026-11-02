@@ -86,7 +86,19 @@ function create({ ledger, bridge, config, now = Date.now }) {
         syncLocalSnapshot();
         return { success: true, readOnly: true, message: 'Đã bật đọc giá/kho/ảnh từ POS. Phiếu cầm và bảo hành vẫn cần POS gửi qua kết nối đồng bộ.' };
     }
-    function auth(token) { return typeof token === 'string' && /^[a-f0-9]{64}$/.test(token) && crypto.timingSafeEqual(Buffer.from(token), Buffer.from(relayToken)); }
+    function auth(token) {
+        if (typeof token !== 'string' || token.length < 32 || token.length > 4096) return false;
+        if (/^[a-f0-9]{64}$/.test(token) && crypto.timingSafeEqual(Buffer.from(token), Buffer.from(relayToken))) return true;
+        // Explicit local cutover: retain the POS's own existing connection token
+        // so an open POS need not reload financial code or save its settings.
+        // The HTTP listener is still restricted to loopback. This token is never
+        // forwarded to Cloudflare; bridge uses the separate worker token.
+        if (config.acceptPosSettingsToken !== true) return false;
+        try {
+            const original = readOnlyJSON(dataRoot(), 'settings.json').web_sync_token;
+            return typeof original === 'string' && original.length >= 32 && crypto.timingSafeEqual(Buffer.from(hash(token)), Buffer.from(hash(original)));
+        } catch { return false; }
+    }
     function view() { return { pending: queue.length, photoPending: ledger.get('pos-photo-pending') || 0, lastSuccess: ledger.get('pos-last-success') || 0, lastError: ledger.get('pos-last-error') || '', cloudPriceConfigPending: queue.some(row => row.key === 'cloud-price-config'), cloudPriceConfigError: ledger.get('pos-cloud-price-config-error') || '', cloudPriceHandoff: { pending: queue.some(row => row.key === 'cloud-price-config'), lastSuccess: ledger.get('pos-cloud-price-config-success') || 0, lastError: ledger.get('pos-cloud-price-config-error') || '' } }; }
     function enqueue(key, endpoint, data) {
         if (['prices', 'inventory', 'pawn', 'cloud-price-config'].includes(key)) {
@@ -159,6 +171,13 @@ function create({ ledger, bridge, config, now = Date.now }) {
             return enqueue('pawn', 'pos-pawn', { records, mode: full ? 'snapshot' : 'delta' });
         }
         if (operation === 'warranty-sale') { const p = recoverWarranty(C.warranty(input)); return enqueue('warranty:' + hash(p.invoiceId), 'pos-warranty', p); }
+        if (input?.eventType === 'void') {
+            let loyaltyState = {};
+            try { loyaltyState = readOnlyJSON(dataRoot(), 'n10_loyalty_bridge_state.json', 20 * 1024 * 1024); }
+            catch (e) { if (e.code !== 'ENOENT') throw Error('Chưa đọc được bằng chứng đồng bộ điểm; giữ nguyên POS.'); }
+            const p = require('./pos-void.cjs').fromPOS(input, readOnlyJSON(dataRoot(), 'sales_db.json', 20 * 1024 * 1024), loyaltyState);
+            return enqueue('void:' + hash(p.invoiceId), 'pos-void', p);
+        }
         const p = C.transaction(input); return enqueue('transaction:' + hash(p.invoiceId + ':' + p.eventType), 'pos-transaction', p);
     }
     async function flush() {
