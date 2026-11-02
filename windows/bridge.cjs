@@ -2,7 +2,7 @@
 const crypto = require('node:crypto');
 const sha = v => crypto.createHash('sha256').update(typeof v === 'string' || Buffer.isBuffer(v) ? v : JSON.stringify(v)).digest('hex');
 const protocol = 'gemini-browser-news-v1';
-function create({ config, ledger }) {
+function create({ config, ledger, now=Date.now }) {
     let remote = { jobs: [], settings: {} }, online = false, lastError = '', cache = new Map(), hub;
     const claims = ledger.get('claims') || {}, outbox = ledger.get('outbox') || [];
     for (const [id, claim] of Object.entries(claims)) { claim.leaseHash ||= sha(claim.token); if (claim.job) cache.set(id, claim.job); }
@@ -16,8 +16,11 @@ function create({ config, ledger }) {
     } if (headers._binary)
         return { bytes: Buffer.from(await r.arrayBuffer()), mime: r.headers.get('content-type') }; return r.json(); }
     function mapJob(j) { const role = j.stage === 'consult' ? 'write' : j.stage, kind = j.stage === 'consult' ? 'write' : role === 'image' ? 'images' : role; return { ...j, id: j.id, kind, role, status: ({ queued: 'waiting', leased: 'working', running: 'working', attention: 'working', blocked: 'working' })[j.status] || j.status, expiresAt: Date.now() + 365 * 86400000, createdAt: j.created_at, routedAccount: j.owner || undefined, assignedAccount: j.owner || undefined, forbiddenAccount: j.exclude_account || undefined, leaseUntil: j.lease_until || 0, parentId: role === 'image-review' ? j.id.replace(/image-review$/, 'image') : undefined, result: j.result ? { data: JSON.parse(j.result) } : undefined }; }
-    async function sync() { try {
-        const r = await request('/api/worker/queue');
+    let nextSyncAt=0;
+    async function sync({force=false}={}) { if(!force&&now()<nextSyncAt){await flush();return view();}try {
+        const held=Object.keys(claims).slice(0,40);
+        const r = await request('/api/worker/queue?active=1&held='+encodeURIComponent(JSON.stringify(held)));
+        nextSyncAt=now()+(r.jobs.some(j=>!['complete','canceled','cancelled'].includes(j.status))?15000:60000);
         remote = r;
         for (const j of r.jobs) {
             const c = claims[j.id];
@@ -41,6 +44,7 @@ function create({ config, ledger }) {
         await flush();
     }
     catch (e) {
+        nextSyncAt=now()+60000;
         online = false;
         lastError = e.message;
     } return view(); }

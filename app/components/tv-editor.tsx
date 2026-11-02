@@ -38,7 +38,7 @@ export function TVEditor() {
     try {
       const [r, c] = await Promise.all([
         api("admin/tv-design"),
-        api("public/catalog"),
+        api("public/prices?view=tv"),
       ]);
       setDraft(r.design);
       setSaved(r.design);
@@ -56,7 +56,8 @@ export function TVEditor() {
   useEffect(() => {
     load();
     const t = setInterval(() => {
-      api("public/catalog")
+      if(document.hidden)return;
+      api("public/prices?view=tv")
         .then(setCatalog)
         .catch(() => {});
     }, 30000);

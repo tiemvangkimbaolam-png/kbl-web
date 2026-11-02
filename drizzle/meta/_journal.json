@@ -29,6 +29,13 @@
       "when": 1793579411072,
       "tag": "0003_read_budget_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793583164886,
+      "tag": "0004_active_work_indexes",
+      "breakpoints": true
     }
   ]
 }

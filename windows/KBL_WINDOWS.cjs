@@ -107,7 +107,7 @@ const server = http.createServer(async (req, res) => {
             return send(404, { success: false });
         }
         if (u.pathname === '/integration/health')
-            return send(200, { protocol: 'kbl-chrome-bridge-v1', release: '2.2.0' });
+            return send(200, { protocol: 'kbl-chrome-bridge-v1', release: '2.2.1' });
         if (!u.pathname.startsWith('/browser/'))
             return send(404, { success: false });
         const eid = req.headers['x-kbl-extension-id'];
@@ -195,7 +195,7 @@ async function tick() {
     try {
         refreshRenderTools();
         const hv = hub.view(), accounts = hv.accounts.map(a => ({ id: a.id, status: a.online ? (a.blocked ? 'quota' : hv.runs.some(r => r.accountId === a.id && !['confirmed', 'expired'].includes(r.status)) ? 'working' : a.ready ? 'ready' : 'attention') : 'offline', paired: Boolean(a.extensionId), message: hv.runs.filter(r => r.accountId === a.id).at(-1)?.message || '' }));
-        const r = await bridge.request('/api/worker/heartbeat', 'POST', { version: '2.2.0', capabilities, renderStatus, posStatus: pos.view(), accounts, activeJobIds: [...hv.runs.filter(x => !['confirmed', 'expired'].includes(x.status)).map(x => x.jobId), ...(renderActive ? [renderActive.job.id] : [])] });
+        const r = await bridge.request('/api/worker/heartbeat', 'POST', { version: '2.2.1', capabilities, renderStatus, posStatus: pos.view(), accounts, activeJobIds: [...hv.runs.filter(x => !['confirmed', 'expired'].includes(x.status)).map(x => x.jobId), ...(renderActive ? [renderActive.job.id] : [])] });
         bridge.setAccounts(r.accounts);
         hub.reconcile(r.accounts);
         await bridge.sync();
@@ -275,4 +275,4 @@ async function tick() {
     renderTick().catch(() => { });
 }
 server.on('error', e => { console.error(e.code === 'EADDRINUSE' ? 'KBL mới đã chạy ở cổng 39878. Không mở thêm bản thứ hai.' : e.message); process.exitCode = 1; });
-server.listen(PORT, '127.0.0.1', () => { console.log('KBL Windows 2.1.1 · ' + config.serverUrl); console.log('Thiết lập: http://127.0.0.1:' + PORT); console.log('Không dùng dữ liệu/phiên công việc của bộ cũ. Đăng nhập AI vẫn nằm trong Chrome.'); refreshRenderTools(); tick(); setInterval(tick, 15000); const posTick = () => { pos.syncLocalSnapshot(); pos.flush().catch(() => {}); pos.syncPhotos().catch(() => {}); }; posTick(); setInterval(posTick, 15000); });
+server.listen(PORT, '127.0.0.1', () => { console.log('KBL Windows 2.2.1 · ' + config.serverUrl); console.log('Thiết lập: http://127.0.0.1:' + PORT); console.log('Không dùng dữ liệu/phiên công việc của bộ cũ. Đăng nhập AI vẫn nằm trong Chrome.'); refreshRenderTools(); tick(); setInterval(tick, 15000); const posTick = () => { pos.syncLocalSnapshot(); pos.flush().catch(() => {}); pos.syncPhotos().catch(() => {}); }; posTick(); setInterval(posTick, 15000); });

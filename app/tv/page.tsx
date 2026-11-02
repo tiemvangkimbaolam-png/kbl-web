@@ -5,11 +5,14 @@ import { defaultTVDesign, type TVDesign } from "@/lib/kbl/tv-design";
 export default function TV() {
   const [catalog, setCatalog] = useState<any>(null),
     [design, setDesign] = useState<TVDesign>(defaultTVDesign),
+    [market,setMarket]=useState<any>(null),
     [error, setError] = useState(""),
     [full, setFull] = useState(false);
   useEffect(() => {
     const c = new AbortController();
+    let pending=false;
     async function load() {
+      if(pending)return;pending=true;
       const results = await Promise.allSettled([
         fetch("/api/public/prices?view=tv", {
           cache: "no-store",
@@ -26,6 +29,7 @@ export default function TV() {
           return r.json() as Promise<any>;
         }),
       ]);
+      pending=false;
       if (c.signal.aborted) return;
       let failed = false;
       if (results[0].status === "fulfilled") setCatalog(results[0].value);
@@ -44,6 +48,7 @@ export default function TV() {
       document.removeEventListener("fullscreenchange", change);
     };
   }, []);
+  useEffect(()=>{const c=new AbortController();let pending=false;async function load(){if(pending||document.hidden)return;pending=true;try{const r=await fetch('/api/public/market',{cache:'no-store',signal:c.signal});if(!r.ok)throw Error();const value=await r.json();if(!c.signal.aborted)setMarket(value);}catch{if(!c.signal.aborted)setMarket((old:any)=>old?{...old,stale:true}:{available:false});}finally{pending=false;}}void load();const timer=setInterval(load,60000);const visible=()=>{if(!document.hidden)void load();};document.addEventListener('visibilitychange',visible);return()=>{c.abort();clearInterval(timer);document.removeEventListener('visibilitychange',visible);};},[]);
   async function fullscreen() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -58,8 +63,14 @@ export default function TV() {
     }
   }
   return (
-    <main className="tv-screen" style={{ background: design.background }}>
+    <main className="tv-screen tv-has-world" style={{ background: design.background }}>
       <TVBoard design={design} catalog={catalog} />
+      <aside className="tv-world-ticker" aria-label="Giá vàng thế giới tham khảo">
+        <strong>THẾ GIỚI · XAU/USD</strong>
+        <b>{market?.available&&Number.isFinite(market.xauUsd)?'$'+market.xauUsd.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' / oz':'—'}</b>
+        <span>{market?.available?`${market.stale?'Chưa làm mới · ':''}${market.goldUpdatedAt||'Nguồn chưa ghi giờ'} · lấy lúc ${new Date(market.fetchedAt).toLocaleTimeString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit'})}`:'Đang chờ nguồn giá thế giới'}</span>
+        <small>Giá tham khảo · Giá tiệm theo POS</small>
+      </aside>
       <nav className="tv-screen-controls" aria-label="Điều khiển TV">
         <button onClick={fullscreen}>
           {full ? "Thoát toàn màn hình" : "⛶ Toàn màn hình"}

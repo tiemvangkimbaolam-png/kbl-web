@@ -103,3 +103,28 @@ test('explicit data-directory selection starts read-only stock and price sync wi
         assert.equal(ledger.get('pos-data-dir'), fs.realpathSync(root));
     } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test('unchanged stock/config stays acknowledged across time and restart while price observations keep refreshing',async()=>{
+    const ledger=memoryLedger(),calls=[];let at=1000;const bridge={async request(route,method,data){calls.push({route,data});return{success:true};}};
+    let relay=create({ledger,config,bridge,now:()=>at});
+    await relay.accept('inventory',inventory);await relay.accept('cloud-price-config',{config:{enabled:false}});
+    at+=120000;await relay.accept('inventory',inventory);await relay.accept('cloud-price-config',{config:{enabled:false}});
+    relay=create({ledger,config,bridge,now:()=>at});await relay.accept('inventory',inventory);
+    assert.equal(calls.filter(c=>c.route.endsWith('pos-snapshot')).length,1);assert.equal(calls.filter(c=>c.route.endsWith('pos-cloud-price-config')).length,1);
+    const prices={prices:{price_buy_9999:13000000,price_sell_9999:14000000}};
+    await relay.accept('prices',prices);at+=60001;await relay.accept('prices',prices);
+    assert.equal(calls.filter(c=>c.route.endsWith('pos-prices')).length,2);
+    const beforeStock=calls.filter(c=>c.route.endsWith('pos-snapshot')).length;
+    await relay.accept('inventory',{...inventory,inventory:[{...inventory.inventory[0],sellWage:2000}]});
+    assert.equal(calls.filter(c=>c.route.endsWith('pos-snapshot')).length,beforeStock+1);
+});
+test('saved POS folder resumes on restart without requesting another connection; no saved folder does not activate reading',async()=>{
+    const root=fs.mkdtempSync(path.join(os.tmpdir(),'kbl-pos-resume-'));
+    try{
+        fs.writeFileSync(path.join(root,'settings.json'),JSON.stringify({price_buy_9999:13000000,price_sell_9999:14000000,google_price_auto_enabled:false}));fs.writeFileSync(path.join(root,'inventory_db.json'),JSON.stringify(inventory.inventory));
+        const ledger=memoryLedger(),calls=[];ledger.set('pos-data-dir',root);
+        const relay=create({ledger,config,now:()=>1000,bridge:{async request(route){calls.push(route);return{success:true};}}});
+        relay.syncLocalSnapshot();await relay.flush();assert.equal(ledger.get('pos-relay-active'),true);assert.ok(calls.includes('/api/worker/pos-prices'));assert.ok(calls.includes('/api/worker/pos-snapshot'));
+        const unpaired=memoryLedger();create({ledger:unpaired,config,bridge:{async request(){assert.fail('no consented folder');}}}).syncLocalSnapshot();assert.equal(unpaired.get('pos-relay-active'),null);
+    }finally{fs.rmSync(root,{recursive:true,force:true});}
+});

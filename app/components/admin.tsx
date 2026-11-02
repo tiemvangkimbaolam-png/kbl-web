@@ -24,16 +24,16 @@ export default function AdminApp({ view, userName, signOut }: {
     const now = () => Date.now() + clockOffset;
     const live = (row: any) => isFresh(row, now());
     async function load() { const sequence = ++loadSequence.current; try {
-        const r = await api('admin/state');
+        const r = await api('admin/state?view='+encodeURIComponent(view));
         if (sequence !== loadSequence.current) return;
         if (Number.isFinite(r.serverTime)) setClockOffset(r.serverTime - Date.now());
         setData(r);
         setError('');
     }
     catch (e: any) {
-        setError(e.message);
+        if(sequence===loadSequence.current)setError(e.message);
     } }
-    useEffect(() => { load(); const t = setInterval(() => { if (!document.hidden) void load(); }, 15000); return () => { ++loadSequence.current; clearInterval(t); }; }, []);
+    useEffect(() => { load(); const t = setInterval(() => { if (!document.hidden) void load(); }, view==='luu-tru'?300000:30000); return () => { ++loadSequence.current; clearInterval(t); }; }, [view]);
     async function action(path: string, body: any, ok = 'Đã lưu.', method = 'POST') { setBusy(true); setMessage(''); try {
         const r = await api('admin/' + path, method, body);
         setMessage(ok);

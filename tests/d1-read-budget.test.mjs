@@ -6,7 +6,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {createRequire} from 'node:module';
 import {pathToFileURL} from 'node:url';
 const db=new DatabaseSync(':memory:');
-const calls=[];let handle;
+const calls=[];let handle,PricePage;
 const at=Date.now();
 const seed=(kind,id,data,created=at)=>db.prepare('INSERT INTO records(kind,id,data,created_at,updated_at) VALUES(?,?,?,?,?)').run(kind,id,JSON.stringify(data),created,created);
 before(async()=>{
@@ -14,8 +14,8 @@ before(async()=>{
  const DB={prepare(sql){let args=[];const stmt={bind(...v){args=v;return stmt;},async first(){const row=db.prepare(sql).get(...args)||null;calls.push({sql,args,rows:row?1:0});return row;},async all(){const results=db.prepare(sql).all(...args);calls.push({sql,args,rows:results.length});return{results};},async run(){return{meta:{changes:Number(db.prepare(sql).run(...args).changes)}};}};return stmt;}};
  globalThis.__BUDGET_ENV={DB};
  const {build}=createRequire(fs.realpathSync('node_modules/wrangler/package.json'))('esbuild');
- await build({stdin:{contents:"export {handle} from './lib/kbl/api';",resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',external:['web-push'],outfile:'.sites-runtime/d1-budget-tests.mjs',plugins:[{name:'env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env=globalThis.__BUDGET_ENV;'}));}}]});
- ({handle}=await import(pathToFileURL(path.resolve('.sites-runtime/d1-budget-tests.mjs'))+'?'+Date.now()));
+ await build({stdin:{contents:"export {handle} from './lib/kbl/api';export {default as PricePage} from './app/bang-gia/page';",resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',external:['web-push'],outfile:'.sites-runtime/d1-budget-tests.mjs',plugins:[{name:'env',setup(b){b.onResolve({filter:/components\/public-data$/},()=>({path:'public-data',namespace:'stub'}));b.onLoad({filter:/.*/,namespace:'stub'},()=>({contents:'export default function PublicData(){return null;}'}));b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env=globalThis.__BUDGET_ENV;'}));}}]});
+ ({handle,PricePage}=await import(pathToFileURL(path.resolve('.sites-runtime/d1-budget-tests.mjs'))+'?'+Date.now()));
 });
 beforeEach(()=>{db.exec('DELETE FROM records');calls.length=0;});
 const get=async route=>{const response=await handle(new Request('https://kbl.test/api/public/'+route));return{status:response.status,data:await response.json(),headers:response.headers};};
@@ -44,4 +44,12 @@ test('additive indexes give range searches for history/cleanup and exact paired-
  for(const sql of ["SELECT kind,id,data FROM records WHERE kind=? AND created_at>=? ORDER BY created_at LIMIT 10000","DELETE FROM records WHERE kind=? AND created_at<?"]){const plan=explain(sql,'history-world',at);assert.match(plan,/SEARCH records USING (?:COVERING )?INDEX records_kind_created/);assert.doesNotMatch(plan,/SCAN records/);}
  const plan=explain("SELECT id,data FROM records WHERE kind=? AND json_extract(data,'$.tokenHash')=?",'holdings-widget','fixture-not-a-token');assert.match(plan,/SEARCH records USING INDEX holdings_widget_token/);
  seed('customer-holdings','synthetic-only',{entries:[]});const old=db.prepare('SELECT * FROM records').all();db.exec(fs.readFileSync('drizzle/0003_read_budget_indexes.sql','utf8'));assert.deepEqual(db.prepare('SELECT * FROM records').all(),old);
+});
+
+test('server price-page render never loads the catalog, articles or customer goals',async()=>{
+ for(let i=0;i<500;i++)seed('product',String(i),{published:true,available:true});
+ seed('article','fixture',{headline:'not needed'});seed('customer-gold-goal','private-fixture',{title:'never public'});
+ seed('price','pos-9999',{code:'9999',buy:12000000,sell:12300000,unit:'đồng/chỉ',capturedAt:Date.now()});
+ const page=await PricePage();assert.equal(page.props.kind,'prices');assert.equal(page.props.initialData.prices[0].sell,12300000);
+ assert.ok(!calls.some(c=>c.args.some(arg=>['product','article','customer-gold-goal'].includes(arg))));assert.ok(!JSON.stringify(page.props.initialData).includes('never public'));
 });

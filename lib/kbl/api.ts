@@ -4,6 +4,8 @@ import {handleCustomer} from './customer';
 import {handleHoldings} from './holdings';
 import {handleCustomerPlans} from './customer-plans';
 import {readShopPrices,SHOP_ADDRESS} from './shop-prices';
+import {publicRead} from './public-cache.mjs';
+import {publicPrices} from './public-prices';
 import {handleTryOn} from './tryon';
 import {handleCustomerAdmin} from './customer-admin';
 import {submitFeedback} from './feedback';
@@ -94,13 +96,8 @@ export async function handle(req: Request): Promise<Response> {
         if (path[0] === 'public') {
             if(path[1]==='fx'&&method==='GET')return response(await readVcbRate());
             if(path[1]==='traffic'&&method==='POST'){await rate(req,'traffic',120);return response(await recordTraffic(await body(req,1500)));}
-            if(path[1]==='tv-design'&&method==='GET')return response(await readTVDesign());
-            if(path[1]==='prices'&&method==='GET'){
-                const shop=await readShopPrices();
-                // TV needs public shop text as well as quotes, but never the product catalog.
-                const cfg=u.searchParams.get('view')==='tv'?await S.settings():null;
-                return response({prices:shop.prices,priceSnapshot:shop.snapshotId,priceSource:shop.source,sourceAt:shop.sourceAt,stale:shop.stale,address:SHOP_ADDRESS,...(cfg?{company:{name:cfg.companyName,phone:cfg.phone,address:SHOP_ADDRESS,hours:cfg.hours}}:{})});
-            }
+            if(path[1]==='tv-design'&&method==='GET')return response(await publicRead('tv-design',readTVDesign));
+            if(path[1]==='prices'&&method==='GET')return response(await publicPrices(u.searchParams.get('view')==='tv'));
             if(path[1]==='customer-plans')return await handleCustomerPlans(req,path.slice(2));
             if(path[1]==='holdings')return await handleHoldings(req,path.slice(2));
             if(path[1]==='customer')return await handleCustomer(req,path.slice(2));
@@ -110,9 +107,10 @@ export async function handle(req: Request): Promise<Response> {
             if (method === 'GET' && path[1] === 'market')
                 return response(await readWorldMarket());
             if (method === 'GET' && path[1] === 'catalog') {
+                return response(await publicRead('catalog',async()=>{
                 const cfg = await S.settings();
                 const shop=await readShopPrices(),posBound=shop.bound,cloudPrice=shop.cloudPrice;
-                return response({ cloudPrice, assistant: await readAssistantState(cfg), products: (await S.list('product', 500)).filter((p: any) => p.published && p.available && (!posBound || p.source === 'pos')), articles: await S.list('article', 30), prices:shop.prices,priceSnapshot:shop.snapshotId,priceSource:shop.source, company: { name: cfg.companyName, phone: cfg.phone, address: SHOP_ADDRESS, hours: cfg.hours }, posBound, connected: true });
+                return { cloudPrice, assistant: await readAssistantState(cfg), products: (await S.list('product', 500)).filter((p: any) => p.published && p.available && (!posBound || p.source === 'pos')), articles: await S.list('article', 30), prices:shop.prices,priceSnapshot:shop.snapshotId,priceSource:shop.source, company: { name: cfg.companyName, phone: cfg.phone, address: SHOP_ADDRESS, hours: cfg.hours }, posBound, connected: true };}));
             }
             if (method === 'GET' && path[1] === 'article') {
                 const a = await S.get('article', path[2]);
@@ -203,7 +201,18 @@ export async function handle(req: Request): Promise<Response> {
                 }
             }
             if (method === 'GET' && path[1] === 'state') {
-                const [cfg, accounts, workers, products, stories, prices, orders, consultations, channels, commands, jobs, events, receipts, storage, editions, aiHealth] = await Promise.all([S.settings(), S.list('account', 20), S.list('worker', 20), S.list('product', 500), S.list('story', 80), S.list('price', 40), S.list('order', 100), S.list('consultation', 100), S.list('channel', 20), S.list('command', 30), S.sql().prepare('SELECT id,story_id,stage,status,owner,exclude_account,lease_until,attempt,error,created_at,updated_at FROM jobs ORDER BY created_at DESC LIMIT 250').all(), S.sql().prepare('SELECT * FROM events ORDER BY id DESC LIMIT 80').all(), S.sql().prepare('SELECT * FROM receipts ORDER BY at DESC LIMIT 100').all(), S.sql().prepare('SELECT COALESCE(SUM(bytes),0) bytes,COUNT(*) files FROM assets WHERE deleted_at IS NULL').first(), S.sql().prepare('SELECT * FROM editions ORDER BY created_at DESC LIMIT 12').all(), S.list('ai-provider-health', 5)]);
+                const view=u.searchParams.get('view');
+                const views=['tong-quan','seo','ai-team','san-pham','bang-gia','noi-dung','don-hang','tu-van','khach-hang','ket-noi','luu-tru','cai-dat'];
+                if(view&&!views.includes(view))fail('Màn hình quản trị chưa hợp lệ.',400);
+                const needs=(...names:string[])=>!view||names.includes(view);
+                const rows=(kind:string,limit:number,...names:string[])=>needs(...names)?S.list(kind,limit):Promise.resolve([]);
+                const query=(q:string,...names:string[])=>needs(...names)?S.sql().prepare(q).all():Promise.resolve({results:[]});
+                const [cfg, accounts, workers, products, stories, prices, orders, consultations, channels, commands, jobs, events, receipts, storage, editions, aiHealth] = await Promise.all([
+                    S.settings(),S.list('account',20),S.list('worker',20),rows('product',500,'san-pham'),rows('story',80,'tong-quan','ai-team','noi-dung'),rows('price',40,'bang-gia'),rows('order',100,'don-hang'),rows('consultation',100,'tu-van'),rows('channel',20,'ket-noi'),rows('command',30,'ai-team','ket-noi'),
+                    query('SELECT id,story_id,stage,status,owner,exclude_account,lease_until,attempt,error,created_at,updated_at FROM jobs ORDER BY created_at DESC LIMIT 250','tong-quan','ai-team','noi-dung'),
+                    query('SELECT * FROM events ORDER BY id DESC LIMIT 80','tong-quan','ai-team'),query('SELECT * FROM receipts ORDER BY at DESC LIMIT 100','noi-dung'),
+                    needs('luu-tru')?S.sql().prepare('SELECT COALESCE(SUM(bytes),0) bytes,COUNT(*) files FROM assets WHERE deleted_at IS NULL').first():null,
+                    query('SELECT * FROM editions ORDER BY created_at DESC LIMIT 12','noi-dung','luu-tru'),rows('ai-provider-health',5,'tong-quan','ai-team','tu-van')]);
                 return response({ settings: cfg, accounts, workers, products, stories, prices, orders, consultations: consultations.map(({ tokenHash, ...v }: any) => v), channels, commands, jobs: jobs.results, events: events.results, receipts: receipts.results, storage, editions: editions.results, aiHealth, apiConsult: apiConsultReady(), posBound: await POS.locked(), posSync: await S.list('pos-sync', 10), serverTime: Date.now() });
             }
             if (method === 'POST' && path[1] === 'settings') {
@@ -400,6 +409,14 @@ export async function handle(req: Request): Promise<Response> {
                 return response({ ok: true });
             }
             if (method === 'GET' && path[1] === 'queue') {
+                if(u.searchParams.get('active')==='1'){
+                    let held:any=[];try{held=JSON.parse(u.searchParams.get('held')||'[]');}catch{fail('Danh sách công việc chưa hợp lệ.');}
+                    if(!Array.isArray(held)||held.length>40||held.some((id:any)=>typeof id!=='string'||!/^[a-zA-Z0-9:_-]{1,160}$/.test(id)))fail('Danh sách công việc chưa hợp lệ.');
+                    const cols='id,story_id,stage,status,owner,exclude_account,lease_until,attempt,result,result_hash,error,created_at,updated_at';
+                    const active=await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE status IN ('queued','leased','running','attention','blocked','waiting-revision') ORDER BY created_at ASC LIMIT 300`).all<any>();
+                    const claimed=held.length?await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(held)).all<any>():{results:[]};
+                    return response({jobs:[...new Map([...active.results,...claimed.results].map((j:any)=>[j.id,j])).values()],settings:await S.settings()});
+                }
                 const rows = (await S.sql().prepare("SELECT id,story_id,stage,status,owner,exclude_account,lease_until,attempt,result,result_hash,error,created_at,updated_at FROM jobs ORDER BY CASE WHEN status IN ('complete','canceled') THEN 1 ELSE 0 END,created_at ASC LIMIT 300").all<any>()).results;
                 return response({ jobs: rows, settings: await S.settings() });
             }

@@ -11,6 +11,7 @@ import { STAGES, CAPABILITIES, LABELS, SOURCE_HOSTS, sourceURL, stripMarkup, val
 import { captureGoldSlot } from './gold';
 import { publicCloudPrices } from './cloud-price';
 import { publicProductDetails } from './product-view.mjs';
+import {pruneCounters} from './maintenance';
 export const now = () => Date.now();
 export async function createStory(input: any, stableId?: string) { const storyId = stableId || id(); if (stableId && await get('story', storyId)) {
     await ensureJob(storyId, 'research');
@@ -233,10 +234,12 @@ export async function complete(workerId: string, jobId: string, lease: string, r
 function transitionId(job: any) { return `${job.id}:${job.attempt}:${job.result_hash || ''}`; }
 async function advanceAndRecord(job: any) {
     const key = transitionId(job);
-    if (await get('job-transition', key)) return;
+    if (await get('job-transition', key)) {await markTransitioned(job);return;}
     await advance(job);
     await put('job-transition', key, { jobId: job.id, attempt: job.attempt, stage: job.stage, at: now() });
+    await markTransitioned(job);
 }
+async function markTransitioned(job:any){await sql().prepare("UPDATE jobs SET transitioned_result=? WHERE id=? AND status='complete' AND attempt=? AND COALESCE(result_hash,'')=?").bind(job.attempt+':'+(job.result_hash||''),job.id,job.attempt,job.result_hash||'').run();}
 
 async function repairAfterReview(job: any, reason: string) {
     const creatorStage = job.stage === 'review' ? 'write' : 'image';
@@ -381,12 +384,12 @@ async function processApiQuestions() {
         await sql().prepare("UPDATE records SET data=json_set(data,'$.status','awaiting-reply'),updated_at=? WHERE kind='consultation' AND id=? AND json_extract(data,'$.status')='api-processing'").bind(now(),c.id).run();
     }
 }
-export async function tick() {
+export async function tick({housekeeping=true}={}) {
     await processApiQuestions().catch(()=>{});
     const at = now();
     await sql().prepare('UPDATE jobs SET status=\'queued\',owner=NULL,lease_hash=NULL,lease_until=NULL,error=\'Hết lượt giữ việc trước khi gửi prompt.\' WHERE status=\'leased\' AND lease_until<?').bind(at).run();
     await sql().prepare('UPDATE jobs SET status=\'attention\',error=\'Mất liên lạc sau khi gửi. Giữ lượt cũ để đối chiếu, không gửi lại tự động.\' WHERE status=\'running\' AND lease_until<?').bind(at).run();
-    const finished = (await sql().prepare("SELECT * FROM jobs WHERE status='complete' AND stage<>'publish' AND NOT EXISTS(SELECT 1 FROM records WHERE kind='job-transition' AND records.id=jobs.id||':'||jobs.attempt||':'||COALESCE(jobs.result_hash,'')) ORDER BY updated_at ASC LIMIT 5").all<any>()).results;
+    const finished = (await sql().prepare("SELECT * FROM jobs INDEXED BY jobs_needing_transition WHERE status='complete' AND stage<>'publish' AND (transitioned_result IS NULL OR transitioned_result<>attempt||':'||COALESCE(result_hash,'')) ORDER BY updated_at ASC LIMIT 5").all<any>()).results;
     for (const j of finished) {
         try { await advanceAndRecord(j); }
         catch (e: any) {
@@ -434,10 +437,7 @@ export async function tick() {
     await processNewsImages();
     await captureGoldSlot(at);
     await captureProductSlot(at);
-    await sql().prepare("DELETE FROM records WHERE kind='rate' AND created_at<?").bind(at - 86400000).run();
-    await sql().prepare("DELETE FROM records WHERE kind='command' AND updated_at<? AND json_extract(data,'$.status') IN ('done','failed')").bind(at - 7 * 86400000).run();
-    await sql().prepare('DELETE FROM events WHERE id NOT IN (SELECT id FROM events ORDER BY id DESC LIMIT 2000)').run();
-    await cleanup().catch(() => { });
+    if(housekeeping){await pruneCounters(at);await cleanup().catch(() => {});}
 }
 export async function cleanup() { const cfg = await settings(), rows = (await sql().prepare('SELECT a.* FROM assets a JOIN records s ON s.kind=\'story\' AND s.id=a.story_id WHERE a.purpose IN (\'video-temp\',\'audio\',\'captions\') AND a.deleted_at IS NULL AND json_array_length(json_extract(s.data,\'$.platforms\'))>0 AND NOT EXISTS(SELECT 1 FROM json_each(json_extract(s.data,\'$.platforms\')) p WHERE NOT EXISTS(SELECT 1 FROM receipts r WHERE r.story_id=a.story_id AND r.platform=p.value AND r.external_id<>\'\' AND r.url<>\'\')) LIMIT 5').all<any>()).results; let count = 0; for (const a of rows) {
     const receipt = (await sql().prepare('SELECT id,platform,variant,external_id,url FROM receipts WHERE story_id=?').bind(a.story_id).all<any>()).results;

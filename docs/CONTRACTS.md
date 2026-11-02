@@ -52,3 +52,7 @@ Auth khách là session riêng __Host-kbl_customer; không thay Cloudflare Acces
 Quota thử ảnh là server-authoritative (5 ban đầu, thêm qua Admin sau đối chiếu mua); requestId idempotent và reserve nguyên tử. Ảnh khách cần consent và riêng tư theo customerId; kết quả 7 ngày, đầu vào không lưu bền. Provider chưa rõ kết quả không tự gọi lại hoặc hoàn lượt; staff đối soát trước. Lỗi đã xác nhận không có ảnh được hoàn lượt.
 
 Lịch sử tiệm khóa bản chụp thật mốc 13 giờ theo giờ Việt Nam; không dựng giá lịch sử. Feedback không phải consultation; Telegram có outbox và biên nhận riêng.
+
+
+## Nhịp tự động và quota D1 — 02/11/2026
+Cache chỉ cho JSON giá/danh mục/mẫu TV công khai, TTL lần lượt 5/30/60 giây tại từng điểm Cloudflare; không cache API khách hoặc Admin. SSR bảng giá chỉ đọc giá. Cron giá/AI/inbox/lịch sử/cảnh báo tách lỗi; dọn định kỳ theo giờ. Migration 0004 phải đi trước code, thêm marker chuyển bước theo attempt/hash từ biên nhận và index; không đổi POS. Worker 2.2.1 giữ thư mục POS đã chọn, biên nhận và hàng đợi qua khởi động; kho/cấu hình chỉ gửi khi đổi, giá vẫn định kỳ. Hàng đợi active cộng tối đa 40 job đang giữ để đối soát muộn, endpoint cũ giữ tương thích. Xem docs/POS_AUTO_AND_D1.md về kiểm thử, nhịp cụ thể và bước triển khai thật.
