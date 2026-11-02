@@ -95,13 +95,18 @@ export async function handle(req: Request): Promise<Response> {
             if(path[1]==='fx'&&method==='GET')return response(await readVcbRate());
             if(path[1]==='traffic'&&method==='POST'){await rate(req,'traffic',120);return response(await recordTraffic(await body(req,1500)));}
             if(path[1]==='tv-design'&&method==='GET')return response(await readTVDesign());
-            if(path[1]==='prices'&&method==='GET'){const shop=await readShopPrices();return response({prices:shop.prices,priceSnapshot:shop.snapshotId,priceSource:shop.source,sourceAt:shop.sourceAt,stale:shop.stale,address:SHOP_ADDRESS});}
+            if(path[1]==='prices'&&method==='GET'){
+                const shop=await readShopPrices();
+                // TV needs public shop text as well as quotes, but never the product catalog.
+                const cfg=u.searchParams.get('view')==='tv'?await S.settings():null;
+                return response({prices:shop.prices,priceSnapshot:shop.snapshotId,priceSource:shop.source,sourceAt:shop.sourceAt,stale:shop.stale,address:SHOP_ADDRESS,...(cfg?{company:{name:cfg.companyName,phone:cfg.phone,address:SHOP_ADDRESS,hours:cfg.hours}}:{})});
+            }
             if(path[1]==='customer-plans')return await handleCustomerPlans(req,path.slice(2));
             if(path[1]==='holdings')return await handleHoldings(req,path.slice(2));
             if(path[1]==='customer')return await handleCustomer(req,path.slice(2));
             if(path[1]==='try-on')return await handleTryOn(req,path.slice(2));
             if(path[1]==='feedback'&&method==='POST')return await submitFeedback(req);
-            if(path[1]==='price-history'&&method==='GET')return response(await readPriceHistory(Number(u.searchParams.get('days')||7)));
+            if(path[1]==='price-history'&&method==='GET')return response(await readPriceHistory(Number(u.searchParams.get('days')||7),u.searchParams.get('series')||'all'));
             if (method === 'GET' && path[1] === 'market')
                 return response(await readWorldMarket());
             if (method === 'GET' && path[1] === 'catalog') {

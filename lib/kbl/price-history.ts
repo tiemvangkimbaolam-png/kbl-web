@@ -10,4 +10,12 @@ export async function capturePriceHistory(at=Date.now()){
  // Keep world points bounded; VN daily history is compact.
  await S.sql().prepare("DELETE FROM records WHERE kind='history-world' AND created_at<?").bind(at-30*86400000).run();
 }
-export async function readPriceHistory(days=7){const cutoff=Date.now()-Math.min(30,Math.max(1,Number.isFinite(days)?days:7))*86400000;const rows=await S.sql().prepare("SELECT kind,id,data FROM records WHERE kind IN ('history-vn','history-world') AND created_at>=? ORDER BY created_at LIMIT 10000").bind(cutoff).all<any>();return{vietnam:rows.results.filter(x=>x.kind==='history-vn').map(x=>JSON.parse(x.data)),world:rows.results.filter(x=>x.kind==='history-world').map(x=>JSON.parse(x.data)),anchor:'13:00 Asia/Ho_Chi_Minh'};}
+export async function readPriceHistory(days=7,series='all'){
+ if(!['all','vn','world'].includes(series))throw Object.assign(Error('Loại lịch sử chưa hợp lệ.'),{status:400});
+ const cutoff=Date.now()-Math.min(30,Math.max(1,Number.isFinite(days)?days:7))*86400000;
+ // A VN chart needs at most 30 daily points, not thousands of world-price points.
+ const where=series==='all'?"kind IN ('history-vn','history-world')":"kind=?";
+ const args=series==='all'?[cutoff]:[series==='vn'?'history-vn':'history-world',cutoff];
+ const rows=await S.sql().prepare(`SELECT kind,id,data FROM records WHERE ${where} AND created_at>=? ORDER BY created_at LIMIT 10000`).bind(...args).all<any>();
+ return{vietnam:rows.results.filter(x=>x.kind==='history-vn').map(x=>JSON.parse(x.data)),world:rows.results.filter(x=>x.kind==='history-world').map(x=>JSON.parse(x.data)),anchor:'13:00 Asia/Ho_Chi_Minh'};
+}

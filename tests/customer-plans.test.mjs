@@ -123,3 +123,11 @@ test('password-version change retires old rules visibly and frees the three-aler
  let view=(await call('customer-plans',undefined,a)).data;assert.ok(view.alerts.every(r=>r.status==='needs-renewal'&&!r.enabled));assert.equal(view.devices.length,0);await register(a,subscription('new-auth-version'));assert.equal((await call('customer-plans/alert',alert(4),a)).status,200);
  await processPriceNotifications({fetcher:async()=>new Response('',{status:201})});view=(await call('customer-plans',undefined,a)).data;assert.equal(view.alerts.filter(r=>r.status==='needs-renewal').length,3);assert.equal(view.alerts.filter(r=>r.enabled).length,1);
 });
+
+test('existing paired price widget reads edits to goal name/target without replacing the script or pairing again',async()=>{
+ const a=auth();await call('holdings',{action:'add',version:0,requestId:'bbbbbbbbbbbbbbbb',entry:entry()},a);await call('customer-plans/goal',goal(),a);
+ const p=await call('holdings/pair',{},a),r=await call('holdings/redeem',{code:p.data.code}),headers={Authorization:'Bearer '+r.data.token};
+ const first=await call('holdings/goal-widget',undefined,headers);assert.equal(first.data.goal.title,'Mục tiêu thử');assert.equal(first.data.goal.percent,25);
+ const edited=await call('customer-plans/goal',{...goal(),version:1,title:'Quỹ mới',targetChi:'10'},a);assert.equal(edited.status,200);
+ const next=await call('holdings/goal-widget',undefined,headers);assert.equal(next.data.goal.title,'Quỹ mới');assert.equal(next.data.goal.targetUnits,10000);assert.equal(next.data.goal.currentUnits,2000);assert.equal(next.data.goal.percent,20);assert.match(next.headers.get('Cache-Control'),/no-store/);
+});

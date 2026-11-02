@@ -11,7 +11,7 @@ export default function TV() {
     const c = new AbortController();
     async function load() {
       const results = await Promise.allSettled([
-        fetch("/api/public/catalog", {
+        fetch("/api/public/prices?view=tv", {
           cache: "no-store",
           signal: c.signal,
         }).then(async (r) => {
@@ -35,7 +35,7 @@ export default function TV() {
       setError(failed ? "Mất kết nối — đang giữ bản hiển thị đã nhận." : "");
     }
     load();
-    const t = setInterval(load, 30000),
+    const t = setInterval(() => { if (!document.hidden) void load(); }, 30000),
       change = () => setFull(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", change);
     return () => {
