@@ -8,11 +8,12 @@ import { publicBase } from './social-core.mjs';
 import { env } from 'cloudflare:workers';
 import { sql, get, list, put, event, settings, sha, id, randomToken } from './store';
 import { STAGES, CAPABILITIES, LABELS, SOURCE_HOSTS, sourceURL, stripMarkup, validateResult, nextStage, fail, outlookSlot } from './domain.mjs';
-import { captureGoldSlot } from './gold';
+import { captureGoldSlot,captureGoldFollowup } from './gold';
 import { publicCloudPrices } from './cloud-price';
 import { publicProductDetails } from './product-view.mjs';
 import {pruneCounters} from './maintenance';
 import {preferredSpecialist} from './team-specialists.mjs';
+import {oldestUnfinishedStoryId} from './story-order';
 export const now = () => Date.now();
 export async function createStory(input: any, stableId?: string) { const storyId = stableId || id(); if (stableId && await get('story', storyId)) {
     await ensureJob(storyId, 'research');
@@ -78,8 +79,7 @@ export async function promptFor(job: any) {
     return { id: job.id, storyId: job.story_id, stage: job.stage, attempt: job.attempt, nonce, prompt: instructions[job.stage] + goldInstructions + outlookInstructions + '\n\nHỒ SƠ DỮ LIỆU:\n' + JSON.stringify(context) + '\n\nSCHEMA JSON:\n' + JSON.stringify(schema), schema, context, attachmentHashes: context.outputs.image?.rows?.map((x: any) => x.assetId) || [] };
 }
 async function oldestStoryId() {
-    const row = await sql().prepare("SELECT id FROM records WHERE kind='story' AND json_extract(data,'$.status') IN ('working','waiting-revision') ORDER BY created_at,id LIMIT 1").first<any>();
-    return row?.id || null;
+    return oldestUnfinishedStoryId();
 }
 export async function claim(workerId: string, accountId: string | null, capabilities: string[], targetId?: string) {
     const cfg = await settings();
@@ -103,7 +103,7 @@ export async function claim(workerId: string, accountId: string | null, capabili
     const specialists = useSpecialists ? await list('account', 20) : [];
     const busySpecialists = useSpecialists ? (await sql().prepare("SELECT DISTINCT owner FROM jobs WHERE status IN ('leased','running','attention') AND owner IS NOT NULL").all<any>()).results.map((r:any) => r.owner) : [];
     for (const candidate of rows) {
-        if(candidate.stage==='image'){const st=await get('story',candidate.story_id);if(!accountId&&st?.kind!=='gold')continue;if(accountId&&(st?.kind==='gold'||(!['gold','product'].includes(st?.kind)&&(env as any).GEMINI_API_KEY)))continue;}
+        if(candidate.stage==='image'){const st=await get('story',candidate.story_id);if(!accountId&&st?.kind!=='gold')continue;if(accountId&&st?.kind==='gold')continue;}
         if (candidate.stage !== 'consult' && oldest && candidate.story_id !== oldest) continue;
         if ((targetId && candidate.id !== targetId) || !stages.includes(candidate.stage))
             continue;
@@ -427,8 +427,10 @@ export async function tick({housekeeping=true}={}) {
         if (cfg.autoOutlook !== false) {
             const slot = outlookSlot(at);
             if (slot) {
-                const day = new Date(at + 7 * 3600000).toISOString().slice(0, 10), sid = (await sha('KBL-AUTO-OUTLOOK:' + day + ':' + slot)).slice(0, 32), active = await sql().prepare("SELECT COUNT(*) n FROM records WHERE kind='story' AND json_extract(data,'$.status')='working'").first<any>();
-                if (active.n < 4 && !await get('story', sid))
+                const day = new Date(at + 7 * 3600000).toISOString().slice(0, 10), sid = (await sha('KBL-AUTO-OUTLOOK:' + day + ':' + slot)).slice(0, 32);
+                // Keep the scheduled outlook even when earlier stories are
+                // queued; FIFO controls execution and the stable id dedupes it.
+                if (!await get('story', sid))
                     await createStory({ title: 'Nhận định giá vàng · ' + slot + ' · ' + new Date(at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit' }), topic: 'Dự báo kịch bản giá vàng 24 giờ tới dựa trên dữ liệu đã kiểm chứng: giá XAU/USD và giá trong nước gần nhất, lịch sự kiện kinh tế sắp công bố (Fed, CPI, việc làm, USD). Trình bày 2–3 kịch bản tăng/giảm/đi ngang kèm mốc giá tham chiếu và yếu tố kích hoạt; ghi rõ đây là nhận định tham khảo, không phải khuyến nghị đầu tư, không cam kết kết quả.', kind: 'outlook' }, sid);
             }
         }
@@ -443,6 +445,7 @@ export async function tick({housekeeping=true}={}) {
     await processNewsImages();
     await captureGoldSlot(at);
     await captureProductSlot(at);
+    await captureGoldFollowup(at);
     if(housekeeping){await pruneCounters(at);await cleanup().catch(() => {});}
 }
 export async function cleanup() { const cfg = await settings(), rows = (await sql().prepare('SELECT a.* FROM assets a JOIN records s ON s.kind=\'story\' AND s.id=a.story_id WHERE a.purpose IN (\'video-temp\',\'audio\',\'captions\') AND a.deleted_at IS NULL AND json_array_length(json_extract(s.data,\'$.platforms\'))>0 AND NOT EXISTS(SELECT 1 FROM json_each(json_extract(s.data,\'$.platforms\')) p WHERE NOT EXISTS(SELECT 1 FROM receipts r WHERE r.story_id=a.story_id AND r.platform=p.value AND r.external_id<>\'\' AND r.url<>\'\')) LIMIT 5').all<any>()).results; let count = 0; for (const a of rows) {

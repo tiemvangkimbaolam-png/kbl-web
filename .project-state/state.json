@@ -51,28 +51,33 @@
     },
     "integrate": {
       "status": "in_progress",
-      "note": "Completed compact UI request and A4 signature gap +8mm. Original presentation prefix preserved; eight other source/style hashes unchanged. Fixture browser preserved209 controls/111 handlers after summary refresh; no duplicate IDs; help and top button checked. Actual printing not tested.",
+      "note": "Installed owner-authorized pawn tier policy only; seven other POS files unchanged, no data migration or forced reload. Actual source tests pass and offline two-copy print labels checked. 324 tests and final Cloudflare build pass. Nine AI accounts observed paired with real work accepted; flexible routing saved. Receipt-gated followups and scheduled outlook backlog fix ready for deployment.",
       "evidence": [
         {
-          "path": "pos-source\\kbl-jewel-ui.js",
-          "sha256": "1bd2e1325e95ac8e93f52660cc6c2eeaec713eb181b5b83a23334d1783e3728a",
-          "bytes": 14580
+          "path": "docs\\POS_LAI_CAM_DO_VA_DOI_AI_20261102.md",
+          "sha256": "8f29c55276ae3847fc3dcbf978bb195e59c66c90e98f6ba24e4fc304b2e10657",
+          "bytes": 4643
         },
         {
-          "path": "docs\\POS_GON_GIAO_DIEN_20261102.md",
-          "sha256": "d44b1c1e56854c7823cc75961b0b14f86abbca3e7d9c90d4e27cd90db3844619",
-          "bytes": 2646
+          "path": "pos-source\\pawn.html",
+          "sha256": "b07c7bbf39b5e76e78e900f799b65e09c2d8e71d79a03469c8b2c01901dc5d0a",
+          "bytes": 235891
         },
         {
-          "path": ".project-state\\verification.md",
-          "sha256": "d19453d23d91db6e1d4c8f2e3e0756e93a3670ce9c20ca2cc2d68ae6af16c6e1",
-          "bytes": 8734
+          "path": "lib\\kbl\\gold.ts",
+          "sha256": "a2f5c8c8433213c9ef551263a74512a9ee162cdb2234aea79a938d72e9af2c87",
+          "bytes": 11593
+        },
+        {
+          "path": "lib\\kbl\\story-order.ts",
+          "sha256": "c2553cbe7f3b7d54982c6248cf7b2f7966aec21bed23aa383475b307ca412193",
+          "bytes": 695
         }
       ],
-      "at": "2026-11-02T08:23:22.773645+00:00"
+      "at": "2026-11-02T10:10:43.196285+00:00"
     }
   },
-  "next_action": "Compact POS UI is installed; normal POS reload remains user-controlled. Resume pending actual Chrome pairing, provider and publication verification separately.",
+  "next_action": "Push tested code, verify Cloudflare deployment and real AI progress/publication receipts; preserve uncertain running jobs and existing financial records.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -181,7 +186,19 @@
       "stage": "integrate",
       "status": "in_progress",
       "note": "Completed compact UI request and A4 signature gap +8mm. Original presentation prefix preserved; eight other source/style hashes unchanged. Fixture browser preserved209 controls/111 handlers after summary refresh; no duplicate IDs; help and top button checked. Actual printing not tested."
+    },
+    {
+      "at": "2026-11-02T09:10:01.123975+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Read-only financial and automation audit completed. Protected POS formula hashes unchanged. Private findings retained only in local outputs, outside source and Git. No production changes or real transactions. Actual AI Chrome pairing and publication remain unverified; source freshness and financial consistency findings remain open."
+    },
+    {
+      "at": "2026-11-02T10:10:43.196285+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Installed owner-authorized pawn tier policy only; seven other POS files unchanged, no data migration or forced reload. Actual source tests pass and offline two-copy print labels checked. 324 tests and final Cloudflare build pass. Nine AI accounts observed paired with real work accepted; flexible routing saved. Receipt-gated followups and scheduled outlook backlog fix ready for deployment."
     }
   ],
-  "updated_at": "2026-11-02T08:23:22.773645+00:00"
+  "updated_at": "2026-11-02T10:10:43.196285+00:00"
 }

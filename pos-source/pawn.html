@@ -570,11 +570,11 @@
             </div>
             <div class="form-row" style="margin-top: 10px;">
                 <div class="form-group">
-                    <label style="color: #dc3545;">Tiền lãi thực tế (1.5%):</label>
+                    <label id="pawn-interest-rate-label" style="color: #dc3545;">Tiền lãi thực tế (1,5%):</label>
                     <input type="text" id="out-lai" readonly style="background: #fff5f5; font-weight: bold; color: #dc3545;">
                 </div>
                 <div class="form-group">
-                    <label style="color: #fd7e14;">Chi phí quản lý kho bãi (1.5%):</label>
+                    <label id="pawn-fee-rate-label" style="color: #fd7e14;">Phí PTĐ / PĐQ / CPBG (1,5%):</label>
                     <input type="text" id="out-phi" readonly style="background: #fff9f5; font-weight: bold; color: #fd7e14;">
                 </div>
             </div>
@@ -706,7 +706,7 @@
                             </div>
                             <div style="font-size: 9.5px;">
                                 <div>Mã số: <span class="c-bold label-id"></span></div>
-                                <div>LS: 1,5% | Phí: 1.5%</div>
+                                <div class="label-pawn-rates">LS: 1,5% | PTĐ: 0,5% | PĐQ: 0,5% | CPBG: 0,5%</div>
                             </div>
                         </div>
                     </div>
@@ -776,7 +776,7 @@
                             </div>
                             <div style="font-size: 9.5px;">
                                 <div>Mã số: <span class="c-bold label-id"></span></div>
-                                <div>LS: 1,66% | PTĐ:0.34%, PĐQ:0.4%, CPBG: 0.4% </div>
+                                <div class="label-pawn-rates">LS: 1,5% | PTĐ: 0,5% | PĐQ: 0,5% | CPBG: 0,5%</div>
                             </div>
                         </div>
                     </div>
@@ -1996,13 +1996,50 @@
         return /đã\s*chuộc|da\s*chuoc|đã\s*thanh\s*lý|da\s*thanh\s*ly/i.test(String(record && record.status || ''));
     }
 
+    // Chính sách chủ tiệm chốt 02/11/2026; tháng chuẩn 30 ngày.
+    // Chỉ tiền gốc >100 triệu dùng tổng 2,5%; đúng 100 triệu vẫn tổng 3%.
+    function pawnRatesForMoney(money) {
+        const high = Number(money) > 100000000;
+        return { interestRate: 1.5, feeRate: high ? 1 : 1.5,
+            appraisalRate: high ? 0.4 : 0.5, valuationRate: high ? 0.3 : 0.5,
+            storageRate: high ? 0.3 : 0.5, totalRate: high ? 2.5 : 3 };
+    }
+
+    function pawnRatesForRecord(record) {
+        const rates = pawnRatesForMoney(record && record.money);
+        // Phiếu đã chốt giữ mức đã lưu; không di trú hoặc ghi lại lịch sử.
+        if (!pawnIsClosed(record)) return rates;
+        const interestRate = Number(record.interestRate) > 0 ? Number(record.interestRate) : 1.5;
+        const feeRate = Number(record.feeRate) > 0 ? Number(record.feeRate) : 1.5;
+        const appraisalRate = feeRate === 1 ? 0.4 : Math.round(feeRate / 3 * 100) / 100;
+        const valuationRate = feeRate === 1 ? 0.3 : appraisalRate;
+        return { ...rates, interestRate, feeRate, appraisalRate, valuationRate,
+            storageRate: Math.round((feeRate - appraisalRate - valuationRate) * 100) / 100,
+            totalRate: interestRate + feeRate };
+    }
+
+    function pawnCurrentFormRates(money) {
+        const saved = window.__kblPawnClosedRateSnapshot;
+        return saved && saved.id === document.getElementById('inp-id')?.value
+            ? pawnRatesForRecord(saved) : pawnRatesForMoney(money);
+    }
+
+    function pawnUpdateRateLabels(rates) {
+        const percent = value => Number(value).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + '%';
+        const line = `LS: ${percent(rates.interestRate)} | PTĐ: ${percent(rates.appraisalRate)} | PĐQ: ${percent(rates.valuationRate)} | CPBG: ${percent(rates.storageRate)}`;
+        document.querySelectorAll('.label-pawn-rates').forEach(el => el.textContent = line);
+        const interestLabel = document.getElementById('pawn-interest-rate-label');
+        const feeLabel = document.getElementById('pawn-fee-rate-label');
+        if (interestLabel) interestLabel.textContent = `Tiền lãi thực tế (${percent(rates.interestRate)}):`;
+        if (feeLabel) feeLabel.textContent = `Phí PTĐ / PĐQ / CPBG (${percent(rates.feeRate)}):`;
+    }
+
     function pawnCalculateDue(record, endRaw = pawnTodayInput()) {
         const normalized = normalizePawnContract(record || {});
         const startRaw = pawnAccrualStart(normalized);
         const end = pawnDateInput(endRaw) || pawnTodayInput();
         const money = Number(normalized.money) || 0;
-        const interestRate = Number(normalized.interestRate) > 0 ? Number(normalized.interestRate) : 1.5;
-        const feeRate = Number(normalized.feeRate) > 0 ? Number(normalized.feeRate) : 1.5;
+        const { interestRate, feeRate } = pawnRatesForRecord(normalized);
         const days = startRaw && end ? countPawnDaysInclusive(startRaw, end) : 0;
         const interest = days > 0 ? Math.round(money * ((interestRate / 100) / 30) * days) : 0;
         const fee = days > 0 ? Math.round(money * ((feeRate / 100) / 30) * days) : 0;
@@ -2035,7 +2072,7 @@
             originalDateStart: pawnDateDisplay(normalized.originalDateStartRaw || normalized.dateStartRaw) || normalized.dateStart || '',
             accrualStartRaw: pawnAccrualStart(normalized), accrualStart: pawnDateDisplay(pawnAccrualStart(normalized)),
             dateEndRaw: normalized.dateEndRaw || '', dateEnd: normalized.dateEnd || '', status: normalized.status || 'Đang cầm',
-            interestRate: Number(normalized.interestRate) || 1.5, feeRate: Number(normalized.feeRate) || 1.5,
+            interestRate: pawnRatesForRecord(normalized).interestRate, feeRate: pawnRatesForRecord(normalized).feeRate,
             calculatedThroughRaw: due.endRaw || normalized.dateEndRaw || '', calculatedThrough: pawnDateDisplay(due.endRaw || normalized.dateEndRaw || ''),
             days: Number(due.days) || 0, currentInterest: Number(due.interest) || 0, currentFee: Number(due.fee) || 0,
             interestFeeDue: Number(due.interestFee) || 0, totalDue: Number(due.totalDue) || 0,
@@ -2133,6 +2170,7 @@
         record.paidInterestTotal = (Number(record.paidInterestTotal) || 0) + due.interest;
         record.paidFeeTotal = (Number(record.paidFeeTotal) || 0) + due.fee;
         record.tienLai = record.paidInterestTotal; record.tienPhi = record.paidFeeTotal;
+        record.interestRate = due.interestRate; record.feeRate = due.feeRate;
         record.lastInterestPaidThroughRaw = due.endRaw; record.accrualStartRaw = nextAccrualStartRaw; record.updatedAt = confirmedAt;
         const idx = contracts.findIndex(item => String(item.id) === String(record.id));
         if (idx >= 0) contracts[idx] = record;
@@ -2247,6 +2285,7 @@
         oldRecord.paidFeeTotal = (Number(oldRecord.paidFeeTotal) || 0) + due.fee;
         oldRecord.tienLai = oldRecord.paidInterestTotal;
         oldRecord.tienPhi = oldRecord.paidFeeTotal;
+        oldRecord.interestRate = due.interestRate; oldRecord.feeRate = due.feeRate;
         oldRecord.status = 'Đã chuộc';
         oldRecord.dateEndRaw = today;
         oldRecord.dateEnd = pawnDateDisplay(today);
@@ -2263,6 +2302,8 @@
             id: newId,
             publicToken: createPawnPublicToken(),
             money: newPrincipal,
+            interestRate: pawnRatesForMoney(newPrincipal).interestRate,
+            feeRate: pawnRatesForMoney(newPrincipal).feeRate,
             dateStartRaw: today,
             dateStart: pawnDateDisplay(today),
             dateEndRaw: today,
@@ -2383,6 +2424,7 @@
         record.paidInterestTotal = (Number(record.paidInterestTotal) || 0) + due.interest;
         record.paidFeeTotal = (Number(record.paidFeeTotal) || 0) + due.fee;
         record.tienLai = record.paidInterestTotal; record.tienPhi = record.paidFeeTotal;
+        record.interestRate = due.interestRate; record.feeRate = due.feeRate;
         record.status = 'Đã chuộc'; record.dateEndRaw = due.endRaw; record.dateEnd = pawnDateDisplay(due.endRaw);
         record.days = countPawnDaysInclusive(record.originalDateStartRaw || record.dateStartRaw, due.endRaw);
         record.closedAt = confirmedAt; record.updatedAt = confirmedAt;
@@ -2436,8 +2478,8 @@
             dateEnd: String(record.dateEnd || '').trim(),
             dateStartRaw: String(record.dateStartRaw || '').trim(),
             dateEndRaw: String(record.dateEndRaw || '').trim(),
-            interestRate: Number(record.interestRate) || 1.5,
-            feeRate: Number(record.feeRate) || 1.5,
+            interestRate: pawnRatesForRecord(record).interestRate,
+            feeRate: pawnRatesForRecord(record).feeRate,
             tienLai: Number(record.tienLai) || 0,
             tienPhi: Number(record.tienPhi) || 0,            originalDateStartRaw: String(record.originalDateStartRaw || record.dateStartRaw || '').trim(),
             accrualStartRaw: String(record.accrualStartRaw || record.dateStartRaw || '').trim(),
@@ -2618,8 +2660,10 @@
 
     function tinhLaiCamDo() {
         const moneyGoc = parseFloat(document.getElementById('inp-money').value) || 0;
-        const rateLai = 1.5; 
-        const ratePhi = 1.5;
+        const rates = pawnCurrentFormRates(moneyGoc);
+        const rateLai = rates.interestRate;
+        const ratePhi = rates.feeRate;
+        pawnUpdateRateLabels(rates);
         const formDateStartVal = document.getElementById('inp-date-start').value;
         const dateStartVal = window.__kblPawnAccrualStartRaw || formDateStartVal;
         const dateEndVal = document.getElementById('inp-date-end').value;
@@ -3232,6 +3276,9 @@
         let contracts = readPawnContracts();
         const item = contracts[realIndex];
         if(!item) return;
+        window.__kblPawnClosedRateSnapshot = pawnIsClosed(item)
+            ? { id: item.id, money: item.money, status: item.status, interestRate: item.interestRate, feeRate: item.feeRate }
+            : null;
 
         // Nút Xem / Sửa được phép cập nhật đúng phiếu đang mở.
         setPawnSaveMode('edit');
@@ -3486,8 +3533,7 @@ if (item.status === "Đã chuộc" || item.status === "Đã thanh lý") {
             const dateEndRaw = document.getElementById('inp-date-end').value || pawnTodayInput();
             const tienLai = parseFloat(document.getElementById('out-lai').value.replace(/[^0-9]/g, '')) || 0;
             const tienPhi = parseFloat(document.getElementById('out-phi').value.replace(/[^0-9]/g, '')) || 0;
-            const interestRate = Number(record.interestRate) > 0 ? Number(record.interestRate) : 1.5;
-            const feeRate = Number(record.feeRate) > 0 ? Number(record.feeRate) : 1.5;
+            const { interestRate, feeRate } = pawnRatesForMoney(record.money);
 
             record.status = newStatus;
             record.dateEndRaw = dateEndRaw;
@@ -3753,8 +3799,8 @@ if (item.status === "Đã chuộc" || item.status === "Đã thanh lý") {
         // Khi cập nhật phiếu cũ, giữ lại các trường dữ liệu cũ chưa có trên
         // giao diện hiện tại; không để một lần lưu làm mất thông tin lịch sử.
         const publicToken = previousContract.publicToken || createPawnPublicToken();
-        const interestRate = Number(previousContract.interestRate) > 0 ? Number(previousContract.interestRate) : 1.5;
-        const feeRate = Number(previousContract.feeRate) > 0 ? Number(previousContract.feeRate) : 1.5;
+        const { interestRate, feeRate } = pawnIsClosed(previousContract)
+            ? pawnRatesForRecord(previousContract) : pawnRatesForMoney(money);
         const originalDateStartRaw = previousContract.originalDateStartRaw || previousContract.dateStartRaw || dateStartRaw;
         const accrualStartRaw = previousContract.accrualStartRaw || previousContract.dateStartRaw || dateStartRaw;
         const paymentHistory = Array.isArray(previousContract.paymentHistory) ? previousContract.paymentHistory : [];
