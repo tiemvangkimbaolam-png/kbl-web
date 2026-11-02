@@ -78,7 +78,95 @@
   body .btn-primary,body .btn-blue,body .btn-word-sync {
     background:#9b4d2d!important;color:#fff!important;border-color:#9b4d2d!important;text-shadow:none!important;
   }
-  body .btn-gold,body .btn-outline {background:#fff2e9!important;color:#873f26!important;border-color:#d6ab90!important;}
+  body .btn-gold,body .btn-outline {background:#fff2e9!important;color:#873f26!important;border-color:#d6ab90!important;text-shadow:none!important;}
   body :is(input,select,textarea):not([type='checkbox']):not([type='radio']) {border-color:#d8c4b6!important;}
   body :is(button,input,select,textarea):focus-visible {outline:2px solid #9b4d2d!important;outline-offset:2px!important;}
+}
+
+/* KBL report contrast 02/11/2026. Screen colors only; original data and SVG geometry retained. */
+@media screen {
+  html body #tab-baocao > .card > .grid-4:nth-of-type(n) > div:nth-child(n) {
+    background:#fff2e9!important;background-image:none!important;
+    border:1px solid #ead1bf!important;box-shadow:none!important;
+  }
+  html body #tab-baocao > .card > .grid-4:nth-of-type(3) > div:nth-child(n) {
+    background:#fffdfb!important;
+  }
+  html body #tab-baocao > .card > .grid-4 > div::after {content:none!important;}
+  html body #tab-baocao > .card > .grid-4 > div > div {
+    color:#586573!important;text-shadow:none!important;font-size:12px!important;
+  }
+  html body #tab-baocao > .card > .grid-4 > div > div[id^='rep-'] {
+    color:#102c43!important;text-shadow:none!important;
+    font-size:clamp(18px,1.3vw,23px)!important;font-variant-numeric:tabular-nums;
+  }
+  html body #tab-baocao > .card > .card-header .btn.btn-gold {
+    background:#fffdfb!important;color:#873f26!important;border-color:#d6ab90!important;
+  }
+  html body #tab-baocao > .card > .card-header .btn {font-size:12px!important;text-shadow:none!important;box-shadow:none!important;}
+  html body #tab-baocao .kbl-report-viz-head,
+  html body #tab-baocao .kbl-report-viz-head strong,
+  html body #tab-baocao .kbl-report-history-title {color:#873f26!important;text-shadow:none!important;}
+  html body #tab-baocao .kbl-report-viz-head span,
+  html body #tab-baocao .kbl-report-history-title small,
+  html body #tab-baocao .kbl-report-chart p,
+  html body #tab-baocao .kbl-report-empty {color:#586573!important;font-size:12px!important;}
+  html body #tab-baocao .kbl-report-viz-head > span {
+    background:#fff2e9!important;border-color:#ead1bf!important;color:#586573!important;
+  }
+  html body #tab-baocao .kbl-report-chart {
+    background:#fffdfb!important;background-image:none!important;
+    color:#102c43!important;border-color:#ead1bf!important;box-shadow:none!important;
+  }
+  html body #tab-baocao .kbl-report-chart h3,
+  html body #tab-baocao .kbl-report-legend-item,
+  html body #tab-baocao .kbl-report-legend-item > b {
+    color:#102c43!important;text-shadow:none!important;
+  }
+  html body #tab-baocao .kbl-report-legend-item {font-size:12px!important;}
+  html body #tab-baocao .kbl-report-plot svg text {fill:#586573!important;}
+  html body #tab-baocao .kbl-report-donut svg text[font-weight] {fill:#102c43!important;}
+  html body #tab-baocao .kbl-report-plot svg path[stroke] {
+    stroke:#d8c4b6!important;stroke-opacity:.65!important;
+  }
+  html body #tab-baocao .kbl-report-plot svg polyline {stroke:#9b4d2d!important;}
+  html body #tab-baocao .kbl-report-plot svg circle[fill='#c5ffff'] {
+    fill:#fffdfb!important;stroke:#9b4d2d!important;
+  }
+  html body #tab-baocao #kblArea stop:first-child {stop-color:#c78b69!important;stop-opacity:.25!important;}
+  html body #tab-baocao #kblArea stop:last-child {stop-color:#fffdfb!important;}
+  html body #tab-baocao .kbl-report-plot svg rect[fill='#54e6b9'] {fill:#187464!important;}
+  html body #tab-baocao .kbl-report-plot svg rect[fill='#ff7089'] {fill:#b63a4a!important;}
+  html body #tab-baocao .kbl-report-donut svg circle[stroke='#ffffff22'] {stroke:#ead1bf!important;}
+  html body #tab-baocao .kbl-report-donut svg circle[stroke='#12c9ff'] {stroke:#9b4d2d!important;}
+  html body #tab-baocao .kbl-report-donut svg circle[stroke='#b778ff'] {stroke:#315c78!important;}
+  html body #tab-baocao .kbl-report-donut svg circle[stroke='#49e2b6'] {stroke:#187464!important;}
+  html body #tab-baocao .kbl-report-donut svg circle[stroke='#ffd06d'] {stroke:#8a651d!important;}
+  html body #tab-baocao .kbl-report-donut svg circle[stroke='#f27fca'] {stroke:#87496c!important;}
+  html body #tab-baocao .kbl-report-swatch[style*='#12c9ff'],
+  html body #tab-baocao .kbl-report-swatch[style*='18, 201, 255'] {background:#9b4d2d!important;}
+  html body #tab-baocao .kbl-report-swatch[style*='#b778ff'],
+  html body #tab-baocao .kbl-report-swatch[style*='183, 120, 255'] {background:#315c78!important;}
+  html body #tab-baocao .kbl-report-swatch[style*='#49e2b6'],
+  html body #tab-baocao .kbl-report-swatch[style*='73, 226, 182'] {background:#187464!important;}
+  html body #tab-baocao .kbl-report-swatch[style*='#ffd06d'],
+  html body #tab-baocao .kbl-report-swatch[style*='255, 208, 109'] {background:#8a651d!important;}
+  html body #tab-baocao .kbl-report-swatch[style*='#f27fca'],
+  html body #tab-baocao .kbl-report-swatch[style*='242, 127, 202'] {background:#87496c!important;}
+  html body #tab-baocao .data-table {color:#102c43!important;}
+  html body #tab-baocao .data-table tbody tr:nth-child(n) {background:#fffdfb!important;}
+  html body #tab-baocao .data-table tbody tr:nth-child(even) {background:#fff5ed!important;}
+  html body #tab-baocao .data-table tbody tr:hover {background:#f7e7da!important;}
+  html body #tab-baocao .data-table tbody td {
+    color:#102c43!important;border-color:#eaded4!important;text-shadow:none!important;
+    font-size:13px;line-height:1.5;
+  }
+  html body #tab-baocao .data-table tbody td[style*='#28a745'],
+  html body #tab-baocao .data-table tbody td[style*='color: green'] {color:#176b46!important;}
+  html body #tab-baocao .data-table tbody td[style*='#dc3545'],
+  html body #tab-baocao .data-table tbody td[style*='color: red'] {color:#b42335!important;}
+  html body #tab-baocao .data-table tbody td[style*='#fd7e14'] {color:#92501e!important;}
+  html body #tab-baocao .data-table tbody td[style*='#087f74'] {color:#14655e!important;}
+  html body #tab-baocao #rep-transactions-tbody > tr > td:nth-child(5),
+  html body #tab-baocao #rep-transactions-tbody > tr > td:nth-child(5) * {text-shadow:none!important;}
 }

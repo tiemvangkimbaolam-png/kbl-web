@@ -1,5 +1,7 @@
 # Mẫu 06 — kết quả kiểm tra
 
+POS report contrast follow-up 02/11/2026: user screenshot showed old high-specificity gradient selectors and white labels overriding the initial theme. Screen CSS repaired the actual card/chart/table/SVG selectors. Rendered sanitized original report markup with unchanged visualizer and labeled fixture at 1920×1080; 1366×900 had no page overflow or clipped summary values. 136 sampled text elements had minimum contrast 5.428:1. Actual installed stylesheet backed up and updated; seven source files (six protected POS files plus report visualizer) hash-identical. No runtime script/formula/data/print changes and no forced POS reload.
+
 - 60 bài kiểm thử phù hợp đã đạt, gồm giá/công thức hiển thị, native Scriptable với mock API, cache/mất mạng, nguồn redirect, package tự chứa và các luồng hiện có.
 - Build Cloudflare/Vinext thành công. Không thay dependency hay migration.
 - Browser: dùng template/CSS/layout thật trong harness riêng ngoài repo; các giá trong harness là bản chụp API công khai KBL, không đưa vào public source. Giá không tràn ở 320/375/414/768px. Cỡ lớn preview 320px đã sửa tràn. Preview nhỏ/vừa/lớn đổi đúng.

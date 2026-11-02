@@ -42,6 +42,12 @@ Bật “Ưu tiên phân việc theo chuyên môn” trong Admin → Đội AI �
 
 ## Trạng thái sau đăng nhập chủ tiệm
 
+### Sửa sót màu Báo cáo POS sau phản hồi ảnh
+
+Đã sửa độ ưu tiên CSS cho các thẻ thống kê có nth-of-type/nth-child, nền biểu đồ, chữ SVG, chú giải, bảng zebra, màu tiền lãi/lỗ và nút Excel. Bỏ các nền xanh/tím, bóng sáng và bóng chữ cũ; chuyển sang trắng ngà/hồng đào/đồng, chữ xanh đậm. SVG giữ nguyên mọi tọa độ, giá trị, title và thuật toán dựng. Không làm tròn số tồn kho hoặc sửa định dạng số đang có.
+
+Browser dùng HTML đã loại dữ liệu thực cùng visualizer nguyên bản và fixture có nhãn. Đã xem ảnh ở 1920×1080, kiểm tra 1366×900 không tràn/chặt số. 136 mục chữ được đo với nền tính từ cascade thật, độ tương phản thấp nhất 5,428:1. Bảy file main.js, renderer.js, index.html, pawn.html, shared-scale.js, kbl-connection.cjs và kbl-report-dashboard.js giữ nguyên SHA-256 khi cài. Chỉ thay phần theme cuối kbl-galaxy-v2.css, có sao lưu trước. Không ép tải lại hoặc đóng POS đang dùng; giao diện nhận CSS mới khi người dùng tải lại/mở lại bình thường. Không đổi CSS in.
+
 02/11/2026, khoảng 11:38 giờ Việt Nam: đã bật specialistRouting qua Admin thật. Đã bật Gemini Tủn hiện có và thêm bốn hồ sơ DeepSeek, Claude, ChatGPT, Grok, cùng chọn worker Windows đang kết nối. Có 5 hồ sơ được bật nhưng 0 hồ sơ báo kết nối Chrome; đây là hồ sơ cấu hình, chưa phải năm phiên AI sẵn sàng. Đã gửi lệnh mở đúng Chrome và mã ghép một lần; chủ tiệm phải đăng nhập/ghép tiện ích trong từng Chrome. Không lưu mã ghép vào tài liệu.
 
 Cloudflare Workers Builds kbl-web-moi xác nhận success cho db46f54. Kênh kbl-backup báo failure riêng, chưa sửa. Sáu file nghiệp vụ POS được đối chiếu lại SHA-256, tất cả giữ nguyên.
