@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "goal": "Áp dụng mẫu 06 Hồng đào vàng đồng lên website KBL và widget Scriptable miễn phí; giữ nguyên giá, POS, sản phẩm và quyền truy cập.",
+  "goal": "Mẫu ảnh/video local worker sản phẩm và giá vàng; giao diện POS đồng bộ website; nối Cloudflare và phân vai đội AI, tuyệt đối giữ công thức và dữ liệu POS.",
   "created_at": "2026-10-31T13:54:50.812082+00:00",
   "stages": {
     "specify": {
@@ -51,12 +51,12 @@
     },
     "integrate": {
       "status": "in_progress",
-      "note": "Awaiting deployed API and local link cutover; AI pairing/product photos not ready.",
+      "note": "Local loopback cutover and deployed anonymous-void API verified. Protected POS code hashes match. Owner sign-in and real account pairing still required; product photo mismatch/insufficient three-product set remains open.",
       "evidence": [],
-      "at": "2026-11-02T04:17:38.149472+00:00"
+      "at": "2026-11-02T04:29:51.403268+00:00"
     }
   },
-  "next_action": "Push tested commit and verify correct Workers Builds target.",
+  "next_action": "Wait for owner Access sign-in; enable specialist routing and pair real profiles, then verify social receipts.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -141,7 +141,13 @@
       "stage": "integrate",
       "status": "in_progress",
       "note": "Awaiting deployed API and local link cutover; AI pairing/product photos not ready."
+    },
+    {
+      "at": "2026-11-02T04:29:51.403268+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Local loopback cutover and deployed anonymous-void API verified. Protected POS code hashes match. Owner sign-in and real account pairing still required; product photo mismatch/insufficient three-product set remains open."
     }
   ],
-  "updated_at": "2026-11-02T04:17:38.149472+00:00"
+  "updated_at": "2026-11-02T04:29:51.403268+00:00"
 }

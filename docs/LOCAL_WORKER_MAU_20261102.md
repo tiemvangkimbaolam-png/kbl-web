@@ -26,8 +26,16 @@ Phiếu có điểm/đổi/trả còn cần ledger gốc để chuyển đủ h�
 
 ## Kiểm chứng
 
-- 308/308 kiểm thử chạy qua bằng fixture/SQLite, có dựng FFmpeg thật; API provider mô phỏng không chứng minh bài đã đăng thật.
+- 311/311 kiểm thử chạy qua bằng fixture/SQLite, có dựng FFmpeg thật; API provider mô phỏng không chứng minh bài đã đăng thật.
 - Bản video xem trước 1080×1920/20 giây dựng thật với vi-VN-HoaiMyNeural, timingMode=word-boundaries.
 - Build Cloudflare qua. TypeScript toàn dự án còn các lỗi sẵn có ở social-connections currentUrl và thiếu thư viện Remotion riêng; không sửa các phần này chỉ để che kết quả.
 - Trên máy: worker mới release 2.2.1 khởi động, ghi nhận POS sync mới, không có lỗi/outbox/ảnh chờ tại thời điểm kiểm tra. Khóa và dữ liệu POS giữ nguyên.
 - Đội AI cần tài khoản được bật và tiện ích ghép vào worker mới. Nếu chưa ghép thì chưa thể hoàn thành nghiên cứu/duyệt. Sản phẩm cần đủ ba ảnh thật khác nhau đúng SKU; không bật đăng bằng ảnh thiếu hoặc sai mã. Quyền OAuth/biên nhận từng kênh phải nghiệm thu riêng.
+
+
+## Đội AI theo yêu cầu chủ tiệm
+Ưu tiên DeepSeek tìm nguồn/viết, Claude duyệt, Gemini rồi ChatGPT ảnh; Grok hỗ trợ tìm nguồn. Đây là lựa chọn vận hành của chủ, không phải kết luận benchmark. Chỉ ưu tiên tài khoản enabled, paired, ready, heartbeat dưới 90 giây, đúng role, không đang giữ việc và không nằm trong exclude_account. Bận/offline/quota thì dùng tài khoản sẵn sàng còn lại; không giành lại lease hoặc tự duyệt. Luồng ảnh API Gemini hiện có giữ nguyên.
+
+Cấu hình tài khoản thật còn cần owner đăng nhập Cloudflare Access và ghép tiện ích trong đúng Chrome; không sao chép cookie hoặc biến token worker thành quyền Admin.
+
+Bật “Ưu tiên phân việc theo chuyên môn” trong Admin → Đội AI để áp dụng cách chia mới. Mặc định giữ cách chia hiện có; không tự thay cấu hình một đội đang hoạt động. Sau khi chủ đăng nhập và ghép đúng các tài khoản, bật theo yêu cầu đã giao.

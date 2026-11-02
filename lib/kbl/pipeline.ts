@@ -12,6 +12,7 @@ import { captureGoldSlot } from './gold';
 import { publicCloudPrices } from './cloud-price';
 import { publicProductDetails } from './product-view.mjs';
 import {pruneCounters} from './maintenance';
+import {preferredSpecialist} from './team-specialists.mjs';
 export const now = () => Date.now();
 export async function createStory(input: any, stableId?: string) { const storyId = stableId || id(); if (stableId && await get('story', storyId)) {
     await ensureJob(storyId, 'research');
@@ -98,11 +99,16 @@ export async function claim(workerId: string, accountId: string | null, capabili
     const owner = accountId || workerId;
     const rows = (await sql().prepare("SELECT * FROM jobs WHERE status='queued' AND (exclude_account IS NULL OR exclude_account<>?) AND stage IN (SELECT value FROM json_each(?)) AND (? IS NULL OR id=?) ORDER BY CASE stage WHEN 'consult' THEN 0 WHEN 'image-review' THEN 1 WHEN 'review' THEN 1 WHEN 'render' THEN 2 WHEN 'image' THEN 3 WHEN 'write' THEN 4 ELSE 5 END,created_at LIMIT 100").bind(owner, JSON.stringify(stages), targetId || null, targetId || null).all<any>()).results;
     const oldest = await oldestStoryId();
+    const useSpecialists = accountId && cfg.specialistRouting === true;
+    const specialists = useSpecialists ? await list('account', 20) : [];
+    const busySpecialists = useSpecialists ? (await sql().prepare("SELECT DISTINCT owner FROM jobs WHERE status IN ('leased','running','attention') AND owner IS NOT NULL").all<any>()).results.map((r:any) => r.owner) : [];
     for (const candidate of rows) {
         if(candidate.stage==='image'){const st=await get('story',candidate.story_id);if(!accountId&&st?.kind!=='gold')continue;if(accountId&&(st?.kind==='gold'||(!['gold','product'].includes(st?.kind)&&(env as any).GEMINI_API_KEY)))continue;}
         if (candidate.stage !== 'consult' && oldest && candidate.story_id !== oldest) continue;
         if ((targetId && candidate.id !== targetId) || !stages.includes(candidate.stage))
             continue;
+        const preferred = useSpecialists && preferredSpecialist(specialists, candidate.stage, { at: now(), exclude: candidate.exclude_account, busy: busySpecialists });
+        if (preferred && preferred !== accountId) continue;
         const token = randomToken(), hash = await sha(token), at = now();
         const claimed = await sql().prepare('UPDATE jobs SET status=\'leased\',owner=?,lease_hash=?,lease_until=?,attempt=attempt+1,updated_at=? WHERE id=? AND status=\'queued\' AND NOT EXISTS(SELECT 1 FROM jobs j WHERE j.owner=? AND j.status IN (\'leased\',\'running\',\'attention\')) RETURNING *').bind(owner, hash, at + 30 * 60000, at, candidate.id, owner).first<any>();
         if (!claimed)
