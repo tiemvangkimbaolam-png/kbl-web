@@ -13,7 +13,7 @@ import { publicCloudPrices } from './cloud-price';
 import { publicProductDetails } from './product-view.mjs';
 import {pruneCounters} from './maintenance';
 import {preferredSpecialist} from './team-specialists.mjs';
-import {oldestUnfinishedStoryId} from './story-order';
+import {oldestUnfinishedStoryId,unfinishedPublicationHeads} from './story-order';
 export const now = () => Date.now();
 export async function createStory(input: any, stableId?: string) { const storyId = stableId || id(); if (stableId && await get('story', storyId)) {
     await ensureJob(storyId, 'research');
@@ -69,6 +69,11 @@ export async function promptFor(job: any) {
     if(story?.productSnapshots){instructions['image-review']='Xem đủ 3 ảnh thật POS, kiểm tra đúng cả 3 SKU, giữ nguyên thiết kế/đá/màu; trả đúng 3 hash đã xem. Không yêu cầu AI vẽ lại sản phẩm.';instructions.render='Dựng 3 cảnh từ 3 thẻ ảnh thật, đọc rõ tên, tuổi vàng và giá từng món; giữ tiếng Việt, giọng nữ và phụ đề khớp thời gian.';}
     const nonce = await sha(job.id + ':' + job.attempt);
     if (story?.kind === 'product') context.productRules = 'Lời đọc phải nêu giá tham khảo từng sản phẩm. Chỉ dùng productSnapshots (hoặc productSnapshot cũ) và ảnh gốc POS của từng SKU. Mỗi lượt 3 món, đọc đủ tên, tuổi vàng, trọng lượng, giá từng món. Không thiết kế lại, không thêm/bớt đá, không đổi màu/tỷ lệ. Duyệt ảnh theo ảnh thật, không yêu cầu AI tạo lại ảnh. Giá chốt theo editionAt, xác nhận tại tiệm trước giao dịch.';
+    if (story?.kind === 'gold') {
+        instructions.image = 'Windows dựng hai thẻ bảng giá bằng mẫu local có sẵn và priceSnapshot đã chốt. Không gửi yêu cầu AI vẽ ảnh; giữ nguyên chữ, số, đơn vị và thời điểm POS.';
+        instructions['image-review'] = 'Xem trực tiếp đúng hai thẻ bảng giá do Windows dựng, đối chiếu mọi giá mua/bán, tuổi vàng, đơn vị đồng/chỉ và thời điểm với priceSnapshot đã chốt. Trả đúng hash đã xem. Chữ và số dựng bằng mẫu local là nội dung cần kiểm tra, không phải ảnh minh họa do AI vẽ. Không yêu cầu tạo ảnh mới hoặc đổi sang giá trực tiếp hiện tại. Không xem được hoặc có số sai thì từ chối.';
+        instructions.render = 'Windows dựng video từ hai thẻ bảng giá local đã duyệt, giữ đúng bản chụp giá và mẫu hiện có; giọng đọc và phụ đề lấy bản viết đã duyệt. Không tạo ảnh minh họa bằng AI.';
+    }
     const goldInstructions = story?.kind === 'gold' ? '\nBản tin giá cửa hàng: dùng nguyên priceSnapshot đã chốt, đơn vị đồng/chỉ và observedAt. Bằng chứng pos-price-snapshot đến từ hợp đồng nhập POS chỉ đọc, không phải bản tải HTTP. Không yêu cầu mở lại URL để thay giá, không bịa giá lịch sử hoặc suy đoán đầu tư. Nội dung cần được duyệt độc lập như mọi bản tin.' : '';
     const outlookInstructions = story?.kind === 'outlook' && job.stage === 'write' ? '\nBản tin nhận định: mở đầu bằng số liệu đã xác minh và thời điểm; trình bày 2–3 kịch bản tăng/giảm/đi ngang với mốc giá tham chiếu và yếu tố kích hoạt; nêu kịch bản nào cần dữ liệu gì để xác nhận; kết bằng câu "Nhận định tham khảo tại thời điểm tạo nội dung, không phải khuyến nghị đầu tư." Không cam kết lợi nhuận, không khuyến nghị mua/bán, không dùng từ chắc chắn.' : '';
     if (story?.kind === 'outlook') {
@@ -78,8 +83,8 @@ export async function promptFor(job: any) {
     if (job.stage === 'research') context.allowedSources = [...SOURCE_HOSTS];
     return { id: job.id, storyId: job.story_id, stage: job.stage, attempt: job.attempt, nonce, prompt: instructions[job.stage] + goldInstructions + outlookInstructions + '\n\nHỒ SƠ DỮ LIỆU:\n' + JSON.stringify(context) + '\n\nSCHEMA JSON:\n' + JSON.stringify(schema), schema, context, attachmentHashes: context.outputs.image?.rows?.map((x: any) => x.assetId) || [] };
 }
-async function oldestStoryId() {
-    return oldestUnfinishedStoryId();
+async function oldestStoryId(kind?: string) {
+    return oldestUnfinishedStoryId(kind === 'gold' ? 'gold' : 'editorial');
 }
 export async function claim(workerId: string, accountId: string | null, capabilities: string[], targetId?: string) {
     const cfg = await settings();
@@ -98,13 +103,13 @@ export async function claim(workerId: string, accountId: string | null, capabili
         return { wait: true };
     const owner = accountId || workerId;
     const rows = (await sql().prepare("SELECT * FROM jobs WHERE status='queued' AND (exclude_account IS NULL OR exclude_account<>?) AND stage IN (SELECT value FROM json_each(?)) AND (? IS NULL OR id=?) ORDER BY CASE stage WHEN 'consult' THEN 0 WHEN 'image-review' THEN 1 WHEN 'review' THEN 1 WHEN 'render' THEN 2 WHEN 'image' THEN 3 WHEN 'write' THEN 4 ELSE 5 END,created_at LIMIT 100").bind(owner, JSON.stringify(stages), targetId || null, targetId || null).all<any>()).results;
-    const oldest = await oldestStoryId();
+    const heads = await unfinishedPublicationHeads();
     const useSpecialists = accountId && cfg.specialistRouting === true;
     const specialists = useSpecialists ? await list('account', 20) : [];
     const busySpecialists = useSpecialists ? (await sql().prepare("SELECT DISTINCT owner FROM jobs WHERE status IN ('leased','running','attention') AND owner IS NOT NULL").all<any>()).results.map((r:any) => r.owner) : [];
     for (const candidate of rows) {
         if(candidate.stage==='image'){const st=await get('story',candidate.story_id);if(!accountId&&st?.kind!=='gold')continue;if(accountId&&st?.kind==='gold')continue;}
-        if (candidate.stage !== 'consult' && oldest && candidate.story_id !== oldest) continue;
+        if (candidate.stage !== 'consult' && heads.length && !heads.includes(candidate.story_id)) continue;
         if ((targetId && candidate.id !== targetId) || !stages.includes(candidate.stage))
             continue;
         const preferred = useSpecialists && preferredSpecialist(specialists, candidate.stage, { at: now(), exclude: candidate.exclude_account, busy: busySpecialists });
@@ -304,12 +309,12 @@ export async function advance(job: any) {
         await publishWebsite(job.story_id);
 }
 export async function publishWebsite(storyId: string) {
-    const oldest = await oldestStoryId();
+    const story = await get('story', storyId);
+    if (!story) return { waiting: true, reason: 'Không tìm thấy hồ sơ xuất bản.' };
+    const oldest = await oldestStoryId(story.kind);
     if (oldest && oldest !== storyId) return { waiting: true, reason: 'Chờ bản tin trước hoàn thành; bản tin mới đã được giữ trong hàng đợi.' };
     const cfg = await settings();
     if (!cfg.publicationEnabled) return { waiting: true, reason: 'Xuất bản đang tắt.' };
-    const story = await get('story', storyId);
-    if (!story) return { waiting: true, reason: 'Không tìm thấy hồ sơ xuất bản.' };
     if (story.kind === 'product' && story.status !== 'published') {
         const current = await Promise.all(productsOf(story).map((p: any) => get('product', p.id)));
         if (current.some((p: any, i: number) => !p?.published || !p.available || p.posMissing || !p.imageIds?.includes(productsOf(story)[i].imageIds[0]))) return { waiting: true, reason: 'Sản phẩm không còn trưng bày/còn hàng; giữ bản dựng để chủ kiểm tra.' };

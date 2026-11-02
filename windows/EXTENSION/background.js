@@ -21,7 +21,7 @@ const SITES={gemini:'https://gemini.google.com/app',chatgpt:'https://chatgpt.com
 let provider='gemini';
 function ownedURL(raw,p=provider){try{return new URL(raw).origin===new URL(SITES[p]).origin;}catch{return false;}}
 function conversationURL(raw,p=provider){try{const u=new URL(raw);return ownedURL(raw,p)&&!u.search&&!u.hash&&({gemini:/^\/app\/[a-zA-Z0-9_-]+$/,chatgpt:/^\/c\/[a-zA-Z0-9_-]+$/,claude:/^\/chat\/[a-zA-Z0-9_-]+$/,deepseek:/^\/a\/chat\/s\/[a-zA-Z0-9_-]+$/}[p]).test(u.pathname);}catch{return false;}}
-const ADAPTER_VERSION='2.0.1';
+const ADAPTER_VERSION='2.0.2';
 function boundedProbe(p,ms=5000){return new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Tab chưa phản hồi kiểm tra phiên.')),ms);Promise.resolve(p).then(v=>{clearTimeout(timer);resolve(v);},e=>{clearTimeout(timer);reject(e);});});}
 let quieting=false;
 const quietWindowTabs=tabs=>tabs.length>0&&tabs.every(t=>!t.pendingUrl||Object.keys(SITES).some(p=>ownedURL(t.pendingUrl,p)))&&tabs.every(t=>Object.keys(SITES).some(p=>ownedURL(t.url,p))||String(t.url||'').startsWith(chrome.runtime.getURL('')));
@@ -235,7 +235,7 @@ async function step(){
       // task may retire metadata only for this exact acknowledged run/nonce.
       if(active?.runId===outbox.runId&&active.nonce===outbox.nonce&&Number.isInteger(active.tabId))await chrome.storage.local.set({idleTab:{tabId:active.tabId,provider,conversationUrl:active.conversationUrl||'',retired:{runId:outbox.runId,nonce:outbox.nonce}}});
       if(next){if(next.runId!==outbox.runId||next.nonce===outbox.nonce||next.kind!=='images'||next.provider&&next.provider!==provider)throw Error('Biên nhận cảnh tiếp theo không khớp.');
-        await chrome.storage.local.set({active:{runId:next.runId,nonce:next.nonce,task:next,createdAt:Date.now(),sent:false}});
+        await chrome.storage.local.set({active:{runId:next.runId,nonce:next.nonce,task:next,createdAt:Date.now(),sent:false,...(Number.isInteger(active?.tabId)?{tabId:active.tabId,conversationUrl:active.conversationUrl||''}:{})}});
         await chrome.storage.local.remove('failure');
       }else await chrome.storage.local.remove(['active','failure']);
       await pending('delete');await status('Local đã lưu; giữ nguyên tab cho việc kế tiếp: '+r.status);return;}
@@ -310,12 +310,30 @@ async function step(){
     if(!config.enabled){await status('Đã nối Admin; đang tạm dừng nhận việc AI.');return;}
     if(!p.task&&!probe.ready){if(p.enabled===true&&!tabs.length&&!active){await status('TAB_LOCK_MISSING: Mở đúng tab AI trong hồ sơ đã ghép. Bộ tự động không tạo tab hay Chrome khác.');return;}await status(probeError&&!probe.ready?'Không đọc được tab: '+probeError:probe.code==='QUOTA'?'Chatbox hết lượt; chờ, không đổi tài khoản.':'Chưa thấy ô nhập chatbox sẵn sàng. Mở đăng nhập từ Admin, giữ Chrome chạy.');return;}
     if(p.task?.provider&&p.task.provider!==provider)throw Error('Công việc khác nhà cung cấp của hồ sơ.');
+    if(p.task?.ownerConfirmedUnsentImage===true&&active?.ownerImageContinuationRequested&&active.runId===p.task.runId&&active.nonce===p.task.nonce){
+      const tab=tabs.find(t=>t.id===active.tabId);
+      if(tab&&geminiTab(tab)){
+        const proof=await messageTab(tab,{type:'PROBE_OWNER_IMAGE_NOT_STARTED',task:p.task,selectors:config.selectors});
+        if(proof.notStarted===true){active.ownerImageContinuationRequested=false;await chrome.storage.local.set({active});}
+      }
+    }
     if(p.task?.ownerConfirmedUnsentImage===true&&!active?.ownerImageContinuationRequested){
       if(p.task.kind!=='images'||p.task.scene!==1||!['gemini','chatgpt'].includes(provider)||!active||active.runId!==p.task.runId||active.nonce!==p.task.nonce)throw Error('Cảnh đã thay đổi; giữ ảnh cũ để đối soát.');
-      const tab=tabs.find(t=>t.id===active.tabId);
+      let tab=tabs.find(t=>t.id===active.tabId);
+      if(!tab){
+        const {idleTab}=await chrome.storage.local.get('idleTab');
+        const prior=idleTab?.retired;
+        if(prior?.runId===p.task.runId&&p.task.acceptedSceneNonces?.includes(prior.nonce)){
+          const candidate=tabs.find(t=>t.id===idleTab.tabId&&(!idleTab.conversationUrl||t.url===idleTab.conversationUrl));
+          if(candidate&&geminiTab(candidate)){
+            const proof=await messageTab(candidate,{type:'PROBE_RUN',task:{runId:prior.runId,nonce:prior.nonce,kind:'images',attachmentHashes:[]},selectors:config.selectors});
+            if(proof.matched===true)tab=candidate;
+          }
+        }
+      }
       if(!tab||!geminiTab(tab)){await status('Mở lại đúng tab đang giữ cảnh 2; chưa tạo tab khác.');return;}
-      active.ownerImageContinuationRequested=true;await chrome.storage.local.set({active});
-      const ack=await messageTab(tab,{type:'CONTINUE_UNSENT_IMAGE',task:p.task,selectors:config.selectors});
+      active={...active,tabId:tab.id,conversationUrl:tab.url,task:{...p.task,recoverOnly:false},sent:true,ownerImageContinuationRequested:true};await chrome.storage.local.set({active});
+      const ack=await messageTab(tab,{type:'CONTINUE_UNSENT_IMAGE',task:active.task,selectors:config.selectors});
       if(ack?.accepted===false){active.ownerImageContinuationRequested=false;await chrome.storage.local.set({active});await status(ack.error||'Tab còn bận; giữ cảnh 1 và đợi tiếp.');}
       else await status('Đã tiếp tục đúng cảnh 2 theo xác nhận của chủ; giữ ảnh thứ nhất và mã lượt.');
       return;
@@ -572,7 +590,8 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
         }
         const code=counts.RESULT_CONFLICT?'RESULT_CONFLICT':unreadable?'ADAPTER_UNAVAILABLE':matches.length>1?'DUPLICATE':matches.length?matches[0].collectable?'READY_TO_COLLECT':'WAIT_RESPONSE':counts.TAB_METADATA_MISMATCH?'TAB_METADATA_MISMATCH':counts.QUOTA?'QUOTA':counts.CHALLENGE?'CHALLENGE':tabs.some(t=>t.status!=='complete')?'WAIT_TAB':tabs.length?'NO_RUN_PROOF':'NO_TAB';
         const message=await recordRecovery(active.task,code,{...counts,matched:matches.length,unreadable});
-        return {ok:true,message:'Lượt '+active.runId+' · '+(active.task?.kind||'chưa rõ bước')+'\n'+message+'\n'+(config?.enabled?'Nhận việc: bật.':'Nhận việc: tạm dừng.')+' Bộ thu không gửi prompt mới khi kiểm tra.',code};
+        const sceneInfo=active.task?.kind==='images'?'\nCảnh '+((active.task.scene??0)+1)+' · đã đánh dấu gửi: '+(active.sent?'có':'chưa')+' · tab đã gắn: '+(Number.isInteger(active.tabId)?'có':'chưa')+' · lệnh tiếp tục: '+(active.ownerImageContinuationRequested?'đã nhận':'chưa nhận')+'.':'';
+        return {ok:true,message:'Lượt '+active.runId+' · '+(active.task?.kind||'chưa rõ bước')+'\n'+message+sceneInfo+'\n'+(config?.enabled?'Nhận việc: bật.':'Nhận việc: tạm dừng.')+' Bộ thu không gửi prompt mới khi kiểm tra.',code};
       }finally{busy=false;}
     }
     if(m.type==='CHECK_SESSION'&&sender.url===chrome.runtime.getURL('settings.html')){

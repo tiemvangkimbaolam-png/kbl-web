@@ -20,7 +20,7 @@ import { env } from 'cloudflare:workers';
 import { z } from 'zod';
 import * as S from './store';
 import * as P from './pipeline';
-import {oldestUnfinishedStoryId} from './story-order';
+import {unfinishedPublicationHeads} from './story-order';
 import * as POS from './pos';
 import { admin, worker } from './auth';
 import { assistantState } from './assistant-state.mjs';
@@ -418,8 +418,8 @@ export async function handle(req: Request): Promise<Response> {
                     // Older Windows builds choose a higher-stage task first.
                     // Offer only queued tasks the FIFO gate can actually grant;
                     // otherwise a later write task can hide the head research.
-                    const oldest=await oldestUnfinishedStoryId();
-                    const active=await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE status IN ('queued','leased','running','attention','blocked','waiting-revision') AND (? IS NULL OR stage='consult' OR story_id=? OR status<>'queued') ORDER BY created_at ASC LIMIT 300`).bind(oldest,oldest).all<any>();
+                    const heads=await unfinishedPublicationHeads();
+                    const active=await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE status IN ('queued','leased','running','attention','blocked','waiting-revision') AND (?=0 OR stage='consult' OR story_id IN (SELECT value FROM json_each(?)) OR status<>'queued') ORDER BY created_at ASC LIMIT 300`).bind(heads.length,JSON.stringify(heads)).all<any>();
                     const claimed=held.length?await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(held)).all<any>():{results:[]};
                     return response({jobs:[...new Map([...active.results,...claimed.results].map((j:any)=>[j.id,j])).values()],settings:await S.settings()});
                 }

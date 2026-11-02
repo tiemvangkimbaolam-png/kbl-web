@@ -54,7 +54,7 @@ export async function captureGoldSlot(at = Date.now()) {
 // jobs, assets and receipts are never replaced by a newer price.
 export async function captureGoldFollowup(at=Date.now()) {
     const cfg=await settings();
-    if(!cfg.teamEnabled||!cfg.publicationEnabled||await oldestUnfinishedStoryId())return {waiting:true,reason:'awaiting-publication-receipts'};
+    if(!cfg.teamEnabled||!cfg.publicationEnabled||await oldestUnfinishedStoryId('gold'))return {waiting:true,reason:'awaiting-publication-receipts'};
     const row=await sql().prepare("SELECT id,data FROM records WHERE kind='story' AND json_extract(data,'$.kind')='gold' ORDER BY created_at DESC,id DESC LIMIT 1").first<any>();
     if(!row)return {waiting:true,reason:'awaiting-first-scheduled-edition'};
     const previous=JSON.parse(row.data);
@@ -82,7 +82,7 @@ async function seedGoldEdition(slot:string,snapshot:any,at:number,followupOf?:st
     const research = { items: [{ title, url: PRICE_URL, excerpt, publishedAt: new Date(snapshot.observedAt).toISOString() }], evidenceKind: 'pos-price-snapshot', sourceEvidence: [{ kind: 'pos-price-snapshot', verifiedBy: 'pos-import-contract', url: PRICE_URL, contentHash: await sha(JSON.stringify(snapshot)), ...snapshot }], priceSnapshot: snapshot, capturedAt: at };
     const edition = { status: 'captured', slot, storyId, captureMarker: marker, priceSnapshot: snapshot };
     const guard = "EXISTS(SELECT 1 FROM editions WHERE id=? AND json_extract(data,'$.captureMarker')=?)";
-    const followupGuard=followupOf?" AND EXISTS(SELECT 1 FROM jobs WHERE story_id=? AND stage='publish' AND status='complete') AND EXISTS(SELECT 1 FROM receipts WHERE story_id=? AND platform='website' AND external_id<>'' AND url<>'') AND NOT EXISTS(SELECT 1 FROM records s WHERE "+UNFINISHED_STORY_WHERE+")":'';
+    const followupGuard=followupOf?" AND EXISTS(SELECT 1 FROM jobs WHERE story_id=? AND stage='publish' AND status='complete') AND EXISTS(SELECT 1 FROM receipts WHERE story_id=? AND platform='website' AND external_id<>'' AND url<>'') AND NOT EXISTS(SELECT 1 FROM records s WHERE "+UNFINISHED_STORY_WHERE+" AND json_extract(s.data,'$.kind')='gold')":'';
     const saved = await sql().batch([
         sql().prepare("UPDATE editions SET captured_at=?,data=? WHERE id=? AND kind='gold' AND captured_at IS NULL AND NOT EXISTS(SELECT 1 FROM records WHERE kind='story' AND id=?) AND (SELECT COUNT(*) FROM records WHERE kind='story')<1000 AND EXISTS(SELECT 1 FROM records WHERE kind='pos-sync' AND id='price' AND json_extract(data,'$.revision')=? AND json_extract(data,'$.digest')=? AND json_extract(data,'$.receivedAt')=? AND json_extract(data,'$.workerId')=?) AND EXISTS(SELECT 1 FROM records WHERE kind='pos-binding' AND id='main' AND json_extract(data,'$.workerId')=?) AND EXISTS(SELECT 1 FROM records WHERE kind='settings' AND id='main' AND json_extract(data,'$.teamEnabled')=1)"+followupGuard).bind(at, JSON.stringify(edition), slot, storyId, snapshot.revision, snapshot.digest, snapshot.syncedAt, snapshot.workerId, snapshot.workerId,...(followupOf?[followupOf,followupOf]:[])),
         sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'story',?,?,?,? WHERE " + guard).bind(storyId, JSON.stringify(story), at, at, slot, marker),

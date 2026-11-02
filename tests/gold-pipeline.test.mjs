@@ -163,6 +163,10 @@ test('a concurrent POS revision or paused team cannot capture a snapshot read be
 });
 
 test('gold story completes normal independent review, images and render after the hour with frozen quote, then cleans only temporary media', async () => {
+    record('story','held-news',{kind:'news',status:'working'});
+    db.prepare("UPDATE records SET created_at=? WHERE id='held-news'").run(at-1000);
+    await P.ensureJob('held-news','image');
+    db.prepare("UPDATE jobs SET status='running',owner='news-creator',lease_hash='unchanged-news-lease' WHERE story_id='held-news'").run();
     await price();
     const { storyId } = await G.captureGoldSlot(at), original = stored('story', storyId).priceSnapshot;
     const writing = { headline: 'Bản tin giá fixture chỉ kiểm thử', summary: 'Bản tin thử nghiệm chỉ kiểm tra luồng, không phải giá thật của cửa hàng hay nội dung xuất bản thực tế. '.repeat(2), script: 'Nội dung fixture cho kiểm thử giá chốt, không phải dữ liệu giao dịch hoặc khuyến nghị mua bán. '.repeat(3), sourceUrls: ['https://tiemvangkimbaolam.id.vn/bang-gia'] };
@@ -196,6 +200,21 @@ test('gold story completes normal independent review, images and render after th
     assert.equal(stored('article', storyId).editionAt, at);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM assets WHERE purpose IN('video-temp','audio','captions') AND deleted_at IS NOT NULL").get().n, 3);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM assets WHERE mime='image/png' AND deleted_at IS NULL AND public=1").get().n, 2);
+    assert.equal(row('image','held-news').status,'running');assert.equal(row('image','held-news').lease_hash,'unchanged-news-lease');
+});
+
+test('gold changes wait for their own receipts but a held editorial image cannot block a new frozen gold edition',async()=>{
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationEnabled',json('true')) WHERE kind='settings'").run();
+ await price();const first=await G.captureGoldSlot(at);await P.ensureJob(first.storyId,'publish');finishGoldFixture(first.storyId);
+ record('story','editorial-held',{kind:'news',status:'working'});await P.ensureJob('editorial-held','image');
+ db.prepare("UPDATE jobs SET status='attention',owner='news-creator',lease_hash='keep-editorial' WHERE story_id='editorial-held'").run();
+ const later=at+120000;Date.now=()=>later;await price({...value,price_sell_9999:10900003},later,2);
+ const next=await G.captureGoldFollowup(later);assert.equal(next.captured,true);
+ assert.equal(stored('story',next.storyId).priceSnapshot.rows[0].sell,10900003);
+ assert.equal(row('image','editorial-held').lease_hash,'keep-editorial');
+ assert.equal((await G.captureGoldFollowup(later+1)).reason,'awaiting-publication-receipts');
+ const task=await P.promptFor({...row('write',next.storyId),stage:'image-review'});
+ assert.match(task.prompt,/hai thẻ bảng giá do Windows dựng/);assert.doesNotMatch(task.prompt,/Tạo hai ảnh minh họa gốc/);
 });
 
 test('new gold editions freeze selected publication connection without changing earlier captured stories', async () => {

@@ -157,3 +157,16 @@ test('compact queue exposes the FIFO head rather than a later high-priority writ
     db.prepare("UPDATE records SET data=json_set(data,'$.status','published') WHERE kind='story' AND id='fifo-head'").run();
     const next=await call('worker/queue?active=1',undefined,headers);assert.ok(next.data.jobs.some(j=>j.id==='fifo-write'));
 });
+
+test('compact queue exposes separate gold and editorial heads without releasing later editions or changing held leases',async()=>{
+ db.prepare("UPDATE records SET data=json_set(data,'$.status','fixture-finished') WHERE kind='story'").run();
+ const w=(await call('admin/workers',{label:'Independent gold queue fixture'})).data,headers={'x-kbl-worker-token':w.token};
+ for(const [id,kind,at]of[['lane-news','news',1],['lane-news-later','news',2],['lane-gold','gold',3],['lane-gold-later','gold',4]]){
+  db.prepare("INSERT INTO records(kind,id,data,created_at,updated_at) VALUES('story',?,?,?,?)").run(id,JSON.stringify({status:'working',kind}),at,at);
+  db.prepare("INSERT INTO jobs(id,story_id,stage,status,created_at,updated_at) VALUES(?,?,'write','queued',?,?)").run(id+'-write',id,at,at);
+ }
+ db.prepare("UPDATE jobs SET status='attention',owner='existing-owner',lease_hash='keep-original' WHERE id='lane-news-write'").run();
+ const r=await call('worker/queue?active=1',undefined,headers);assert.equal(r.status,200);
+ const ids=r.data.jobs.map(j=>j.id);assert.ok(ids.includes('lane-news-write'));assert.ok(ids.includes('lane-gold-write'));assert.ok(!ids.includes('lane-news-later-write'));assert.ok(!ids.includes('lane-gold-later-write'));
+ assert.equal(db.prepare("SELECT lease_hash FROM jobs WHERE id='lane-news-write'").get().lease_hash,'keep-original');
+});

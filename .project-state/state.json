@@ -5,37 +5,37 @@
   "stages": {
     "specify": {
       "status": "done",
-      "note": "Owner requested lien2 display and exchange layout fixes; owner confirmed review and second image were not sent.",
+      "note": "Owner clarified gold cards are generated locally; separate gold queue while preserving sequential receipts and frozen quotes within each lane.",
       "evidence": [
         {
           "path": ".project-state\\contract.md",
-          "sha256": "4c45e8f11b9417a9a8d76565f645a08feda6f9b3ab946237999f6281773fe96e",
-          "bytes": 6089
+          "sha256": "54a820e535d8566fdddbccf9ea3d9eed76d284a388b7e4454692f3ad635b4d45",
+          "bytes": 6636
         }
       ],
-      "at": "2026-11-02T14:16:58.126472+00:00"
+      "at": "2026-11-02T14:53:37.223576+00:00"
     },
     "build": {
       "status": "done",
-      "note": "335 tests and Cloudflare build pass; five-file worker patch installed, first image and run retained.",
+      "note": "342 tests and Cloudflare build pass. Source separates gold/editorial FIFO heads and identifies local gold card stages.",
       "evidence": [
         {
-          "path": "tests\\browser-scene-handoff.test.mjs",
-          "sha256": "7aea96e390decc84749a2cd50f9c7dbf338acf6233e169acb70a6547d2bedf89",
-          "bytes": 3537
+          "path": "lib\\kbl\\story-order.ts",
+          "sha256": "4d8609b216ae654442cfcb7515f47949970d1772cba161dc60dddac2515b2dbd",
+          "bytes": 1096
         },
         {
-          "path": "tests\\pawn-rate-policy.test.mjs",
-          "sha256": "4c0a47c8d5c557bf902b370b1f0e94c03eccc3f510859fdc96bba14b43c43790",
-          "bytes": 7923
+          "path": "tests\\gold-pipeline.test.mjs",
+          "sha256": "04eeacba3708888eb104b9e29a324d99bdb8438a3c8692dfbb9c54291d4048a5",
+          "bytes": 23791
         },
         {
-          "path": "windows\\pos-compact-runtime.js",
-          "sha256": "123b28903de255a944327ea5df2f46cf1ed610ccc41231711eb965dc7a69ea88",
-          "bytes": 11626
+          "path": "tests\\browser-background-scenes.test.mjs",
+          "sha256": "310db0a7c6804e727a1f5cce7852deeef65ac7032c96101fbb532b49c7b30cfe",
+          "bytes": 4513
         }
       ],
-      "at": "2026-11-02T14:16:58.230695+00:00"
+      "at": "2026-11-02T14:53:37.375257+00:00"
     },
     "demonstrate": {
       "status": "done",
@@ -51,23 +51,23 @@
     },
     "integrate": {
       "status": "in_progress",
-      "note": "API deployed; worker installed. POS package locked by open app; original archive/source unchanged. One real image accepted, no publication receipt.",
+      "note": "Actual Admin and source inspected. Chrome2.1.4 installed and verified; no scene2 receipt. No real gold publication receipt yet.",
       "evidence": [
         {
           "path": ".project-state\\verification.md",
-          "sha256": "c63e58334ffb25c91faa05d98eb11a89101a4448aed39143c6508f8d225549c3",
-          "bytes": 11716
+          "sha256": "6aaaafd522c45a1b3014db4e50c52406ce122baf672cda81b2d39f65d29b8e23",
+          "bytes": 12663
         },
         {
-          "path": "docs\\POS_LIEN2_BO_CUC_VA_KHOI_PHUC_AI_20261102.md",
-          "sha256": "9cfe14fad854bd6a61f8d0db795c0603aa2c5d56602ff3583b9a9aec219d72bb",
-          "bytes": 4898
+          "path": "docs\\GIA_VANG_LOCAL_HANG_DOI_RIENG_20261102.md",
+          "sha256": "ba7ea9d808c7e7b0b2edf426aabb8e59ac43fdc85ae55b121acb26a4e41b3d70",
+          "bytes": 2680
         }
       ],
-      "at": "2026-11-02T14:16:58.449419+00:00"
+      "at": "2026-11-02T14:53:37.516675+00:00"
     }
   },
-  "next_action": "Owner closes POS normally then rerun ../install-pos-presentation.py; owner reloads KBL extension2.1.2 in Gemini Bun, continuation flag already set. Verify actual second image and publication receipt.",
+  "next_action": "Verify deployed gold lane; actual gold13:00 currently queued at write. Preserve held news image; POS presentation still awaits app exit.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -266,7 +266,25 @@
       "stage": "integrate",
       "status": "in_progress",
       "note": "API deployed; worker installed. POS package locked by open app; original archive/source unchanged. One real image accepted, no publication receipt."
+    },
+    {
+      "at": "2026-11-02T14:53:37.223576+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner clarified gold cards are generated locally; separate gold queue while preserving sequential receipts and frozen quotes within each lane."
+    },
+    {
+      "at": "2026-11-02T14:53:37.375257+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "342 tests and Cloudflare build pass. Source separates gold/editorial FIFO heads and identifies local gold card stages."
+    },
+    {
+      "at": "2026-11-02T14:53:37.516675+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Actual Admin and source inspected. Chrome2.1.4 installed and verified; no scene2 receipt. No real gold publication receipt yet."
     }
   ],
-  "updated_at": "2026-11-02T14:16:58.449419+00:00"
+  "updated_at": "2026-11-02T14:53:37.516675+00:00"
 }

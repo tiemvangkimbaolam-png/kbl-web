@@ -2,7 +2,7 @@
 (()=>{
   const KEY='kbl-browser-owned-run-v1';let running=false,stopped=false;
   const prior=globalThis.__KBL_CONTENT_52R1;if(prior)try{prior.stop();}catch{}
-  const VERSION='2.0.1';
+  const VERSION='2.0.2';
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
   const visible=e=>!!e&&e.getClientRects().length>0&&getComputedStyle(e).visibility==='visible'&&!e.closest('[inert],[aria-hidden="true"]');
   const b64=bytes=>{let s='';for(let i=0;i<bytes.length;i+=32768)s+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(s);};
@@ -402,21 +402,31 @@
     }
     return {ok:true,version:VERSION};
   }
+  function ownerImageNotStarted(task,sel){
+    if(running||!task?.ownerConfirmedUnsentImage||task.kind!=='images'||task.scene!==1||!['gemini','chatgpt'].includes(PROVIDER)||!task.acceptedSceneNonces?.length||sessionStorage.getItem(KEY)||sessionStorage.getItem('kbl-owner-image-continuation:'+task.nonce)!=='accepted'||blocked())return false;
+    let prior;try{prior=JSON.parse(sessionStorage.getItem(KEY+'-before-owner-continuation'));}catch{return false;}
+    if(prior?.runId!==task.runId||!task.acceptedSceneNonces.includes(prior.nonce)||prior.status!=='sent'||!Number.isInteger(prior.before)||responses(sel).length!==prior.before+1)return false;
+    const composer=findComposer(sel);if(!composer||(composer.innerText||composer.value||'').trim())return false;
+    const users=[...document.querySelectorAll('user-query,[data-message-author-role="user"]')];
+    if(!users.length||users.some(e=>(e.innerText||'').replace(/\s+/g,' ').includes(String(task.prompt||'').replace(/\s+/g,' '))))return false;
+    return ![...document.querySelectorAll('button,[role="button"]')].some(e=>visible(e)&&/^(stop|stop response|stop generating|stop streaming|dừng|dừng phản hồi|dừng tạo)$/i.test(e.getAttribute('aria-label')||e.innerText.trim()));
+  }
   function listener(m,sender,reply){
     if(stopped||sender.id!==chrome.runtime.id)return;
+    if(m.type==='PROBE_OWNER_IMAGE_NOT_STARTED'){try{reply({version:VERSION,notStarted:ownerImageNotStarted(m.task,selectors(m.selectors))});}catch{reply({version:VERSION,notStarted:false});}return;}
     if(m.type==='CONTINUE_UNSENT_IMAGE'){
       try{
         const task=m.task,once='kbl-owner-image-continuation:'+task?.nonce;
         if(running){reply({accepted:false,busy:true,version:VERSION});return;}
         if(!task?.ownerConfirmedUnsentImage||task.kind!=='images'||task.scene!==1||!['gemini','chatgpt'].includes(PROVIDER)||!/^[a-f0-9]{36}$/.test(task.runId)||!/^[a-f0-9]{36}$/.test(task.nonce)||!Array.isArray(task.acceptedSceneNonces)||task.acceptedSceneNonces.some(n=>!/^[a-f0-9]{36}$/.test(n)))throw Error('Thiếu xác nhận đúng cảnh ảnh đang giữ.');
-        if(sessionStorage.getItem(once))throw Error('Cảnh này đã nhận lệnh tiếp tục; chỉ thu kết quả, chưa gửi lần nữa.');
+        if(sessionStorage.getItem(once)&&!ownerImageNotStarted(task,selectors(m.selectors)))throw Error('Cảnh này đã nhận lệnh tiếp tục; chỉ thu kết quả, chưa gửi lần nữa.');
         const b=blocked();if(b)throw Error(b[1]);const sel=selectors(m.selectors),composer=findComposer(sel);
         if(!composer)throw Error('Chưa thấy ô chat duy nhất; giữ nguyên cảnh.');
         const draft=(composer.innerText||composer.value||'').trim();if(draft&&!samePrompt(composer,task))throw Error('Ô chat đang có bản nháp khác; chưa ghi đè.');
         const generating=[...document.querySelectorAll('button, [role="button"]')].some(e=>visible(e)&&/^(stop|stop response|stop generating|stop streaming|dừng|dừng phản hồi|dừng tạo)$/i.test(e.getAttribute('aria-label')||e.innerText.trim()));if(generating)throw Error('AI đang trả lời; chưa gửi yêu cầu khác.');
         const raw=sessionStorage.getItem(KEY);let meta;if(raw){meta=JSON.parse(raw);if(meta.runId!==task.runId||![task.nonce,...task.acceptedSceneNonces].includes(meta.nonce))throw Error('Tab giữ lượt khác; chưa đổi dấu phiên.');sessionStorage.setItem(KEY+'-before-owner-continuation',raw);}
         if(draft)sessionStorage.setItem(KEY,JSON.stringify({runId:task.runId,nonce:task.nonce,before:responses(sel).length,status:'preparing',attachments:[]}));else sessionStorage.removeItem(KEY);
-        sessionStorage.setItem(once,'accepted');reply({accepted:true,version:VERSION});execute(task,m.selectors,false);
+        sessionStorage.setItem(once,'accepted');reply({accepted:true,version:VERSION});execute({...task,recoverOnly:false},m.selectors,false);
       }catch(e){reply({accepted:false,error:e.message,version:VERSION});}
       return;
     }

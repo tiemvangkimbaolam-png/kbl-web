@@ -76,6 +76,11 @@ test('native two-image job survives scene restart, renews original lease and rec
         hub = createHub({ bridge, dataDir: dir }); account = hub.auth(paired.token, extensionId);
         const replay = await hub.result(account, firstBody);
         assert.equal(replay.nextTask.nonce, second.nonce); assert.equal(uploads, 1);
+        hub.failure(account,{runId:second.runId,nonce:second.nonce,code:'UI_NEEDS_REVIEW',message:'Unrelated failure must stay held'});
+        assert.equal((await hub.poll(account,{ready:true,acceptWork:true,currentRunId:first.runId})).task,undefined);
+        hub.failure(account,{runId:second.runId,nonce:second.nonce,code:'UI_NEEDS_REVIEW',message:'Chưa có dấu phiên ảnh đã gửi trong đúng tab; giữ việc, không gửi lại.'});
+        const heldImage=(await hub.poll(account,{ready:true,acceptWork:true,currentRunId:first.runId})).task;
+        assert.equal(heldImage.ownerConfirmedUnsentImage,true);assert.equal(heldImage.recoverOnly,true);assert.equal(heldImage.nonce,second.nonce);assert.equal(uploads,1);assert.equal(claims,1);
         ledger.set('claims', { ...ledger.get('claims'), [job.id]: { ...ledger.get('claims')[job.id], until: 1 } });
         bridge = create({ config, ledger }); hub = createHub({ bridge, dataDir: dir }); account = hub.auth(paired.token, extensionId);
         const final = await hub.result(account, { runId: second.runId, nonce: second.nonce, base64: image(2).toString('base64'), mime: 'image/png', transcript: 'Fixture scene two', attachments: [] });
