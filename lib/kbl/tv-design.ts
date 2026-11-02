@@ -18,6 +18,15 @@ export const TV_PARTS = {
   footer: "Thời điểm cập nhật",
 } as const;
 export type TVPart = keyof typeof TV_PARTS;
+export const TV_CELL_PARTS = Object.fromEntries([
+  ["head-labels", "Tiêu đề loại vàng"], ["head-buy", "Tiêu đề mua vào"], ["head-sell", "Tiêu đề bán ra"],
+  ...["9999", "980", "610"].flatMap(code => [
+    ["labels-"+code, "Loại vàng "+(code === "9999" ? "999.9" : code)],
+    ["buy-"+code, "Mua vào · "+(code === "9999" ? "999.9" : code)],
+    ["sell-"+code, "Bán ra · "+(code === "9999" ? "999.9" : code)],
+  ]),
+]) as Record<string, string>;
+const cellKey = z.string().refine(key => Object.hasOwn(TV_CELL_PARTS, key), "Ô giá không hợp lệ.");
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const typography = z
   .object({
@@ -58,6 +67,9 @@ export const tvDesignSchema = z
     schema: z.literal(1),
     themeVersion: z.literal(1).optional(),
     layers: z.array(layerSchema).max(20).default([]),
+    cells: z.record(cellKey, box).default({}),
+    cellStyles: z.record(cellKey, typography).default({}),
+    compactPrices: z.boolean().optional(),
     background: color,
     lineColor: color,
     rowBackground: color,
@@ -94,6 +106,7 @@ export const tvDesignSchema = z
   .superRefine((v, ctx) => {
     for (const [key, b] of [
       ...Object.entries(v.boxes),
+      ...Object.entries(v.cells),
       ...v.layers.map((l) => ["layer:" + l.id, l.box] as const),
     ])
       if (b.x + b.w > 1600 || b.y + b.h > 900)
@@ -115,10 +128,12 @@ export function defaultTVDesign(): TVDesign {
     weight: "400" | "600" | "700" | "900" = "700",
     align: "left" | "center" | "right" = "center",
   ) => ({ font: "arial" as const, size, weight, color: "#102c43", align });
-  return {
+  const design: TVDesign = {
     schema: 1,
     themeVersion: 1,
     layers: [],
+    cells: {},
+    cellStyles: {},
     background: "#fffdfb",
     lineColor: "#ead1bf",
     rowBackground: "#fff2e9",
@@ -147,9 +162,10 @@ export function defaultTVDesign(): TVDesign {
       footer: { ...type(24, "400", "left"), color: "#65717d" },
     },
   };
+  return separateTVCells(design);
 }
 export function websiteTVTheme(design: TVDesign): TVDesign {
-  if (design.themeVersion === 1) return design;
+  if (design.themeVersion === 1) return separateTVCells(design);
   const next = structuredClone(design), theme = defaultTVDesign();
   next.themeVersion = 1;
   next.background = theme.background; next.lineColor = theme.lineColor;
@@ -157,7 +173,7 @@ export function websiteTVTheme(design: TVDesign): TVDesign {
   for (const part of Object.keys(next.styles) as (keyof TVDesign["styles"])[])
     next.styles[part].color = theme.styles[part].color;
   next.boxes.table.x = Math.max(0, next.boxes.table.x - 14);
-  return next;
+  return separateTVCells(next);
 }
 export function tvPreset(name: string): TVDesign {
   const d = defaultTVDesign();
@@ -181,6 +197,7 @@ export function tvPreset(name: string): TVDesign {
 
 export type TVLayer = TVDesign["layers"][number];
 export function tvBox(d: TVDesign, part: string) {
+  if (part.startsWith("cell:")) return d.cells?.[part.slice(5)] || baseCellBox(d, part.slice(5));
   return part.startsWith("layer:")
     ? d.layers.find((l) => "layer:" + l.id === part)?.box || d.boxes.title
     : d.boxes[
@@ -190,9 +207,59 @@ export function tvBox(d: TVDesign, part: string) {
       ];
 }
 export function tvStyle(d: TVDesign, part: string) {
+  if (part.startsWith("cell:")) return d.cellStyles?.[part.slice(5)] || d.styles[cellStylePart(part.slice(5))];
   if (part.startsWith("layer:")) {
     const l = d.layers.find((l) => "layer:" + l.id === part);
     return l?.type === "text" ? l.style : null;
   }
   return part === "table" ? null : d.styles[part as keyof TVDesign["styles"]];
+}
+
+function cellStylePart(key: string): "headers" | "labels" | "buy" | "sell" {
+  return key.startsWith("head-") ? "headers" : key.split("-")[0] as "labels" | "buy" | "sell";
+}
+function baseCellBox(d: TVDesign, key: string) {
+  const b=d.boxes.table, isHead=key.startsWith("head-"), [part,code]=key.split("-");
+  const col=["labels","buy","sell"].indexOf(isHead?code:part), row=isHead?0:["9999","980","610"].indexOf(code)+1;
+  return {x:b.x+col*b.w/3,y:b.y+row*b.h/4,w:b.w/3,h:b.h/4,visible:true};
+}
+// Legacy designs acquire independent cells without moving any saved element.
+export function separateTVCells(design: TVDesign): TVDesign {
+  const d=structuredClone(design); d.cells ||= {}; d.cellStyles ||= {};
+  for(const key of Object.keys(TV_CELL_PARTS)) d.cells[key] ||= baseCellBox(d,key);
+  return d;
+}
+export function editableTVStyle(d: TVDesign, part: string) {
+  if(part.startsWith("cell:")) {
+    const key=part.slice(5);d.cellStyles ||= {};
+    return d.cellStyles[key] ||= {...d.styles[cellStylePart(key)]};
+  }
+  return tvStyle(d,part)!;
+}
+export function setTVBox(d: TVDesign, part: string, update: Partial<TVDesign["boxes"]["table"]>) {
+  const b=tvBox(d,part), old={...b};
+  if(b.locked && update.locked !== false) return;
+  Object.assign(b,update);
+  if(part === "table" && ["x","y","w","h"].some(k => k in update)) {
+    for(const cell of Object.values(d.cells)) {
+      cell.w=Math.max(80,Math.min(1600,cell.w*b.w/old.w));
+      cell.h=Math.max(24,Math.min(900,cell.h*b.h/old.h));
+      cell.x=Math.max(0,Math.min(1600-cell.w,b.x+(cell.x-old.x)*b.w/old.w));
+      cell.y=Math.max(0,Math.min(900-cell.h,b.y+(cell.y-old.y)*b.h/old.h));
+    }
+  }
+}
+// Explicit owner action: retain branding/layers, enlarge just the price area.
+export function readableTVPrices(design: TVDesign): TVDesign {
+  const d=separateTVCells(design);
+  d.boxes.table={x:32,y:264,w:1536,h:548,visible:true};
+  d.compactPrices=true;
+  const columns=[{x:40,w:426},{x:506,w:500},{x:1058,w:500}];
+  for(const key of Object.keys(TV_CELL_PARTS)) {
+    const isHead=key.startsWith("head-"),[part,code]=key.split("-"), col=columns[["labels","buy","sell"].indexOf(isHead?code:part)];
+    const row=isHead?0:["9999","980","610"].indexOf(code)+1;
+    d.cells[key]={...col,y:264+row*137,h:137,visible:true};
+    const s=editableTVStyle(d,"cell:"+key);s.size=Math.max(s.size,isHead?58:part === "labels"?84:94);s.weight="900";
+  }
+  return d;
 }

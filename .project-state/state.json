@@ -5,79 +5,69 @@
   "stages": {
     "specify": {
       "status": "done",
-      "note": "Ưu tiên mẫu ảnh/video; khóa công thức POS; nguồn GitHub e3081b4 và màu bảng TV live đã đọc.",
+      "note": "Owner explicit exception permits only principal-tier pawn rates; all unrelated formulas and finalized records protected. AI flexible FIFO with publication receipts and frozen snapshots.",
       "evidence": [
         {
           "path": ".project-state\\contract.md",
-          "sha256": "f1410117006b93992c78f1e7cea4b875559c389f68ac17315abb2e3012c83b46",
-          "bytes": 3524
+          "sha256": "2219eaead771bddb2e715870b512afb9c2d56f92dbd34b1a056416c3c0d08cfa",
+          "bytes": 4971
         }
       ],
-      "at": "2026-11-02T03:44:16.666380+00:00"
+      "at": "2026-11-02T10:30:47.749289+00:00"
     },
     "build": {
       "status": "done",
-      "note": "325/325 tests and Cloudflare build pass; compact worker queue aligns with FIFO and keeps held/consult jobs. Pawn installed source passed 6 tests, other POS files unchanged.",
+      "note": "TV cells independent; 331/331 tests and Cloudflare build passed. Real browser local fixture drag, resize and per-cell typography checked.",
       "evidence": [
         {
-          "path": "lib\\kbl\\api.ts",
-          "sha256": "daf9455aa324d17f9593879a188fffc7e4f68a3b042ba1fb77d9f0a3b2f3c64a",
-          "bytes": 46071
+          "path": "lib\\kbl\\tv-design.ts",
+          "sha256": "a6db05774103a05c2da2b94527363bed58bef1a1a6e86f039f634f067e24fc76",
+          "bytes": 9853
         },
         {
-          "path": "tests\\api-recovery.test.mjs",
-          "sha256": "9215c4acd75eb6406a205ee1f8bc88c9a67e423f0304bcea0eab16c8bfe83eba",
-          "bytes": 14366
+          "path": "app\\components\\tv-board.tsx",
+          "sha256": "59fdc27760cdfb4edd16c02eff106b63b96132e073de783c97f2f94b924d77ee",
+          "bytes": 15384
         },
         {
-          "path": "docs\\POS_LAI_CAM_DO_VA_DOI_AI_20261102.md",
-          "sha256": "dc7c40722f0c2bdfaf4f8da5a574b7f4099a682c192ee9f2806e71932e8c383c",
-          "bytes": 5744
+          "path": "app\\components\\tv-editor.tsx",
+          "sha256": "99b864f21fb68084c04987287984effbaf2b50494cea0ddcff58ec74c73c898b",
+          "bytes": 31470
+        },
+        {
+          "path": "tests\\tv-cells.test.mjs",
+          "sha256": "aa78b5d09602a1b1604c4d663a44142c3201751d1d1bbe538b1b8f7845169d1f",
+          "bytes": 3562
         }
       ],
-      "at": "2026-11-02T10:25:22.300087+00:00"
+      "at": "2026-11-02T10:45:11.611143+00:00"
     },
     "demonstrate": {
       "status": "done",
-      "note": "Actual 20s HoaiMy/word-boundaries video and desktop POS preview inspected; previews retained in local outputs.",
+      "note": "Offline POS fixture visually checked both liens and inclusive-date examples; actual Admin flexible setting and nine paired accounts inspected. No physical print or completed publication claimed.",
       "evidence": [
         {
           "path": ".project-state\\verification.md",
-          "sha256": "994942442dbff65b3bc773a122da561ecc4b75e653e6123af2d43890a61dc315",
-          "bytes": 5830
+          "sha256": "cd1c797f7adc3f733d25b36f4bfd3293de55710dfa894b8a9d2117e3218d6668",
+          "bytes": 10235
         }
       ],
-      "at": "2026-11-02T04:17:38.046121+00:00"
+      "at": "2026-11-02T10:30:48.016529+00:00"
     },
     "integrate": {
       "status": "in_progress",
-      "note": "Installed owner-authorized pawn tier policy only; seven other POS files unchanged, no data migration or forced reload. Actual source tests pass and offline two-copy print labels checked. 324 tests and final Cloudflare build pass. Nine AI accounts observed paired with real work accepted; flexible routing saved. Receipt-gated followups and scheduled outlook backlog fix ready for deployment.",
+      "note": "Cloudflare 0120ce2 production success 2026-11-02T10:27:22Z. Two owner-confirmed held consults requeued in Admin; old runs expired with evidence retained. New research claim observed on Gemini. Actual Chrome send/response and complete publication receipts still unverified; owner asked to inspect three profiles.",
       "evidence": [
         {
           "path": "docs\\POS_LAI_CAM_DO_VA_DOI_AI_20261102.md",
-          "sha256": "8f29c55276ae3847fc3dcbf978bb195e59c66c90e98f6ba24e4fc304b2e10657",
-          "bytes": 4643
-        },
-        {
-          "path": "pos-source\\pawn.html",
-          "sha256": "b07c7bbf39b5e76e78e900f799b65e09c2d8e71d79a03469c8b2c01901dc5d0a",
-          "bytes": 235891
-        },
-        {
-          "path": "lib\\kbl\\gold.ts",
-          "sha256": "a2f5c8c8433213c9ef551263a74512a9ee162cdb2234aea79a938d72e9af2c87",
-          "bytes": 11593
-        },
-        {
-          "path": "lib\\kbl\\story-order.ts",
-          "sha256": "c2553cbe7f3b7d54982c6248cf7b2f7966aec21bed23aa383475b307ca412193",
-          "bytes": 695
+          "sha256": "97cb4fbeefca1cc6e136456473de322d9607585bb60e2a89efcd049e3c4736d6",
+          "bytes": 6019
         }
       ],
-      "at": "2026-11-02T10:10:43.196285+00:00"
+      "at": "2026-11-02T10:29:59.900794+00:00"
     }
   },
-  "next_action": "Deploy queue follow-up and verify real worker progress without test posts.",
+  "next_action": "Deploy TV update and apply readable layout to actual saved template; verify public TV.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -204,7 +194,37 @@
       "stage": "build",
       "status": "done",
       "note": "325/325 tests and Cloudflare build pass; compact worker queue aligns with FIFO and keeps held/consult jobs. Pawn installed source passed 6 tests, other POS files unchanged."
+    },
+    {
+      "at": "2026-11-02T10:29:59.900794+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Cloudflare 0120ce2 production success 2026-11-02T10:27:22Z. Two owner-confirmed held consults requeued in Admin; old runs expired with evidence retained. New research claim observed on Gemini. Actual Chrome send/response and complete publication receipts still unverified; owner asked to inspect three profiles."
+    },
+    {
+      "at": "2026-11-02T10:30:47.749289+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner explicit exception permits only principal-tier pawn rates; all unrelated formulas and finalized records protected. AI flexible FIFO with publication receipts and frozen snapshots."
+    },
+    {
+      "at": "2026-11-02T10:30:47.886369+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "325/325 system tests, 6 installed POS source tests, Cloudflare build passed; deployed 0120ce2."
+    },
+    {
+      "at": "2026-11-02T10:30:48.016529+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Offline POS fixture visually checked both liens and inclusive-date examples; actual Admin flexible setting and nine paired accounts inspected. No physical print or completed publication claimed."
+    },
+    {
+      "at": "2026-11-02T10:45:11.611143+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "TV cells independent; 331/331 tests and Cloudflare build passed. Real browser local fixture drag, resize and per-cell typography checked."
     }
   ],
-  "updated_at": "2026-11-02T10:25:22.300087+00:00"
+  "updated_at": "2026-11-02T10:45:11.611143+00:00"
 }

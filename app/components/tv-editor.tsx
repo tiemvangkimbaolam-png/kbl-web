@@ -6,6 +6,10 @@ import { api } from "./ui";
 import {
   tvBox,
   tvStyle,
+  editableTVStyle,
+  setTVBox,
+  readableTVPrices,
+  TV_CELL_PARTS,
   defaultTVDesign,
   tvPreset,
   TV_PARTS,
@@ -83,22 +87,13 @@ export function TVEditor() {
     fn(d);
     change(d);
   }
-  const boxKey = (
-    ["headers", "labels", "buy", "sell"].includes(selected) ? "table" : selected
-  ) as keyof TVDesign["boxes"];
+  const boxKey = selected;
   const box = tvBox(draft, selected),
     style = tvStyle(draft, selected);
   const layer = draft.layers.find((l) => "layer:" + l.id === selected);
   function move(part: string, x: number, y: number) {
-    const key = (
-      ["headers", "labels", "buy", "sell"].includes(part) ? "table" : part
-    ) as keyof TVDesign["boxes"];
     patch((d) => {
-      const box = tvBox(d, part);
-      if (!box.locked) {
-        box.x = x;
-        box.y = y;
-      }
+      setTVBox(d,part,{x,y});
     });
   }
   async function save() {
@@ -139,10 +134,8 @@ export function TVEditor() {
             if (!Number.isFinite(v)) return;
             patch((d) => {
               const b = tvBox(d, selected);
-              if (key === "x") b.x = Math.max(0, Math.min(v, 1600 - b.w));
-              if (key === "y") b.y = Math.max(0, Math.min(v, 900 - b.h));
-              if (key === "w") b.w = Math.max(80, Math.min(v, 1600 - b.x));
-              if (key === "h") b.h = Math.max(24, Math.min(v, 900 - b.y));
+              const limit=key === "x"?1600-b.w:key === "y"?900-b.h:key === "w"?1600-b.x:900-b.y;
+              setTVBox(d,selected,{[key]:Math.max(key === "w"?80:key === "h"?24:0,Math.min(v,limit))});
             });
           }}
         />
@@ -207,8 +200,7 @@ export function TVEditor() {
   }
   function resize(part: string, w: number, h: number, x: number, y: number) {
     patch((d) => {
-      const b = tvBox(d, part);
-      if (!b.locked) Object.assign(b, { w, h, x, y });
+      setTVBox(d,part,{w,h,x,y});
     });
   }
   function beginEdit(part: string) {
@@ -441,6 +433,7 @@ export function TVEditor() {
         </div>
       </div>
       <div className="tv-insert-toolbar" aria-label="Thêm thành phần">
+        <button disabled={busy} onClick={() => {change(readableTVPrices(draft));setSelected("cell:buy-9999");}}>Chữ lớn · giãn cột</button>
         <button disabled={busy} onClick={() => add("text")}>
           ＋ Chữ
         </button>
@@ -547,9 +540,7 @@ export function TVEditor() {
           </div>
           <p className="tv-editor-hint">
             Phím mũi tên để di chuyển (Shift: 10 px), Ctrl+Z để hoàn tác, Ctrl+S
-            để lưu. Ảnh tải lên dùng công khai trên TV. Ô giá mua, bán và loại
-            vàng cùng thuộc bảng giá: kéo một ô sẽ di chuyển cả bảng. Cỡ chữ tự
-            co nếu vượt chiều rộng ô.
+            để lưu. Kéo từng ô giá hoặc tiêu đề riêng; chọn Bảng giá để di chuyển toàn bảng.
           </p>
         </div>
         <aside className="tv-editor-inspector">
@@ -575,11 +566,12 @@ export function TVEditor() {
               value={selected}
               onChange={(e) => setSelected(e.target.value)}
             >
-              {Object.entries(TV_PARTS).map(([k, v]) => (
+              {Object.entries(TV_PARTS).filter(([k])=>!["headers","labels","buy","sell"].includes(k)).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
                 </option>
               ))}
+              {Object.entries(TV_CELL_PARTS).map(([k,v])=><option key={k} value={"cell:"+k}>{v}</option>)}
               {draft.layers.map((l) => (
                 <option value={"layer:" + l.id} key={l.id}>
                   {l.name}
@@ -593,7 +585,7 @@ export function TVEditor() {
               onClick={() =>
                 patch((d) => {
                   const b = tvBox(d, selected);
-                  b.x = Math.round((1600 - b.w) / 2);
+                  setTVBox(d,selected,{x:Math.round((1600-b.w)/2)});
                 })
               }
             >
@@ -604,7 +596,7 @@ export function TVEditor() {
               onClick={() =>
                 patch((d) => {
                   const b = tvBox(d, selected);
-                  b.y = Math.round((900 - b.h) / 2);
+                  setTVBox(d,selected,{y:Math.round((900-b.h)/2)});
                 })
               }
             >
@@ -739,7 +731,7 @@ export function TVEditor() {
                   value={style.font}
                   onChange={(e) =>
                     patch((d) => {
-                      tvStyle(d, selected)!.font = e.target
+                      editableTVStyle(d, selected)!.font = e.target
                         .value as keyof typeof TV_FONTS;
                     })
                   }
@@ -761,7 +753,7 @@ export function TVEditor() {
                     value={style.size}
                     onChange={(e) =>
                       patch((d) => {
-                        tvStyle(d, selected)!.size = Math.max(
+                        editableTVStyle(d, selected)!.size = Math.max(
                           16,
                           Math.min(160, Number(e.target.value) || 16),
                         );
@@ -775,7 +767,7 @@ export function TVEditor() {
                     value={style.weight}
                     onChange={(e) =>
                       patch((d) => {
-                        tvStyle(d, selected)!.weight = e.target
+                        editableTVStyle(d, selected)!.weight = e.target
                           .value as typeof style.weight;
                       })
                     }
@@ -795,7 +787,7 @@ export function TVEditor() {
                     value={style.color}
                     onChange={(e) =>
                       patch((d) => {
-                        tvStyle(d, selected)!.color = e.target.value;
+                        editableTVStyle(d, selected)!.color = e.target.value;
                       })
                     }
                   />
@@ -806,7 +798,7 @@ export function TVEditor() {
                     value={style.align}
                     onChange={(e) =>
                       patch((d) => {
-                        tvStyle(d, selected)!.align = e.target
+                        editableTVStyle(d, selected)!.align = e.target
                           .value as typeof style.align;
                       })
                     }
