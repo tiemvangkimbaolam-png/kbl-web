@@ -39,3 +39,11 @@ Phiếu có điểm/đổi/trả còn cần ledger gốc để chuyển đủ h�
 Cấu hình tài khoản thật còn cần owner đăng nhập Cloudflare Access và ghép tiện ích trong đúng Chrome; không sao chép cookie hoặc biến token worker thành quyền Admin.
 
 Bật “Ưu tiên phân việc theo chuyên môn” trong Admin → Đội AI để áp dụng cách chia mới. Mặc định giữ cách chia hiện có; không tự thay cấu hình một đội đang hoạt động. Sau khi chủ đăng nhập và ghép đúng các tài khoản, bật theo yêu cầu đã giao.
+
+## Trạng thái sau đăng nhập chủ tiệm
+
+02/11/2026, khoảng 11:38 giờ Việt Nam: đã bật specialistRouting qua Admin thật. Đã bật Gemini Tủn hiện có và thêm bốn hồ sơ DeepSeek, Claude, ChatGPT, Grok, cùng chọn worker Windows đang kết nối. Có 5 hồ sơ được bật nhưng 0 hồ sơ báo kết nối Chrome; đây là hồ sơ cấu hình, chưa phải năm phiên AI sẵn sàng. Đã gửi lệnh mở đúng Chrome và mã ghép một lần; chủ tiệm phải đăng nhập/ghép tiện ích trong từng Chrome. Không lưu mã ghép vào tài liệu.
+
+Cloudflare Workers Builds kbl-web-moi xác nhận success cho db46f54. Kênh kbl-backup báo failure riêng, chưa sửa. Sáu file nghiệp vụ POS được đối chiếu lại SHA-256, tất cả giữ nguyên.
+
+Groq và Gemini của luồng tư vấn máy chủ hiện báo Chưa gọi được; chưa kết luận nguyên nhân hoặc chứng nhận hoạt động. Các poller API Tenten cũ vẫn chạy và nhận 404; chưa dừng trước khi đội mới ghép đủ. Không xóa bộ cũ, không chép cookie hoặc tài khoản Chrome. AutoProducts giữ tắt vì chưa có đủ ba sản phẩm với ảnh đúng SKU: ảnh duy nhất đang gắn tên Nhẫn có hình giống dây chuyền, cần chủ đối chiếu trước khi đăng.
