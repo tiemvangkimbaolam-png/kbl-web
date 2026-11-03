@@ -51,23 +51,18 @@
     },
     "integrate": {
       "status": "in_progress",
-      "note": "Production802d3e6 success; same saved question answered via Gemini200 after manual redirect fix, Groq401. Five real gold receipts; POS presentation installed with business files protected.",
+      "note": "Actual Windows POS inspection confirms prior install now loaded; source-package layout regression fixed,11 tests pass, no financial/data writes.",
       "evidence": [
         {
-          "path": "docs\\NGHIEM_THU_LOCAL_20261103.md",
-          "sha256": "5df795f23faf4f9c47520e166794751764cb89fad55219231295d8971dd47a79",
-          "bytes": 5638
-        },
-        {
-          "path": "docs\\BIEN_NHAN_DANG_THAT_20261103.json",
-          "sha256": "0a50cb1fb7f2b41728f87000b1dae1f7fedf31b45f73a29135d8ed41caf9c2cc",
-          "bytes": 6023
+          "path": "docs\\POS_KIEM_TRA_TRUC_TIEP_20261103.md",
+          "sha256": "bd31a2b0fd0d0fe689a7549f2153297b22d9e2e42a79b2e8837d46d9ace0a0e3",
+          "bytes": 2415
         }
       ],
-      "at": "2026-11-03T01:17:53.854080+00:00"
+      "at": "2026-11-03T01:39:42.139135+00:00"
     }
   },
-  "next_action": "Local gold and Gemini API proven live; reconnect existing Chrome without duplicate prompts, obtain three correct SKU photos, and owner repair Groq401. Physical POS view and social permissions remain.",
+  "next_action": "POS live lien2 and both exchange layouts verified; source package synchronized. Remaining automation dependencies: three correct SKU photos, reconnect Chrome accounts and repair Groq401.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -314,7 +309,13 @@
       "stage": "integrate",
       "status": "in_progress",
       "note": "Production802d3e6 success; same saved question answered via Gemini200 after manual redirect fix, Groq401. Five real gold receipts; POS presentation installed with business files protected."
+    },
+    {
+      "at": "2026-11-03T01:39:42.139135+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Actual Windows POS inspection confirms prior install now loaded; source-package layout regression fixed,11 tests pass, no financial/data writes."
     }
   ],
-  "updated_at": "2026-11-03T01:17:53.854080+00:00"
+  "updated_at": "2026-11-03T01:39:42.139135+00:00"
 }

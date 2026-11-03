@@ -14,7 +14,8 @@
     "pawn.html": "d5ce3323e33fe000a5c67b5bd29c289ddd1ca9faa3d86ee1d8ac45f36cee8d5a",
     "index.html": "4247d39006c75c48d60b5745b665a0ff29a02ddc4a789af691044c41ee6ccbcd",
     "package.json": "2776d2ab948174b40c2eb9a9b46bb7186b5ee2cdd81fb84d770c0c1f05c9e3e0",
-    "kbl-product-photos.cjs": "840d883a54af1305a4d65342caee81cb29c01cdd39e248f24fe90695e0312e85"
+    "kbl-product-photos.cjs": "840d883a54af1305a4d65342caee81cb29c01cdd39e248f24fe90695e0312e85",
+    "kbl-jewel-ui.js": "a0aa2a6d527dc226b44e29ea41eb4fcb9883330042acedf829edb5d72c81240a"
   },
   "connectionOnly": true,
   "verification": "Reversing connection-only changes yields byte-identical latest originals, except removal of embedded legacy relay credential. Optional missing stylesheet/script tags removed from index/pawn, without changing inline POS function bodies.",
@@ -73,5 +74,15 @@
     ],
     "financialFunctionsUnchanged": true,
     "savedBlueprintNotRewritten": true
+  },
+  "exchangePresentationVerified20261103": {
+    "sourceMatchesInstalledUi": true,
+    "onlyCompactPresentationChanged": true,
+    "financialFunctionsChanged": false,
+    "actualWindowsModes": [
+      "doi",
+      "doikbl"
+    ],
+    "savedBlueprintWritten": false
   }
 }

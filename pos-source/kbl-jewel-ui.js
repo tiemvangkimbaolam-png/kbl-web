@@ -118,6 +118,9 @@
   .kbl-compact-inventory-tools #inventory-label-batch-bar {flex:0 1 auto;gap:6px!important;margin:0!important;padding:0!important;border:0!important;background:none!important;}
   .kbl-compact-inventory-tools button {white-space:nowrap;}
   .kbl-compact-inventory-tools .btn {font-size:11px!important;padding:5px 8px!important;}
+  .kbl-compact-sale-right {min-width:0;}
+  .kbl-compact-sale-right > #exchange-zone {margin-top:12px!important;}
+  .kbl-compact-sale-search {margin-top:12px;}
  }
  html body #printable-a4-sheet .a4-gd-layout {margin-top:calc(12mm + 5.5px)!important;}
  html body #a4-print-preview-modal .a4-preview-modal-sheet .a4-gd-layout {margin-top:calc(12mm + 7.5px)!important;}
@@ -200,6 +203,36 @@
    }
   }
  }
+ let saleLayout;
+ function compactSaleExchange(){
+  const zone=document.getElementById('exchange-zone'),cart=document.getElementById('exchange-old-cart-panel');
+  const search=document.getElementById('sell-search'),invoice=document.getElementById('invoice-preview');
+  if(!zone||!cart||!search||!invoice)return;
+  if(!saleLayout){
+   const left=search.closest('.card'),preview=invoice.closest('.card'),ocr=left?.querySelector('.sales-ocr-box');
+   const cost=document.getElementById('s-gold-price-display')?.closest('.grid-3');
+   const code=document.getElementById('s-code')?.closest('.grid-2'),type=document.getElementById('s-type')?.closest('.grid-2');
+   const confirm=left?.querySelector('button[onclick="processTransaction()"]');
+   if(!left||!preview||!ocr||!cost||!code||!type||!confirm||left.parentElement!==preview.parentElement)return;
+   const nodes=[zone,cart,search.parentElement,code,type],homes=new Map();
+   for(const node of nodes){const marker=document.createComment('KBL original presentation position');node.before(marker);homes.set(node,marker);}
+   const right=document.createElement('div');right.className='kbl-compact-sale-right';preview.before(right);right.append(preview);
+   saleLayout={left,right,ocr,cost,confirm,zone,cart,searchNodes:nodes.slice(2),homes,active:false};
+  }
+  const s=saleLayout,active=zone.style.display!=='none';
+  if(s.active===active)return;
+  s.active=active;
+  if(active){
+   s.right.append(zone);s.cost.before(cart);
+   // Keep the same inputs/listeners; only move their existing containers.
+   let after=s.confirm;
+   for(const node of s.searchNodes){after.after(node);after=node;}
+   s.searchNodes[0].classList.add('kbl-compact-sale-search');
+  }else{
+   for(const [node,marker] of s.homes)marker.after(node);
+   s.searchNodes[0].classList.remove('kbl-compact-sale-search');
+  }
+ }
  const NOTE_PREFIXES=[
   'Khách quên thẻ:', 'Có thể chụp bằng điện thoại', 'Mở KBL Remote trên điện thoại của tiệm',
   'Hóa đơn đã chốt được lưu trong', 'Chọn tối đa 30 ảnh một lần',
@@ -221,7 +254,7 @@
    if(NOTE_PREFIXES.some(prefix=>text.startsWith(prefix)))e.classList.add('kbl-compact-note');
   }
  }
- function arrange(){addStyle();topButton();compactOffset();compactLost();compactPawn();compactInventory();compactNotes();}
+ function arrange(){addStyle();topButton();compactOffset();compactLost();compactPawn();compactInventory();compactSaleExchange();compactNotes();}
  function start(){
   arrange();let queued=false;
   const observer=new MutationObserver(()=>{
