@@ -51,23 +51,23 @@
     },
     "integrate": {
       "status": "in_progress",
-      "note": "Actual phone saved, worker template updated. No real publication claim until receipt.",
+      "note": "Five actual gold receipts, Cloudflare385 success and protected POS presentation installed. API probe unanswered; product photos and Chrome connectivity remain external dependencies.",
       "evidence": [
         {
-          "path": "docs\\QUY_TAC_LOCAL_AI_API_20261103.md",
-          "sha256": "9bec287458ca0c953d982beb55c1c896aa70e1b43e1ab305065caf6b1e952305",
-          "bytes": 3905
+          "path": "docs\\NGHIEM_THU_LOCAL_20261103.md",
+          "sha256": "5ce72b6107b67fbb387cb52b8ae8a3317e2fdb3359a0346baa3e172fb31662a9",
+          "bytes": 4075
         },
         {
-          "path": ".project-state\\verification.md",
-          "sha256": "448476d00e6ace833a89a47ea3a6e724fa142a9855cdbc3849e0e514658df68b",
-          "bytes": 13399
+          "path": "docs\\BIEN_NHAN_DANG_THAT_20261103.json",
+          "sha256": "0a50cb1fb7f2b41728f87000b1dae1f7fedf31b45f73a29135d8ed41caf9c2cc",
+          "bytes": 6023
         }
       ],
-      "at": "2026-11-03T00:48:01.496501+00:00"
+      "at": "2026-11-03T01:06:26.853653+00:00"
     }
   },
-  "next_action": "Verify deployment and actual local gold cards/video/publication receipts. Preserve held news/legacy consultation and POS package pending.",
+  "next_action": "Read deployed API error statuses; reconnect Chrome without duplicate sends; obtain three correct SKU photos. Local gold proven live; POS installed, physical view pending.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -302,7 +302,13 @@
       "stage": "integrate",
       "status": "in_progress",
       "note": "Actual phone saved, worker template updated. No real publication claim until receipt."
+    },
+    {
+      "at": "2026-11-03T01:06:26.853653+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Five actual gold receipts, Cloudflare385 success and protected POS presentation installed. API probe unanswered; product photos and Chrome connectivity remain external dependencies."
     }
   ],
-  "updated_at": "2026-11-03T00:48:01.496501+00:00"
+  "updated_at": "2026-11-03T01:06:26.853653+00:00"
 }
