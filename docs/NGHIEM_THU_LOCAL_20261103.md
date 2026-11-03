@@ -23,3 +23,7 @@ Hai hàm trình bày phiếu thay đổi: `pawnUpdateRateLabels`, `loadSavedTemp
 - Tư vấn: đã gửi đúng một câu hỏi kiểm tra nội bộ chỉ hỏi tên cửa hàng, lưu riêng và không tạo bài công khai. Groq/Gemini đều chưa trả lời, trạng thái health mới lúc08:00 vẫn lỗi; không có việc Chrome mới. API có cấu hình không đồng nghĩa gọi được. Cần chẩn đoán mã lỗi/quyền/hạn mức qua Admin; không yêu cầu gửi khóa bí mật vào chat.
 - Mạng xã hội: chưa có tài khoản nhận bài được cấp quyền/chọn; hiện chỉ có biên nhận website. Không báo Facebook/Instagram/Threads/YouTube/TikTok/Telegram đã đăng.
 - Bản build nguồn344/344 kiểm thử đã đạt; phần bổ sung hiển thị mã lỗi API chỉ là trình bày, build lại thành công. TypeScript toàn repo còn năm lỗi cũ, không tuyên bố đạt.
+
+## Sửa lỗi gọi API trên Cloudflare
+
+Sau khi hiển thị health HTTP0 cho cả hai nhà cung cấp, phát hiện mã dùng `redirect:'error'`. Tài liệu Cloudflare xác nhận chế độ này ném TypeError trước khi gửi yêu cầu: https://developers.cloudflare.com/workers/runtime-apis/request/. Đổi đúng ba lệnh gọi ở consult-provider/gemini-models sang `manual`. Giữ cấm tự theo redirect; phản hồi3xx không được coi là kết quả và khóa không gửi sang đích Location. Không đổi model, khóa, hạn mức hoặc bật thanh toán. Kiểm thử chặn chế độ không hỗ trợ, thử Groq→Gemini, luồng tư vấn riêng và redirect sang host lạ đều đạt; build đạt. Đang xác minh lại chính câu hỏi nội bộ đã lưu, không gửi câu hỏi mới.

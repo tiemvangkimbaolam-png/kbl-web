@@ -13,7 +13,7 @@ export async function geminiModels(image=false,fetcher:typeof fetch=fetch){
  const e=env as any,key=e.GEMINI_API_KEY;if(!key)return [];
  if(!cache||cache.key!==key||Date.now()-cache.at>3600000){
   const all:any[]=[];let token='';
-  try{for(let i=0;i<4;i++){const u='https://generativelanguage.googleapis.com/v1beta/models?pageSize=100'+(token?'&pageToken='+encodeURIComponent(token):'');const r=await fetcher(u,{redirect:'error',headers:{'x-goog-api-key':key},signal:AbortSignal.timeout(5000)});if(!r.ok)break;const v=await r.json() as any;all.push(...(v.models||[]));token=v.nextPageToken||'';if(!token)break;}if(all.length)cache={at:Date.now(),key,models:all};}catch{}
+  try{for(let i=0;i<4;i++){const u='https://generativelanguage.googleapis.com/v1beta/models?pageSize=100'+(token?'&pageToken='+encodeURIComponent(token):'');const r=await fetcher(u,{redirect:'manual',headers:{'x-goog-api-key':key},signal:AbortSignal.timeout(5000)});if(!r.ok)break;const v=await r.json() as any;all.push(...(v.models||[]));token=v.nextPageToken||'';if(!token)break;}if(all.length)cache={at:Date.now(),key,models:all};}catch{}
  }
  const preferred=image?e.GEMINI_IMAGE_MODEL:e.GEMINI_CHAT_MODEL,ranked=rankGemini(cache?.key===key?(cache?.models||[]):[],image);
  const usable=preferred&&/^[a-zA-Z0-9._-]+$/.test(preferred)&&(image?ranked.includes(preferred):major('models/'+preferred)>=3)?[preferred]:[];
