@@ -1,0 +1,225 @@
+{
+  "checkedAt": "2026-11-03T01:04:22.692Z",
+  "revision": "385a1a94bb2e4590eef217101853a790a0cb440e",
+  "cloudflareBuild": "success",
+  "selectedPlatforms": [
+    "website"
+  ],
+  "publications": [
+    {
+      "storyId": "d043c1bb972a01cffc891683860e4e28",
+      "headline": "Bảng giá vàng Kim Bảo Lâm · 13:00:37 2/11/2026",
+      "url": "https://tiemvangkimbaolam.id.vn/tin-tuc/d043c1bb972a01cffc891683860e4e28",
+      "completedAt": 1793667340082,
+      "stages": [
+        {
+          "stage": "research",
+          "status": "complete",
+          "owner": "pos-readonly"
+        },
+        {
+          "stage": "write",
+          "status": "complete",
+          "owner": "local-data-template"
+        },
+        {
+          "stage": "review",
+          "status": "complete",
+          "owner": "local-data-validator"
+        },
+        {
+          "stage": "image",
+          "status": "complete",
+          "owner": "9bc7af0ddf0f43fe8cf92b19b6460b83"
+        },
+        {
+          "stage": "image-review",
+          "status": "complete",
+          "owner": "local-file-validator"
+        },
+        {
+          "stage": "render",
+          "status": "complete",
+          "owner": "9bc7af0ddf0f43fe8cf92b19b6460b83"
+        },
+        {
+          "stage": "publish",
+          "status": "complete",
+          "owner": null
+        }
+      ]
+    },
+    {
+      "storyId": "001f72465bf20f34dd2bce1f575477c2",
+      "headline": "Bảng giá vàng Kim Bảo Lâm · 19:00:37 2/11/2026",
+      "url": "https://tiemvangkimbaolam.id.vn/tin-tuc/001f72465bf20f34dd2bce1f575477c2",
+      "completedAt": 1793667393711,
+      "stages": [
+        {
+          "stage": "research",
+          "status": "complete",
+          "owner": "pos-readonly"
+        },
+        {
+          "stage": "write",
+          "status": "complete",
+          "owner": "local-data-template"
+        },
+        {
+          "stage": "review",
+          "status": "complete",
+          "owner": "local-data-validator"
+        },
+        {
+          "stage": "image",
+          "status": "complete",
+          "owner": "9bc7af0ddf0f43fe8cf92b19b6460b83"
+        },
+        {
+          "stage": "image-review",
+          "status": "complete",
+          "owner": "local-file-validator"
+        },
+        {
+          "stage": "render",
+          "status": "complete",
+          "owner": "9bc7af0ddf0f43fe8cf92b19b6460b83"
+        },
+        {
+          "stage": "publish",
+          "status": "complete",
+          "owner": null
+        }
+      ]
+    },
+    {
+      "storyId": "e7331d1194ca3054d4618c1afa7155e3",
+      "headline": "Bảng giá vàng Kim Bảo Lâm · 07:56:33 3/11/2026",
+      "url": "https://tiemvangkimbaolam.id.vn/tin-tuc/e7331d1194ca3054d4618c1afa7155e3",
+      "completedAt": 1793667457475,
+      "stages": [
+        {
+          "stage": "research",
+          "status": "complete",
+          "owner": "pos-readonly"
+        },
+        {
+          "stage": "write",
+          "status": "complete",
+          "owner": "local-data-template"
+        },
+        {
+          "stage": "review",
+          "status": "complete",
+          "owner": "local-data-validator"
+        },
+        {
+          "stage": "image",
+          "status": "complete",
+          "owner": "9bc7af0ddf0f43fe8cf92b19b6460b83"
+        },
+        {
+          "stage": "image-review",
+          "status": "complete",
+          "owner": "local-file-validator"
+        },
+        {
+          "stage": "render",
+          "status": "complete",
+          "owner": "9bc7af0ddf0f43fe8cf92b19b6460b83"
+        },
+        {
+          "stage": "publish",
+          "status": "complete",
+          "owner": null
+        }
+      ]
+    },
+    {
+      "storyId": "184d6577c70f232dd060c326a8380760",
+      "headline": "Bảng giá vàng Kim Bảo Lâm · 07:59:37 3/11/2026",
+      "url": "https://tiemvangkimbaolam.id.vn/tin-tuc/184d6577c70f232dd060c326a8380760",
+      "completedAt": 1793667643041,
+      "stages": [
+        {
+          "stage": "research",
+          "status": "complete",
+          "owner": "pos-readonly"
+        },
+        {
+          "stage": "write",
+          "status": "complete",
+          "owner": "local-data-template"
+        },
+        {
+          "stage": "review",
+          "status": "complete",
+          "owner": "local-data-validator"
+        },
+        {
+          "stage": "image",
+          "status": "complete",
+          "owner": "9bc7af0ddf0f43fe8cf92b19b6460b83"
+        },
+        {
+          "stage": "image-review",
+          "status": "complete",
+          "owner": "local-file-validator"
+        },
+        {
+          "stage": "render",
+          "status": "complete",
+          "owner": "9bc7af0ddf0f43fe8cf92b19b6460b83"
+        },
+        {
+          "stage": "publish",
+          "status": "complete",
+          "owner": null
+        }
+      ]
+    },
+    {
+      "storyId": "5072bc97793cd2c7898f9778c1577df3",
+      "headline": "Bảng giá vàng Kim Bảo Lâm · 08:00:43 3/11/2026",
+      "url": "https://tiemvangkimbaolam.id.vn/tin-tuc/5072bc97793cd2c7898f9778c1577df3",
+      "completedAt": 1793667705702,
+      "stages": [
+        {
+          "stage": "research",
+          "status": "complete",
+          "owner": "pos-readonly"
+        },
+        {
+          "stage": "write",
+          "status": "complete",
+          "owner": "local-data-template"
+        },
+        {
+          "stage": "review",
+          "status": "complete",
+          "owner": "local-data-validator"
+        },
+        {
+          "stage": "image",
+          "status": "complete",
+          "owner": "9bc7af0ddf0f43fe8cf92b19b6460b83"
+        },
+        {
+          "stage": "image-review",
+          "status": "complete",
+          "owner": "local-file-validator"
+        },
+        {
+          "stage": "render",
+          "status": "complete",
+          "owner": "9bc7af0ddf0f43fe8cf92b19b6460b83"
+        },
+        {
+          "stage": "publish",
+          "status": "complete",
+          "owner": null
+        }
+      ]
+    }
+  ]
+}

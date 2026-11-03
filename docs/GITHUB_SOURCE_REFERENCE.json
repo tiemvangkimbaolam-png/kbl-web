@@ -1,0 +1,35 @@
+{
+  "repository": "https://github.com/tiemvangkimbaolam-png/kbl-web",
+  "commit": "6f68320ad2af03893509497011fc9dbcc2e18ad6",
+  "commitAt": "2026-09-28T08:16:12Z",
+  "reviewedAt": "2026-10-26",
+  "branch": "main",
+  "filesRead": {
+    "app.js": "b4df455e5fba17bb658346cb7bdc53213085453a",
+    "views/home.html": "2384a8a1f73e13a3c1dc89dd6df513da0e699fc3",
+    "views/admin.html": "b91c117269ad9bd2d9f04ea547fe87f6f537dbc2",
+    "views/taoprompt.html": "d3a74b67a7ce387452308ca2610126cdc47e1764",
+    "views/account.html": "e9fdc67e7ea076748c2f93d6944d880b49f26a62",
+    "views/customer.html": "c3e0a8571ba386f7333c65d71da29fd86af4b55b",
+    "views/lookup.html": "c88fb38a4dfe8ea137c7bf19935cb07d1b7dc07b",
+    "modules/kbl-commerce-v5.js": "1a163ca4e448ef801e23793bfc284ef97feab1b7",
+    "modules/kbl-publisher-media-v1.js": "5f015e9176c4e0a8f5ecb629dcfeec546e4daf8d"
+  },
+  "findings": [
+    "Public home structure matches the recovered live website baseline.",
+    "Repository Admin has existing studios, CRM, channels, prompt billing and market tools; these are not all ported by the new ten-view Admin.",
+    "No ai-admin39/ai-shadow39/ai-team in this repository snapshot. Retain October Windows worker code separately.",
+    "Original source persists business JSON and generated uploads on the server; do not deploy that storage design onto limited old hosting.",
+    "No GitHub write was performed. Runtime data, credentials, vendor binaries and old backups are not copied to the new Site."
+  ],
+  "adapted": [
+    "Home markup/CSS and public owned assets",
+    "Market reference parser, USD SELL exchange convention and ounce/chi conversion"
+  ],
+  "notYetEquivalent": [
+    "Original Admin feature set",
+    "Customer CRM, loyalty, signed pawn QR, shipping/payment and premium AI Try-on",
+    "POS product/photo mapping",
+    "Actual social channel authorization and publication"
+  ]
+}

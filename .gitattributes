@@ -1,0 +1,2 @@
+# POS provenance hashes refer to exact bytes; preserve their existing line endings.
+pos-source/* -text
