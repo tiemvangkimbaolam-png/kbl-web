@@ -16,7 +16,8 @@ test('gold cards freeze exact snapshot through asynchronous rendering, order gol
     const dir=fs.mkdtempSync(path.join(os.tmpdir(),'kbl-card-theme-'));
     try {
         const input=structuredClone(prices), original=structuredClone(input), at=Date.parse('2026-11-02T01:00:00Z');
-        const task=card({dir,ffmpeg:'ffmpeg',prices:input,at});
+        const company={phone:'0899 979 797'};
+        const task=card({dir,ffmpeg:'ffmpeg',prices:input,at,company});
         input[0].sell=99999999;
         const file=await task, bytes=fs.readFileSync(file), meta=JSON.parse(fs.readFileSync(path.join(dir,'card-0-layout.json')));
         assert.equal(meta.themeVersion,THEME_VERSION);
@@ -24,7 +25,8 @@ test('gold cards freeze exact snapshot through asynchronous rendering, order gol
         assert.equal(meta.prices[2].sell,8020003);
         assert.equal(meta.snapshotAt,at);
         assert.equal(fs.readFileSync(path.join(dir,'card-0-sell-0.txt'),'utf8'),'12.899.003');
-        await card({dir,ffmpeg:'ffmpeg',prices:original,at});
+        assert.equal(fs.readFileSync(path.join(dir,'card-0-phone.txt'),'utf8'),'Điện thoại: 0899 979 797');
+        await card({dir,ffmpeg:'ffmpeg',prices:original,at,company});
         assert.deepEqual(fs.readFileSync(file),bytes);
         const probe=JSON.parse(cp.spawnSync('ffprobe',['-v','quiet','-show_streams','-of','json',file],{encoding:'utf8'}).stdout);
         assert.equal(probe.streams[0].width,1080);assert.equal(probe.streams[0].height,1350);

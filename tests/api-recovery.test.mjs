@@ -152,7 +152,7 @@ test('compact queue exposes the FIFO head rather than a later high-priority writ
     insert.run('fifo-held','fifo-later','review','running',3,3);
     insert.run('fifo-consult','visitor-fixture','consult','queued',4,4);
     const r=await call('worker/queue?active=1',undefined,headers);assert.equal(r.status,200);
-    const ids=r.data.jobs.map(j=>j.id);assert.ok(ids.includes('fifo-research'));assert.ok(!ids.includes('fifo-write'));assert.ok(ids.includes('fifo-consult'));assert.ok(ids.includes('fifo-held'));
+    const ids=r.data.jobs.map(j=>j.id);assert.ok(ids.includes('fifo-research'));assert.ok(!ids.includes('fifo-write'));assert.ok(!ids.includes('fifo-consult'));assert.ok(ids.includes('fifo-held'));
     assert.equal(db.prepare("SELECT status FROM jobs WHERE id='fifo-write'").get().status,'queued','Future work is retained rather than cancelled');
     db.prepare("UPDATE records SET data=json_set(data,'$.status','published') WHERE kind='story' AND id='fifo-head'").run();
     const next=await call('worker/queue?active=1',undefined,headers);assert.ok(next.data.jobs.some(j=>j.id==='fifo-write'));
@@ -166,6 +166,7 @@ test('compact queue exposes separate gold and editorial heads without releasing 
   db.prepare("INSERT INTO jobs(id,story_id,stage,status,created_at,updated_at) VALUES(?,?,'write','queued',?,?)").run(id+'-write',id,at,at);
  }
  db.prepare("UPDATE jobs SET status='attention',owner='existing-owner',lease_hash='keep-original' WHERE id='lane-news-write'").run();
+ db.prepare("UPDATE jobs SET stage='image' WHERE story_id IN ('lane-gold','lane-gold-later')").run();
  const r=await call('worker/queue?active=1',undefined,headers);assert.equal(r.status,200);
  const ids=r.data.jobs.map(j=>j.id);assert.ok(ids.includes('lane-news-write'));assert.ok(ids.includes('lane-gold-write'));assert.ok(!ids.includes('lane-news-later-write'));assert.ok(!ids.includes('lane-gold-later-write'));
  assert.equal(db.prepare("SELECT lease_hash FROM jobs WHERE id='lane-news-write'").get().lease_hash,'keep-original');

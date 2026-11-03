@@ -1,6 +1,6 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), cp = require('node:child_process'), qr = require('./qr.bundle.cjs');
-const THEME_VERSION = 2;
+const THEME_VERSION = 3;
 const THEME = Object.freeze({ paper: '0xfffdfb', peach: '0xfff2e9', copper: '0x9b4d2d', ink: '0x102c43', muted: '0x65717d', line: '0xead1bf' });
 const money = n => new Intl.NumberFormat('vi-VN').format(n) + ' đ';
 const clean = s => String(s || '').replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -107,7 +107,7 @@ async function card({ dir, ffmpeg, company = {}, product, prices, at, source, in
     add(box(64, 1200, 778, 2, THEME.line));
     add(draw('time', 'Giá tham khảo lúc ' + date, 64, 1218, 18, THEME.muted));
     add(draw('address', lines(company.address || '', 68, 2), 64, 1250, 18, THEME.ink));
-    if (clean(company.phone)) add(draw('phone', clean(company.phone), 64, 1300, 16, THEME.copper, 'bold'));
+    if (clean(company.phone)) add(draw('phone', 'Điện thoại: '+clean(company.phone), 64, 1300, 18, THEME.copper, 'bold'));
     filters.push(label + '[' + qrInput + ':v]overlay=870:1190[out]');
     const file = path.join(dir, prefix + '.jpg');
     await run(ffmpeg, ['-y', '-nostdin', '-threads', '1', '-filter_complex_threads', '1', ...inputs, '-filter_complex', filters.join(';'), '-map', '[out]', '-frames:v', '1', '-q:v', '2', path.basename(file)], dir);

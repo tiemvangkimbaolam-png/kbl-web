@@ -23,7 +23,6 @@ import * as P from './pipeline';
 import {unfinishedPublicationHeads} from './story-order';
 import * as POS from './pos';
 import { admin, worker } from './auth';
-import { assistantState } from './assistant-state.mjs';
 import { readVcbRate, readWorldMarket } from './market.mjs';
 import { bindingHealth } from './health.mjs';
 import { accountInput, productInput, text, money, fail, httpsURL, PROVIDER_URLS } from './domain.mjs';
@@ -35,9 +34,8 @@ async function body(req: Request, max = 100000) { if (!req.headers.get('content-
 async function rate(req: Request, scope: string, max = 12) { const key = await S.sha((req.headers.get('cf-connecting-ip') || 'unknown') + ':' + scope + ':' + Math.floor(Date.now() / 3600000)); const r = await S.sql().prepare('INSERT INTO records(kind,id,data,created_at,updated_at) VALUES(\'rate\',?,\'1\',?,?) ON CONFLICT(kind,id) DO UPDATE SET data=CAST(CAST(records.data AS INTEGER)+1 AS TEXT) RETURNING data').bind(key, Date.now(), Date.now()).first<any>(); if (Number(r.data) > max)
     fail('Đã nhận nhiều yêu cầu; thử lại sau.', 429); }
 async function readAssistantState(cfg?: any) {
-    const [settings, accounts, workers] = await Promise.all([cfg || S.settings(), S.list('account', 20), S.list('worker', 20)]);
-    if (apiConsultReady() && settings.autoConsult !== false) return { enabled: true, available: true, state: 'ready', message: 'Đã cấu hình AI tư vấn qua máy chủ.' };
-    return assistantState(settings, accounts, workers);
+    const settings = cfg || await S.settings(),enabled=settings.autoConsult!==false,available=enabled&&apiConsultReady();
+    return {enabled,available,state:!enabled?'disabled':available?'ready':'waiting-api',message:!enabled?'Tư vấn AI đang tạm dừng.':available?'Tư vấn qua API Groq/Gemini; không giao cho Chrome.':'Đã lưu câu hỏi; chờ API Groq/Gemini hoặc cửa hàng trả lời.'};
 }
 async function assetResponse(req: Request, aid: string) { const a = await S.sql().prepare('SELECT * FROM assets WHERE id=? AND deleted_at IS NULL').bind(aid).first<any>(); if (!a)
     fail('File không còn trên máy chủ.', 404); if (!a.public)
@@ -165,10 +163,7 @@ export async function handle(req: Request): Promise<Response> {
                 }
                 const pendingQuestion = await S.get('consultation',threadId);
                 if (pendingQuestion.status === 'api-processing') await S.put('consultation',threadId,{...pendingQuestion,status:'awaiting-reply'},pendingQuestion.version);
-                if (assistant.enabled) {
-                    try { await P.ensureJob(threadId, 'consult'); queued = true; }
-                    catch { /* Saved privately; the scheduled tick can recover its idempotent job. */ }
-                }
+                queued = assistant.enabled;
                 return response({ id: threadId, token, queued, assistant, message: 'Đã lưu câu hỏi. ' + assistant.message }, 201);
             }
             if (method === 'GET' && path[1] === 'consult' && path[2]) {
@@ -419,7 +414,7 @@ export async function handle(req: Request): Promise<Response> {
                     // Offer only queued tasks the FIFO gate can actually grant;
                     // otherwise a later write task can hide the head research.
                     const heads=await unfinishedPublicationHeads();
-                    const active=await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE status IN ('queued','leased','running','attention','blocked','waiting-revision') AND (?=0 OR stage='consult' OR story_id IN (SELECT value FROM json_each(?)) OR status<>'queued') ORDER BY created_at ASC LIMIT 300`).bind(heads.length,JSON.stringify(heads)).all<any>();
+                    const active=await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE status IN ('queued','leased','running','attention','blocked','waiting-revision') AND NOT(status='queued' AND (stage='consult' OR (stage IN ('write','review','image-review') AND story_id IN (SELECT id FROM records WHERE kind='story' AND json_extract(data,'$.kind') IN ('gold','product'))))) AND (?=0 OR story_id IN (SELECT value FROM json_each(?)) OR status<>'queued') ORDER BY created_at ASC LIMIT 300`).bind(heads.length,JSON.stringify(heads)).all<any>();
                     const claimed=held.length?await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(held)).all<any>():{results:[]};
                     return response({jobs:[...new Map([...active.results,...claimed.results].map((j:any)=>[j.id,j])).values()],settings:await S.settings()});
                 }

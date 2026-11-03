@@ -54,7 +54,7 @@ test('POS import and public catalog retain product facts without publishing priv
     assert.equal(catalog.products[0].posGoldRate, 14000000); assert.equal(catalog.products[0].posWorkmanship, 300000);
     assert.equal(catalog.products[0].posDetails.grossWeightChi, 1.3);
     assert.equal(JSON.stringify(catalog).includes('PRIVATE'), false);
-    assert.equal(catalog.assistant.state, 'offline'); assert.equal(catalog.assistant.available, false);
+    assert.equal(catalog.assistant.state, 'waiting-api'); assert.equal(catalog.assistant.available, false);
 });
 test('AI availability requires a fresh connected worker and a ready writer; labels and IDs remain private', () => {
     const at = Date.now(), settings = { teamEnabled: true, autoConsult: true }, worker = { id: 'secret-worker', lastSeen: at };
@@ -66,7 +66,7 @@ test('AI availability requires a fresh connected worker and a ready writer; labe
     assert.equal(assistantState({ ...settings, teamEnabled: false }, [ac], [worker], at).state, 'disabled');
     assert.equal(JSON.stringify(assistantState(settings, [ac], [worker], at)).includes('secret-worker'), false);
 });
-test('consultation queues immediately, uses current cloud price and selected POS product, and returns the actual AI completion', async () => {
+test('API-only consultation uses current cloud price and selected POS product and returns a private provider completion without a Chrome job', async () => {
     assert.equal((await call('worker/heartbeat', 'POST', { capabilities: [], accounts: [{ id: account, status: 'ready' }] }, wh)).status, 200);
     const config = { enabled: true, symbol: 'BK', markupVnd: 100000, relayUrl: 'https://script.google.com/macros/s/FIXTURE_PRICE/exec', relayToken: 'PRIVATE-RELAY-TOKEN', spreads: Object.fromEntries(['9999', '980', '750', '610', '585', '416'].map(x => [x, 300000])) };
     assert.equal((await call('worker/pos-cloud-price-config', 'POST', { config, revision: 3 }, wh)).status, 200);
@@ -78,23 +78,20 @@ test('consultation queues immediately, uses current cloud price and selected POS
     const c = await call('public/consult', 'POST', { question: 'Xin thông tin mẫu nhẫn đang chọn.', productId }, {});
     // Public API requires JSON, not an Admin identity.
     assert.equal(c.status, 415);
-    const question = await call('public/consult', 'POST', { question: 'Xin thông tin mẫu nhẫn đang chọn.', productId }, { 'Content-Type': 'application/json' });
-    assert.equal(question.status, 201); assert.equal(question.data.queued, true); assert.equal(question.data.assistant.state, 'ready');
-    const jobId = 'KBL-' + question.data.id + '-consult';
-    assert.equal(db.prepare('SELECT status FROM jobs WHERE id=?').get(jobId).status, 'queued', 'job is present before Cron runs');
-    const claimed = await call('worker/claim', 'POST', { accountId: account, jobId }, wh);
-    assert.equal(claimed.status, 200);
-    const job = claimed.data.job;
-    assert.equal(job.context.selectedProductSku, 'DETAIL-001'); assert.equal(job.context.products[0].posWorkmanship, 300000);
-    assert.equal(job.context.prices.find(x => x.code === '9999').sell, 14300000);
-    assert.equal(job.context.priceStatus.source, 'cloud-bk-ask'); assert.equal(job.context.priceStatus.fresh, true);
-    assert.equal(job.context.company.phone, '0900000000'); assert.equal(JSON.stringify(job.context).includes('PRIVATE'), false);
-    assert.equal((await call('public/consult/' + question.data.id, 'GET', undefined, {})).status, 404);
-    const answer = 'Mẫu nhẫn DETAIL-001 có 1,25 chỉ vàng ròng. Cửa hàng xác nhận lại giá trước giao dịch.';
-    const completed = await call('worker/jobs/' + jobId + '/complete', 'POST', { lease: claimed.data.lease, result: { reply: answer } }, wh);
-    assert.equal(completed.status, 200);
-    const read = await call('public/consult/' + question.data.id, 'GET', undefined, { 'x-kbl-chat-token': question.data.token });
-    assert.equal(read.data.reply, answer); assert.equal(read.data.status, 'answered');
+    const answer='Mẫu nhẫn DETAIL-001 có 1,25 chỉ vàng ròng. Cửa hàng xác nhận lại giá trước giao dịch.';
+    globalThis.__KBL_DETAIL_ENV.GROQ_API_KEY='FIXTURE-API-ONLY';let context,calls=0;const savedFetch=globalThis.fetch;
+    globalThis.fetch=async(url,opts)=>{assert.equal(String(url),'https://api.groq.com/openai/v1/chat/completions');calls++;const prompt=JSON.parse(opts.body).messages[1].content;context=JSON.parse(prompt.split('HỒ SƠ DỮ LIỆU:\n')[1].split('\n\nSCHEMA JSON:')[0]);return Response.json({choices:[{message:{content:answer}}]});};
+    try{
+     const question=await call('public/consult','POST',{question:'Xin thông tin mẫu nhẫn đang chọn.',productId},{'Content-Type':'application/json'});
+     assert.equal(question.status,201);assert.equal(question.data.queued,false);assert.equal(question.data.status,'answered');assert.equal(question.data.assistant.state,'ready');assert.equal(calls,1);
+     assert.equal(db.prepare('SELECT COUNT(*) n FROM jobs WHERE story_id=?').get(question.data.id).n,0);
+     assert.equal(context.selectedProductSku,'DETAIL-001');assert.equal(context.products[0].posWorkmanship,300000);
+     assert.equal(context.prices.find(x=>x.code==='9999').sell,14300000);assert.equal(context.priceStatus.source,'cloud-bk-ask');assert.equal(context.priceStatus.fresh,true);
+     assert.equal(context.company.phone,'0900000000');assert.equal(JSON.stringify(context).includes('PRIVATE'),false);
+     assert.equal((await call('public/consult/'+question.data.id,'GET',undefined,{})).status,404);
+     const read=await call('public/consult/'+question.data.id,'GET',undefined,{'x-kbl-chat-token':question.data.token});assert.equal(read.data.reply,answer);assert.equal(read.data.status,'answered');assert.equal(JSON.stringify(read.data).includes('FIXTURE-API-ONLY'),false);
+    }finally{globalThis.fetch=savedFetch;delete globalThis.__KBL_DETAIL_ENV.GROQ_API_KEY;}
+
 });
 test('hidden or unbound products cannot be smuggled into customer consultation', async () => {
     const at = Date.now(); db.prepare('INSERT INTO records(kind,id,data,created_at,updated_at) VALUES(?,?,?,?,?)').run('product', 'hidden', JSON.stringify({ sku: 'PRIVATE-PRODUCT', published: false, available: true }), at, at);

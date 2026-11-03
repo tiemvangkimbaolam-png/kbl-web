@@ -5,37 +5,37 @@
   "stages": {
     "specify": {
       "status": "done",
-      "note": "Owner clarified gold cards are generated locally; separate gold queue while preserving sequential receipts and frozen quotes within each lane.",
+      "note": "Owner explicitly assigns only market news to Chrome AI; gold/products deterministic local, phone added to existing templates.",
       "evidence": [
         {
           "path": ".project-state\\contract.md",
-          "sha256": "54a820e535d8566fdddbccf9ea3d9eed76d284a388b7e4454692f3ad635b4d45",
-          "bytes": 6636
+          "sha256": "9c275d54fad021961f05e42f552df924ca50c2e54c213d6d7d6112c5802fc8b0",
+          "bytes": 7426
         }
       ],
-      "at": "2026-11-02T14:53:37.223576+00:00"
+      "at": "2026-11-03T00:48:01.278487+00:00"
     },
     "build": {
       "status": "done",
-      "note": "342 tests and Cloudflare build pass. Source separates gold/editorial FIFO heads and identifies local gold card stages.",
+      "note": "344 tests and Cloudflare build pass; phone card rendered/inspected, actual worker cards installed. No POS financial changes.",
       "evidence": [
         {
-          "path": "lib\\kbl\\story-order.ts",
-          "sha256": "4d8609b216ae654442cfcb7515f47949970d1772cba161dc60dddac2515b2dbd",
-          "bytes": 1096
+          "path": "lib\\kbl\\local-template.ts",
+          "sha256": "91ea27d0930acf9e7088e2ad95984170f8afca1194ea7ad9b854f052490108bf",
+          "bytes": 3744
         },
         {
           "path": "tests\\gold-pipeline.test.mjs",
-          "sha256": "04eeacba3708888eb104b9e29a324d99bdb8438a3c8692dfbb9c54291d4048a5",
-          "bytes": 23791
+          "sha256": "e88bbae22c764af94b94f158cc43b3422182a030a564741272a0bdd87a53836a",
+          "bytes": 26904
         },
         {
-          "path": "tests\\browser-background-scenes.test.mjs",
-          "sha256": "310db0a7c6804e727a1f5cce7852deeef65ac7032c96101fbb532b49c7b30cfe",
-          "bytes": 4513
+          "path": "windows\\cards.cjs",
+          "sha256": "2bed6521c68408346eeba646d08e1aa58ba2bad6908689119ef8db43f864e1a2",
+          "bytes": 11336
         }
       ],
-      "at": "2026-11-02T14:53:37.375257+00:00"
+      "at": "2026-11-03T00:48:01.392076+00:00"
     },
     "demonstrate": {
       "status": "done",
@@ -51,23 +51,23 @@
     },
     "integrate": {
       "status": "in_progress",
-      "note": "Actual Admin and source inspected. Chrome2.1.4 installed and verified; no scene2 receipt. No real gold publication receipt yet.",
+      "note": "Actual phone saved, worker template updated. No real publication claim until receipt.",
       "evidence": [
         {
-          "path": ".project-state\\verification.md",
-          "sha256": "6aaaafd522c45a1b3014db4e50c52406ce122baf672cda81b2d39f65d29b8e23",
-          "bytes": 12663
+          "path": "docs\\QUY_TAC_LOCAL_AI_API_20261103.md",
+          "sha256": "9bec287458ca0c953d982beb55c1c896aa70e1b43e1ab305065caf6b1e952305",
+          "bytes": 3905
         },
         {
-          "path": "docs\\GIA_VANG_LOCAL_HANG_DOI_RIENG_20261102.md",
-          "sha256": "ba7ea9d808c7e7b0b2edf426aabb8e59ac43fdc85ae55b121acb26a4e41b3d70",
-          "bytes": 2680
+          "path": ".project-state\\verification.md",
+          "sha256": "448476d00e6ace833a89a47ea3a6e724fa142a9855cdbc3849e0e514658df68b",
+          "bytes": 13399
         }
       ],
-      "at": "2026-11-02T14:53:37.516675+00:00"
+      "at": "2026-11-03T00:48:01.496501+00:00"
     }
   },
-  "next_action": "Verify deployed gold lane; actual gold13:00 currently queued at write. Preserve held news image; POS presentation still awaits app exit.",
+  "next_action": "Verify deployment and actual local gold cards/video/publication receipts. Preserve held news/legacy consultation and POS package pending.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -284,7 +284,25 @@
       "stage": "integrate",
       "status": "in_progress",
       "note": "Actual Admin and source inspected. Chrome2.1.4 installed and verified; no scene2 receipt. No real gold publication receipt yet."
+    },
+    {
+      "at": "2026-11-03T00:48:01.278487+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner explicitly assigns only market news to Chrome AI; gold/products deterministic local, phone added to existing templates."
+    },
+    {
+      "at": "2026-11-03T00:48:01.392076+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "344 tests and Cloudflare build pass; phone card rendered/inspected, actual worker cards installed. No POS financial changes."
+    },
+    {
+      "at": "2026-11-03T00:48:01.496501+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Actual phone saved, worker template updated. No real publication claim until receipt."
     }
   ],
-  "updated_at": "2026-11-02T14:53:37.516675+00:00"
+  "updated_at": "2026-11-03T00:48:01.496501+00:00"
 }
