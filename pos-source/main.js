@@ -1211,6 +1211,14 @@ function startMobileScannerServer() {
 
 
 
+    // Identity decoder assets only; never expose the POS directory or configuration.
+    appExpress.get('/kbl-identity-assets/:file', (req, res) => {
+        const allowed = { 'jsqr.js':'kbl-jsqr.js', 'decoder.js':'kbl-qr-decoder.cjs' };
+        const name = Object.prototype.hasOwnProperty.call(allowed,req.params.file) ? allowed[req.params.file] : '';
+        if(!name)return res.status(404).end();
+        res.type('application/javascript').sendFile(path.join(__dirname,name));
+    });
+
     appExpress.get('/tv', (_req, res) => {
 
         res.sendFile(path.join(__dirname, 'tv.html'));

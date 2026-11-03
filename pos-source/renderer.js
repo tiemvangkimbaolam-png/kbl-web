@@ -880,9 +880,11 @@ async function kblCreateVneidCards(info, faceDataUrl = '') {
     return { front: make('front'), back: make('back') };
 }
 
-async function kblApplyVneidIdentity(context, info, faceDataUrl = '') {
+async function kblApplyVneidIdentity(context, info, faceDataUrl = '', job) {
+    kblIdentitySessions[context]?.clear();
     if (!info) return;
     const cards = await kblCreateVneidCards(info, faceDataUrl);
+    if(job){job.assertCurrent();const doc=context==='pawn'?getEl('pawn-app-frame')?.contentDocument:document;const ids=context==='pawn'?['inp-name','inp-cccd','inp-address','inp-date-issue']:context==='sale'?['s-cus-name','s-cus-cccd','s-cus-address','']:['buy-name','buy-cccd','buy-address','buy-date-issue'];info=job.filter(info,Object.fromEntries(['name','cccd','address','issueDate'].map((key,i)=>[key,ids[i]?doc?.getElementById(ids[i]):null])));}
     if (context === 'buy') {
         if (getEl('buy-name') && info.name) getEl('buy-name').value = info.name;
         if (getEl('buy-cccd') && info.cccd) getEl('buy-cccd').value = info.cccd;
@@ -971,36 +973,9 @@ function kblVneidStatusForContext(context, message, ok = true) {
     }
 }
 
-async function kblDecodeQrFromImageDataUrl(dataUrl) {
-    const src = String(dataUrl || '');
-    if (!src.startsWith('data:image')) throw new Error('Ảnh QR gửi từ Remote không hợp lệ.');
-    const image = await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error('Không đọc được ảnh QR từ điện thoại.'));
-        img.src = src;
-    });
-    const canvas = document.createElement('canvas');
-    canvas.width = image.naturalWidth || image.width;
-    canvas.height = image.naturalHeight || image.height;
-    const ctx = canvas.getContext('2d', { willReadFrequently:true });
-    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-    if ('BarcodeDetector' in window) {
-        try {
-            const detector = new BarcodeDetector({ formats:['qr_code'] });
-            const codes = await detector.detect(canvas);
-            if (codes && codes[0] && codes[0].rawValue) return String(codes[0].rawValue);
-        } catch (_) {}
-    }
-    if (typeof window.jsQR === 'function') {
-        const pixels = ctx.getImageData(0,0,canvas.width,canvas.height);
-        const qr = window.jsQR(pixels.data, canvas.width, canvas.height, { inversionAttempts:'attemptBoth' });
-        if (qr && qr.data) return String(qr.data);
-    }
-    throw new Error('Chưa nhận ra QR trong ảnh. Hãy đưa camera điện thoại gần QR hơn, tránh lóa màn hình rồi quét lại.');
-}
+async function kblDecodeQrFromImageDataUrl(dataUrl, options = {}) { return kblLocalQrDecoder.decodeImage(dataUrl,options); }
 
-async function kblHandleRemoteVneidPayload(side, payload) {
+async function kblReadRemoteVneidPayload(side, payload, job) {
     const parts = String(side || '').split(':');
     const kind = parts[0] === 'vneid' && parts.length === 2 ? 'raw' : String(parts[0] === 'vneid-image' ? 'image' : parts[0] === 'vneid-face' ? 'face' : 'raw');
     const context = String(parts[parts.length - 1] || kblVneidState.context || 'buy');
@@ -1017,7 +992,8 @@ async function kblHandleRemoteVneidPayload(side, payload) {
     }
 
     let raw = String(payload || '').trim();
-    if (kind === 'image') raw = await kblDecodeQrFromImageDataUrl(raw);
+    if (kind === 'image') raw = await kblDecodeQrFromImageDataUrl(raw, job || {});
+    job?.assertCurrent();
     const parsed = kblParseVneidQr(raw);
     if (!parsed.ok) {
         kblVneidStatusForContext(context, '⚠️ ' + parsed.message, false);
@@ -1025,12 +1001,13 @@ async function kblHandleRemoteVneidPayload(side, payload) {
     }
     kblVneidState.raw = raw;
     kblVneidState.info = parsed.info;
-    await kblApplyVneidIdentity(context, parsed.info, kblVneidState.faceDataUrl);
+    await kblApplyVneidIdentity(context, parsed.info, kblVneidState.faceDataUrl, job);
     kblVneidStatusForContext(context, '✅ Điện thoại đã quét QR VNeID và nạp hồ sơ. Có thể chụp thêm khuôn mặt ngay trên Remote.', true);
     return true;
 }
 
 async function openVneidScanner(context='buy') {
+    kblQrRecoverySessions[context]?.clear();kblIdentitySessions[context]?.stop();
     // VNeID phải quét trên ĐIỆN THOẠI REMOTE của tiệm, không dùng webcam máy tính.
     // Máy POS chỉ hiện QR để điện thoại mở đúng trang Remote trong cùng WiFi/LAN.
     kblStopVneidCamera();
@@ -1876,13 +1853,58 @@ async function callGeminiAIAutoModel(apiKey, parts) {
 window.kblCallGeminiAIAutoModel = callGeminiAIAutoModel;
 window.getKblGeminiApiKey = () => String(GEMINI_API_KEY || '').trim();
 
-// CCCD: API trực tiếp, hạn chờ 40 giây; không chạy lại chuỗi AI hóa đơn.
+// CCCD: giữ ảnh, có dừng/đọc lại; không thay engine hóa đơn.
+
+// Recovery is scoped to identity images only; never stores extra copies on disk.
+const kblIdentityRecoveryApi = require('./kbl-identity-recovery.cjs');
+const kblLocalQrDecoder = require('./kbl-qr-decoder.cjs');
+const kblIdentitySessions = {};
+function kblGetIdentityRecovery(context) {
+    if (kblIdentitySessions[context]) return kblIdentitySessions[context];
+    const buy = context === 'buy';
+    const fields = buy ? ['buy-name','buy-cccd','buy-address','buy-date-issue','buy-bank-holder'] : ['s-cus-name','s-cus-cccd','s-cus-address','s-cus-phone'];
+    const previewId = side => buy ? (side==='front'?'view-front':'view-back') : (side==='front'?'s-preview-front':'s-preview-back');
+    kblIdentitySessions[context] = kblIdentityRecoveryApi.attachPanel({document,statusId:buy?'buy-ocr-status':'s-ocr-status',fields,
+        preview(side,url) {
+            if (!buy) { kblRememberSaleCccdImage(side,url); return; }
+            for (const id of [previewId(side),side==='front'?'a4-img-front':'a4-img-back']) { const el=getEl(id);if(el){el.src=url;el.style.display='block';} }
+        },
+        validate(side,url) { return buy ? getEl(previewId(side))?.getAttribute('src')===url : saleCccdImageSnapshot[side]===url; },
+        worker:(side,url,job)=>buy?kblReadBuyIdentity(side,url,job):kblReadSaleIdentity(side,url,job)
+    });
+    return kblIdentitySessions[context];
+}
+function processBuyOCRBase64(side,dataUrl) { kblQrRecoverySessions.buy?.clear();return kblGetIdentityRecovery('buy').run(side,dataUrl); }
+function processSaleOCRBase64(side,dataUrl) { kblQrRecoverySessions.sale?.clear();return kblGetIdentityRecovery('sale').run(side,dataUrl); }
+function kblFilterIdentityResult(result,job,fields) {
+    if(!job)return result;job.assertCurrent();
+    const copy=structuredClone(result),part=copy.data.candidates[0].content.parts[0];
+    part.text=JSON.stringify(job.filter(JSON.parse(part.text),fields));return copy;
+}
+const kblQrRecoverySessions = {};
+function kblCancelQrRecovery(context) { kblQrRecoverySessions[context]?.clear(); }
+function kblGetQrRecovery(context) {
+    if(kblQrRecoverySessions[context])return kblQrRecoverySessions[context];
+    const frame=context==='pawn'?getEl('pawn-app-frame'):null;
+    const doc=frame?.contentDocument||document;
+    const fields=context==='pawn'?['inp-name','inp-cccd','inp-address','inp-date-issue']:context==='sale'?['s-cus-name','s-cus-cccd','s-cus-address','s-cus-phone']:['buy-name','buy-cccd','buy-address','buy-date-issue','buy-bank-holder'];
+    kblQrRecoverySessions[context]=kblIdentityRecoveryApi.attachPanel({document:doc,statusId:context==='pawn'?'scan-status':context==='sale'?'s-ocr-status':'buy-ocr-status',title:'Ảnh QR đã nhận',fields,
+        worker:async(side,url,job)=>{job.assertCurrent();await kblReadRemoteVneidPayload('vneid-image:'+context,url,job);job.assertCurrent();}
+    });return kblQrRecoverySessions[context];
+}
+function kblHandleRemoteVneidPayload(side,payload) {
+    const pieces=String(side||'').split(':');
+    if(pieces[0]==='vneid-image'&&['buy','sale','pawn'].includes(pieces.at(-1))){const context=pieces.at(-1);kblIdentitySessions[context]?.stop();if(context==='pawn')getEl('pawn-app-frame')?.contentWindow?.kblGetPawnIdentityRecovery?.().stop();return kblGetQrRecovery(context).run('qr',payload);}
+    return kblReadRemoteVneidPayload(side,payload);
+}
+
 const kblCccdOcrClient = require('./kbl-cccd-ocr.cjs').createClient();
 let kblIdentityAddressAdapter = null;
 try { kblIdentityAddressAdapter = require('./kbl-address-converter.cjs').createAdapter(require('./kbl-address-data.cjs')); }
 catch { console.warn('[KBL] Bảng đối chiếu địa chỉ chưa sẵn sàng; giữ địa chỉ căn cước.'); }
 window.kblCallCccdOCR = async (apiKey, parts, options = {}) => {
-    const result = await kblCccdOcrClient.generate(apiKey, parts);
+    let result = await kblCccdOcrClient.generate(apiKey, parts, options.job || options);
+    result = kblFilterIdentityResult(result, options.job, options.fields || {});
     return kblIdentityAddressAdapter ? kblIdentityAddressAdapter.enrich(result, options) : result;
 };
 
@@ -1909,10 +1931,10 @@ function runOCR(side) {
     reader.readAsDataURL(fileInp.files[0]);
 }
 
-async function processBuyOCRBase64(side, dataUrl) {
+async function kblReadBuyIdentity(side, dataUrl, job) {
+    job.assertCurrent();
     if (!GEMINI_API_KEY || GEMINI_API_KEY.trim() === '') {
-        alert("❌ Chưa có mã API Gemini!\n\nVui lòng qua Tab Cài đặt & AI để dán mã API vào rồi bấm LƯU CẤU HÌNH nhé.");
-        return;
+        throw new Error("Chưa có API Gemini. Ảnh đã giữ lại; lưu mã trong Cài đặt & AI rồi bấm Đọc lại.");
     }
 
     getEl('buy-ocr-status').innerText = "⏳ AI đang tự động phân tích ảnh...";
@@ -1945,7 +1967,8 @@ async function processBuyOCRBase64(side, dataUrl) {
             { inlineData: { mimeType: mimeType, data: rawBase64 } }
         ];
 
-        const result = await window.kblCallCccdOCR(GEMINI_API_KEY, parts, { field: getEl('buy-address'), afterApply: syncBuyUI });
+        const result = await window.kblCallCccdOCR(GEMINI_API_KEY, parts, { field: getEl('buy-address'), afterApply: syncBuyUI, job, fields: {hoTen:getEl('buy-name'),soCCCD:getEl('buy-cccd'),diaChi:getEl('buy-address'),dateIssue:getEl('buy-date-issue')} });
+        job.assertCurrent();
         const data = result.data;
 
         let rawText = data.candidates[0].content.parts[0].text;
@@ -1974,8 +1997,10 @@ async function processBuyOCRBase64(side, dataUrl) {
         getEl('buy-ocr-status').className = "ai-status-alert ai-status-success";
         syncBuyUI();
     } catch(e) { 
+        if(!job.isCurrent())throw e;
         getEl('buy-ocr-status').innerText = `❌ Lỗi: ${e.message}`; 
         getEl('buy-ocr-status').className = "ai-status-alert ai-status-error";
+        throw e;
     }
 }
 
@@ -2002,11 +2027,11 @@ function runSaleOCR(side) {
     reader.readAsDataURL(fileInp.files[0]);
 }
 
-async function processSaleOCRBase64(side, dataUrl) {
+async function kblReadSaleIdentity(side, dataUrl, job) {
+    job.assertCurrent();
     kblRememberSaleCccdImage(side, dataUrl);
     if (!GEMINI_API_KEY || GEMINI_API_KEY.trim() === '') {
-        alert("❌ Chưa có mã API Gemini!\n\nVui lòng qua Tab Cài đặt & AI để lưu mã API trước.");
-        return;
+        throw new Error("Chưa có API Gemini. Ảnh đã giữ lại; lưu mã trong Cài đặt & AI rồi bấm Đọc lại.");
     }
 
     const status = getEl('s-ocr-status');
@@ -2027,7 +2052,8 @@ async function processSaleOCRBase64(side, dataUrl) {
         const result = await window.kblCallCccdOCR(GEMINI_API_KEY, [
             { text: prompt + " Trường diaChi chỉ lấy Nơi thường trú hoặc Nơi cư trú. Không lấy quê quán, nơi sinh hoặc địa chỉ cơ quan cấp. Giữ nguyên địa danh cũ nhìn rõ trên thẻ, ngăn cách xã/phường, quận/huyện và tỉnh/thành bằng dấu phẩy; không tự đổi địa giới. Không thấy nơi cư trú thì để diaChi rỗng." },
             { inlineData: { mimeType, data: rawBase64 } }
-        ], { field: getEl('s-cus-address'), afterApply: calcSellMath });
+        ], { field: getEl('s-cus-address'), afterApply: calcSellMath, job, fields: {hoTen:getEl('s-cus-name'),soCCCD:getEl('s-cus-cccd'),diaChi:getEl('s-cus-address'),soDienThoai:getEl('s-cus-phone')} });
+        job.assertCurrent();
 
         const rawText = String(result.data?.candidates?.[0]?.content?.parts?.[0]?.text || '')
             .replace(/```json/g, '').replace(/```/g, '').trim();
@@ -2051,10 +2077,12 @@ async function processSaleOCRBase64(side, dataUrl) {
         }
         calcSellMath();
     } catch (error) {
+        if(!job.isCurrent())throw error;
         if (status) {
             status.innerText = `❌ Lỗi quét CCCD: ${error.message || error}`;
             status.className = "ai-status-alert ai-status-error";
         }
+        throw error;
     }
 }
 
@@ -7064,6 +7092,7 @@ function kblSetSaleCccdImages(front, back) {
 }
 
 function kblClearSaleCccdImages() {
+    kblIdentitySessions.sale?.clear();kblQrRecoverySessions.sale?.clear();
     saleCccdImageSnapshot = { front: '', back: '' };
     kblRenderSaleCccdImagePreviews();
 }

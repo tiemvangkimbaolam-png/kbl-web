@@ -9,16 +9,21 @@
     "kbl-product-photos.cjs": "840d883a54af1305a4d65342caee81cb29c01cdd39e248f24fe90695e0312e85"
   },
   "patched": {
-    "main.js": "81868b4c7a4a86c9165a2b6d4c9f12f299c695b7b649cdae561ca176a49662a5",
-    "renderer.js": "2d136e2154bb4cd92703db3035d1dc07cd8d103a133d967e4c92926c5aa5feae",
-    "pawn.html": "e5ef90cb34f0e914a487e46811d2d9ad56eab021c7e72e2fef709ad935453a38",
-    "index.html": "4247d39006c75c48d60b5745b665a0ff29a02ddc4a789af691044c41ee6ccbcd",
+    "main.js": "4ea128879248a9f3bd4fb5e23e7cfdf04a77516c94f0064248bb09dcf366292d",
+    "renderer.js": "24e0c219fc3fe66c43e8dcd4b7480ae28add96f1dc3280be6947bcc6bed71476",
+    "pawn.html": "2727cc0e90c33eaaed89f55529b38cf5a4c85a4cd3424d09ac2b35761c2f87a1",
+    "index.html": "e52b858de121485efc720830d95d3baa79577f0854e87699b9814fea001d60c2",
     "package.json": "2776d2ab948174b40c2eb9a9b46bb7186b5ee2cdd81fb84d770c0c1f05c9e3e0",
     "kbl-product-photos.cjs": "840d883a54af1305a4d65342caee81cb29c01cdd39e248f24fe90695e0312e85",
     "kbl-jewel-ui.js": "a0aa2a6d527dc226b44e29ea41eb4fcb9883330042acedf829edb5d72c81240a",
-    "kbl-cccd-ocr.cjs": "c206c241b1e9453fbb5a0865aa7abe16c9a5be6ee3a57a62144c0419ba7df824",
+    "kbl-cccd-ocr.cjs": "ee9882a348fd68587564b4eed7c710c1e4ddbe0c55770905fa3743c51b942d5a",
     "kbl-address-converter.cjs": "b23d20ab529b681735943f852d4c19fb37d99fbfa6790cada71b0a09273b1009",
-    "kbl-address-data.cjs": "298b00508c26a74b30c9a516a245492b10c49e9a621f925d596b7e6238547a8f"
+    "kbl-address-data.cjs": "298b00508c26a74b30c9a516a245492b10c49e9a621f925d596b7e6238547a8f",
+    "mobile-price.html": "b25ffbbe52d85d8acdfdc4fa1acd4138233614f4fc5e5da8ea0aa4e294161fc1",
+    "kbl-identity-recovery.cjs": "50c91c74ade1394fa9107057ecf5f0c140d61791ecc87288a8a2aff68aa4dbb8",
+    "kbl-qr-decoder.cjs": "b1113dba99353bb8c66d730c9e0b1cc5737121d0df8e1b036fb56ffdb75c8f00",
+    "kbl-jsqr.js": "bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859",
+    "KBL_JSQR_LICENSE.txt": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
   },
   "connectionOnly": true,
   "verification": "Reversing connection-only changes yields byte-identical latest originals, except removal of embedded legacy relay credential. Optional missing stylesheet/script tags removed from index/pawn, without changing inline POS function bodies.",
@@ -105,5 +110,16 @@
     "splitUnitsRequireOwnerConfirmation": true,
     "staleAfterDays": 90,
     "residenceOnly": true
+  },
+  "identityRecovery20261103": {
+    "scope": "CCCD and VNeID capture, retry, cancellation and local decoding only",
+    "requestTimeoutMs": 60000,
+    "jobBudgetMs": 150000,
+    "maximumProviderAttempts": 2,
+    "retainedImages": "current window memory and existing previews only",
+    "qrLibrary": "jsqr 1.4.0, Apache-2.0, pinned npm integrity",
+    "businessDataWritten": false,
+    "identityAutoGuess": false,
+    "acceptedSourceArchiveSha256": "4b66e4f5fbf8a5bf24a6911b66bddce71c978db05ae1bd8b56744d2708c07e8b"
   }
 }

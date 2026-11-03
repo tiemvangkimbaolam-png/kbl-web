@@ -6,6 +6,7 @@
     <script src="kbl-address-data.cjs"></script>
     <script src="kbl-address-converter.cjs"></script>
     <script src="kbl-cccd-ocr.cjs"></script>
+    <script src="kbl-identity-recovery.cjs"></script>
     <title>Hệ Thống Quản Lý Cầm Đồ Đa Tiệm - Thương Mại Toàn Diện</title>
     <!-- Nhúng thư viện tự động tạo mã QR Code động định danh phiếu -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -955,6 +956,7 @@
     }
 
     function applyPawnVneidIdentity(info, cards) {
+        kblPawnIdentityRecovery?.clear();
         const data = info && typeof info === 'object' ? info : {};
         if (data.cccd) document.getElementById('inp-cccd').value = data.cccd;
         if (data.name) document.getElementById('inp-name').value = data.name;
@@ -989,15 +991,31 @@
             return;
         }
         if (e.data && e.data.type === 'pawn-mobile-cccd') {
-            const { side, image } = e.data;
+            const {side,image}=e.data;await kblGetPawnIdentityRecovery().run(side,image);
+        }
+    });
+    // --- KẾT THÚC THÊM HÀM MOBILE SCANNER ---
+
+    let kblPawnIdentityRecovery = null;
+    function kblGetPawnIdentityRecovery() {
+        if(kblPawnIdentityRecovery)return kblPawnIdentityRecovery;
+        kblPawnIdentityRecovery=window.KBLIdentityRecovery.attachPanel({document,statusId:'scan-status',fields:['inp-name','inp-cccd','inp-address','inp-date-issue'],
+            preview(side,url){try{window.parent.kblCancelQrRecovery?.('pawn');}catch{}ensureImageElementsExist();const el=getLien2CccdImage(side==='front'?'img-render-front':'img-render-back');if(el){el.src=url;el.style.display='block';}},
+            validate(side,url){return getLien2CccdImage(side==='front'?'img-render-front':'img-render-back')?.getAttribute('src')===url;},
+            worker:(side,image,job)=>kblReadPawnIdentity(side,image,job)
+        });return kblPawnIdentityRecovery;
+    }
+
+    async function kblReadPawnIdentity(side,image,job) {
+        job.assertCurrent();
             const statusDiv = document.getElementById('scan-status');
             ensureImageElementsExist();
             
             if (side === 'front') {
-                document.getElementById('inp-cccd').value = ''; 
-                document.getElementById('inp-name').value = '';
-                document.getElementById('inp-address').value = ''; 
-                document.querySelectorAll('.label-name, .label-cccd, .label-address').forEach(el => el.innerText = '');
+
+
+
+
                 
                 if (statusDiv) {
                     statusDiv.innerText = "⏳ Hệ thống đang phân tích ảnh bằng AI...";
@@ -1013,7 +1031,8 @@
                     }
 
                     // Gọi AI đọc CCCD (Truyền đúng chuẩn Base64)
-                    const result = await callAiOcrAPI(image, 'front');
+                    const result = await callAiOcrAPI(image, 'front', job);
+                    job.assertCurrent();
 
                     if(result.soCCCD) document.getElementById('inp-cccd').value = result.soCCCD;
                     if(result.hoTen) document.getElementById('inp-name').value = result.hoTen;
@@ -1027,13 +1046,15 @@
                     syncAllData();
                     applyWordLayout();
                 } catch (err) {
+                    if(!job.isCurrent())throw err;
                     if (statusDiv) {
                         statusDiv.innerText = "❌ Lỗi: " + err.message;
                         statusDiv.className = "status-badge status-error";
                     }
+                    throw err;
                 }
             } else {
-                document.getElementById('inp-date-issue').value = '';
+
                 if (statusDiv) {
                     statusDiv.innerText = "⏳ Đang phân tích Ngày Cấp & Địa chỉ mặt sau...";
                     statusDiv.className = "status-badge status-waiting";
@@ -1046,7 +1067,8 @@
                         imgBack.style.display = 'block';
                     }
 
-                    const result = await callAiOcrAPI(image, 'back');
+                    const result = await callAiOcrAPI(image, 'back', job);
+                    job.assertCurrent();
 
                     if (result.dateIssue) document.getElementById('inp-date-issue').value = result.dateIssue;
                     if (result.diaChi && (!document.getElementById('inp-address').value.trim() || result.diaChi.length > 5)) {
@@ -1061,15 +1083,16 @@
                     syncAllData();
                     applyWordLayout();
                 } catch (err) {
+                    if(!job.isCurrent())throw err;
                     if (statusDiv) {
                         statusDiv.innerText = "❌ Lỗi: " + err.message;
                         statusDiv.className = "status-badge status-error";
                     }
+                    throw err;
                 }
             }
-        }
-    });
-    // --- KẾT THÚC THÊM HÀM MOBILE SCANNER ---
+
+    }
     // Gemini key dùng chung từ POS cha; không hard-code key riêng trong pawn.html.
     let GEMINI_API_KEY = "";
     function getPawnGeminiApiKey() {
@@ -3585,99 +3608,19 @@ if (item.status === "Đã chuộc" || item.status === "Đã thanh lý") {
         }, "🔴");
     }
 
-    document.addEventListener("DOMContentLoaded", function() {
-        const fileInput = document.getElementById('inp-cccd-file');
-        const statusDiv = document.getElementById('scan-status');
-
-        fileInput.addEventListener('change', async function(e) {
-            if (e.target.files.length === 0) return;
-            
-            ensureImageElementsExist();
-            document.getElementById('inp-cccd').value = ''; 
-            document.getElementById('inp-name').value = '';
-            document.getElementById('inp-address').value = ''; 
-            document.querySelectorAll('.label-name, .label-cccd, .label-address').forEach(el => el.innerText = '');
-            
-            const imgFront = getLien2CccdImage('img-render-front');
-            if(imgFront) {
-                imgFront.src = '';
-                imgFront.style.display = 'none';
-            }
-
-            statusDiv.innerText = "⏳ Hệ thống đang quét chu kỳ tìm lõi AI Gemini tương thích...";
-            statusDiv.className = "status-badge status-waiting";
-
-            try {
-                const file = e.target.files[0];
-                let base64Data = await convertFileToBase64(file);
-                base64Data = await compressImageBase64(base64Data, 500, 0.6); 
-                
-                const imgFront = getLien2CccdImage('img-render-front');
-                if(imgFront) {
-                    imgFront.src = base64Data;
-                    imgFront.style.display = 'block';
-                }
-
-                const result = await callAiOcrAPI(base64Data, 'front');
-
-                if(result.soCCCD) document.getElementById('inp-cccd').value = result.soCCCD;
-                if(result.hoTen) document.getElementById('inp-name').value = result.hoTen;
-                if(result.diaChi) document.getElementById('inp-address').value = result.diaChi;
-                
-                statusDiv.innerText = "✅ Đồng bộ thông tin mặt trước thành công!";
-                statusDiv.className = "status-badge status-success";
-                
-                syncAllData();
-                applyWordLayout();
-            } catch (err) {
-                statusDiv.innerText = "❌ Lỗi: " + err.message;
-                statusDiv.className = "status-badge status-error";
-            }
-        });
-
-        document.getElementById('inp-cccd-back').addEventListener('change', async function(e) {
-            if (e.target.files.length === 0) return;
-            
-            ensureImageElementsExist();
-            document.getElementById('inp-date-issue').value = '';
-            const imgBack = getLien2CccdImage('img-render-back');
-            if(imgBack) {
-                imgBack.src = '';
-                imgBack.style.display = 'none';
-            }
-
-            statusDiv.innerText = "⏳ Hệ thống đang tìm kiếm Ngày Cấp & Nơi cư trú từ mặt sau...";
-            statusDiv.className = "status-badge status-waiting";
-
-            try {
-                const file = e.target.files[0];
-                let base64Data = await convertFileToBase64(file);
-                base64Data = await compressImageBase64(base64Data, 500, 0.6);
-                
-                const imgBack = getLien2CccdImage('img-render-back');
-                if(imgBack) {
-                    imgBack.src = base64Data;
-                    imgBack.style.display = 'block';
-                }
-
-                const result = await callAiOcrAPI(base64Data, 'back');
-
-                if (result.dateIssue) document.getElementById('inp-date-issue').value = result.dateIssue;
-                
-                if (result.diaChi && (!document.getElementById('inp-address').value.trim() || result.diaChi.length > 5)) {
-                    document.getElementById('inp-address').value = result.diaChi;
-                }
-                
-                statusDiv.innerText = "✅ Đồng bộ thông tin mặt sau thành công!";
-                statusDiv.className = "status-badge status-success";
-                
-                syncAllData();
-                applyWordLayout();
-            } catch (err) {
-                statusDiv.innerText = "❌ Lỗi: " + err.message;
-                statusDiv.className = "status-badge status-error";
-            }
-        });
+    async function kblReadPawnIdentityFile(side,input) {
+        const file=input.files?.[0];if(!file)return;
+        try {
+            const image=await convertFileToBase64(file);
+            await kblGetPawnIdentityRecovery().run(side,image);
+        } catch(error) {
+            const status=document.getElementById('scan-status');
+            if(status){status.textContent='Chưa mở được ảnh: '+error.message;status.className='status-badge status-error';}
+        } finally {input.value='';}
+    }
+    document.addEventListener('DOMContentLoaded',function(){
+        document.getElementById('inp-cccd-file').addEventListener('change',function(){kblReadPawnIdentityFile('front',this);});
+        document.getElementById('inp-cccd-back').addEventListener('change',function(){kblReadPawnIdentityFile('back',this);});
     });
 
     function saveContract() {
@@ -3880,6 +3823,7 @@ if (item.status === "Đã chuộc" || item.status === "Đã thanh lý") {
     }
 
     function clearForm(refreshHistory = true) {
+        kblPawnIdentityRecovery?.clear();
         window.__kblPawnAccrualStartRaw = '';
         window.__kblPawnIdentitySource = '';
         window.__kblPawnIdentityQrHash = '';
@@ -3948,7 +3892,7 @@ if (item.status === "Đã chuộc" || item.status === "Đã thanh lý") {
         });
     }
 
-    async function callAiOcrAPI(base64Data, side) {
+    async function callAiOcrAPI(base64Data, side, job) {
         const apiKey = getPawnGeminiApiKey();
         if (!apiKey) throw new Error('Chưa có Gemini API Key trong Cài đặt & AI của POS.');
         const rawBase64 = String(base64Data || '').split(',')[1] || '';
@@ -3958,14 +3902,15 @@ if (item.status === "Đã chuộc" || item.status === "Đã thanh lý") {
             ? 'Đây là ảnh mặt trước Căn cước công dân hoặc Thẻ Căn Cước Việt Nam. Hãy bóc tách chính xác và trả về duy nhất JSON {"soCCCD":"","hoTen":"","diaChi":""}. Không markdown.'
             : 'Đây là ảnh mặt sau Căn cước công dân hoặc Thẻ Căn Cước Việt Nam. Hãy bóc tách chính xác và trả về duy nhất JSON {"dateIssue":"YYYY-MM-DD","diaChi":""}. Không markdown.';
         const parts = [{ text: promptText + " Trường diaChi chỉ lấy Nơi thường trú hoặc Nơi cư trú. Không lấy quê quán, nơi sinh hoặc địa chỉ cơ quan cấp. Giữ nguyên địa danh cũ nhìn rõ trên thẻ, ngăn cách xã/phường, quận/huyện và tỉnh/thành bằng dấu phẩy; không tự đổi địa giới. Không thấy nơi cư trú thì để diaChi rỗng." }, { inlineData: { mimeType, data: rawBase64 } }];
-        const addressOptions = { field: document.getElementById('inp-address'), afterApply: syncAllData };
+        const addressOptions = { field: document.getElementById('inp-address'), afterApply: syncAllData, job, fields:{hoTen:document.getElementById('inp-name'),soCCCD:document.getElementById('inp-cccd'),diaChi:document.getElementById('inp-address'),dateIssue:document.getElementById('inp-date-issue')} };
         let result;
         if (window.parent && window.parent !== window && typeof window.parent.kblCallCccdOCR === 'function') {
             result = await window.parent.kblCallCccdOCR(apiKey, parts, addressOptions);
         } else {
             if (!window.KBLCCCDOCR) throw new Error('Chưa nạp được bộ đọc căn cước. Mở lại POS.');
             window.__kblPawnCccdClient ||= window.KBLCCCDOCR.createClient();
-            result = await window.__kblPawnCccdClient.generate(apiKey, parts);
+            result = await window.__kblPawnCccdClient.generate(apiKey, parts, job || {});
+            if(job){job.assertCurrent();const part=result.data.candidates[0].content.parts[0];part.text=JSON.stringify(job.filter(JSON.parse(part.text),addressOptions.fields));}
             if (window.KBLAddressConverter && window.KBLAddressData) {
                 try {
                     window.__kblPawnAddressAdapter ||= window.KBLAddressConverter.createAdapter(window.KBLAddressData);

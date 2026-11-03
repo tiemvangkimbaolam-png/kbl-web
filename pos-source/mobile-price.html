@@ -12,6 +12,8 @@
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
 
+    <script src="/kbl-identity-assets/jsqr.js"></script>
+    <script src="/kbl-identity-assets/decoder.js"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.legacy.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -1753,6 +1755,7 @@
             }
             if (vneidVideo) vneidVideo.srcObject = null;
             if (vneidReader) vneidReader.style.display = 'none';
+            const start=document.getElementById('vneid-start');if(start)start.disabled=false;
             const stop = document.getElementById('vneid-stop');
             if (stop) stop.style.display = 'none';
         }
@@ -1769,7 +1772,7 @@
             setVneidStatus('⏳ Đã đọc QR · đang gửi về ' + vneidTargetName() + '...', null);
             try {
                 await postVneidToPos('vneid:' + vneidTarget, value);
-                setVneidStatus('✅ Đã gửi QR VNeID về ' + vneidTargetName() + '. Có thể chụp thêm khuôn mặt khách.', true);
+                setVneidStatus('Đã chuyển QR về ' + vneidTargetName() + '. Kiểm tra thông tin trên POS trước khi tiếp tục.', true);
             } catch (error) {
                 vneidLocked = false;
                 setVneidStatus('❌ ' + (error.message || 'Không gửi được QR VNeID.'), false);
@@ -1834,7 +1837,8 @@
             }
 
             // LAN HTTP trên một số iPhone/Android chặn camera live: dùng camera chụp QR.
-            setVneidStatus('ℹ️ Trình duyệt đang chặn camera LIVE. Đã chuyển sang camera chụp QR.', null);
+            await stopVneidScanner();vneidLocked=false;
+            setVneidStatus('Camera trực tiếp chưa dùng được trên kết nối này. Chụp ảnh QR để đọc; có thể gửi lại ảnh nếu chưa rõ.', null);
             document.getElementById('vneid-qr-file')?.click();
         }
 
@@ -1843,7 +1847,13 @@
             setVneidStatus('⏳ Đang đọc ảnh QR VNeID...', null);
             let raw = '';
 
-            if (window.QrScanner?.scanImage) {
+            if(window.KBLQrDecoder){
+                try {
+                    const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(new Error('Không mở được ảnh QR.'));r.readAsDataURL(file);});
+                    raw=await window.KBLQrDecoder.decodeImage(dataUrl,{onProgress:message=>setVneidStatus(message,null)});
+                } catch (_) { /* POS keeps the same image for retry if this device cannot decode it. */ }
+            }
+            if (!raw && window.QrScanner?.scanImage) {
                 try {
                     const result = await QrScanner.scanImage(file, { returnDetailedScanResult:true });
                     raw = typeof result === 'string' ? result : (result?.data || '');
@@ -1876,7 +1886,7 @@
             reader.onload = async () => {
                 try {
                     await postVneidToPos('vneid-image:' + vneidTarget, String(reader.result || ''));
-                    setVneidStatus('✅ Đã gửi ảnh QR về ' + vneidTargetName() + ' để POS giải mã.', true);
+                    setVneidStatus('Đã chuyển ảnh QR về ' + vneidTargetName() + '. Xem kết quả trên POS; nếu chưa đọc được, bấm Đọc lại QR trên POS.', null);
                 } catch (error) {
                     setVneidStatus('❌ ' + (error.message || 'Không đọc được QR trong ảnh.'), false);
                 }

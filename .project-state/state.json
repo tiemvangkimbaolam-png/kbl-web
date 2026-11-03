@@ -5,64 +5,74 @@
   "stages": {
     "specify": {
       "status": "done",
-      "note": "Owner explicitly assigns only market news to Chrome AI; gold/products deterministic local, phone added to existing templates.",
+      "note": "Owner requests identity QR and OCR recovery only; protect all financial and historical behavior.",
       "evidence": [
         {
           "path": ".project-state\\contract.md",
-          "sha256": "9c275d54fad021961f05e42f552df924ca50c2e54c213d6d7d6112c5802fc8b0",
-          "bytes": 7426
+          "sha256": "3be99f593088b75bff7195beb8bf57bf569a937324657fe944a584894349e9ef",
+          "bytes": 9468
         }
       ],
-      "at": "2026-11-03T00:48:01.278487+00:00"
+      "at": "2026-11-03T14:43:02.669010+00:00"
     },
     "build": {
       "status": "done",
-      "note": "344 tests and Cloudflare build pass; phone card rendered/inspected, actual worker cards installed. No POS financial changes.",
+      "note": "381 full tests pass; packaged local QR, bounded longer provider waits and per-side retry/cancel.",
       "evidence": [
         {
-          "path": "lib\\kbl\\local-template.ts",
-          "sha256": "91ea27d0930acf9e7088e2ad95984170f8afca1194ea7ad9b854f052490108bf",
-          "bytes": 3744
+          "path": "pos-source\\kbl-cccd-ocr.cjs",
+          "sha256": "ee9882a348fd68587564b4eed7c710c1e4ddbe0c55770905fa3743c51b942d5a",
+          "bytes": 9142
         },
         {
-          "path": "tests\\gold-pipeline.test.mjs",
-          "sha256": "e88bbae22c764af94b94f158cc43b3422182a030a564741272a0bdd87a53836a",
-          "bytes": 26904
+          "path": "pos-source\\kbl-identity-recovery.cjs",
+          "sha256": "50c91c74ade1394fa9107057ecf5f0c140d61791ecc87288a8a2aff68aa4dbb8",
+          "bytes": 6374
         },
         {
-          "path": "windows\\cards.cjs",
-          "sha256": "2bed6521c68408346eeba646d08e1aa58ba2bad6908689119ef8db43f864e1a2",
-          "bytes": 11336
+          "path": "tests\\identity-recovery.test.mjs",
+          "sha256": "1498ce0b0bcbbfae7f5bd092c457e423d294128bfa6f7947f35b4c35e17144a7",
+          "bytes": 7270
         }
       ],
-      "at": "2026-11-03T00:48:01.392076+00:00"
+      "at": "2026-11-03T14:43:02.783671+00:00"
     },
     "demonstrate": {
       "status": "done",
-      "note": "Offline browser fixture verified two old-blueprint liens at100m/120m and exchange modes back to sale, preserved controls/handlers. Not physical POS or print.",
+      "note": "Actual handlers in isolated browser fixture pass API failure/retry, stop/retry, three contexts and QR image; not physical iPhone/customer-card proof.",
       "evidence": [
         {
-          "path": "docs\\POS_LIEN2_BO_CUC_VA_KHOI_PHUC_AI_20261102.md",
-          "sha256": "9cfe14fad854bd6a61f8d0db795c0603aa2c5d56602ff3583b9a9aec219d72bb",
-          "bytes": 4898
+          "path": "docs\\CCCD_QR_RECOVERY_20261103.md",
+          "sha256": "39808576ff20ea865eab53cb67655457f63e52f6eb2f6d19d3160c95ead25ea6",
+          "bytes": 5563
         }
       ],
-      "at": "2026-11-02T14:16:58.342871+00:00"
+      "at": "2026-11-03T14:43:02.885755+00:00"
     },
     "integrate": {
-      "status": "in_progress",
-      "note": "Actual Windows POS inspection confirms prior install now loaded; source-package layout regression fixed,11 tests pass, no financial/data writes.",
+      "status": "done",
+      "note": "Identity retry/cancel/local QR installed in actual POS;381 tests pass and Remote assets verified;real phone/customer scan remains owner validation.",
       "evidence": [
         {
-          "path": "docs\\POS_KIEM_TRA_TRUC_TIEP_20261103.md",
-          "sha256": "bd31a2b0fd0d0fe689a7549f2153297b22d9e2e42a79b2e8837d46d9ace0a0e3",
-          "bytes": 2415
+          "path": "docs\\CCCD_QR_RECOVERY_20261103.md",
+          "sha256": "39808576ff20ea865eab53cb67655457f63e52f6eb2f6d19d3160c95ead25ea6",
+          "bytes": 5563
+        },
+        {
+          "path": "pos-source\\kbl-identity-recovery.cjs",
+          "sha256": "50c91c74ade1394fa9107057ecf5f0c140d61791ecc87288a8a2aff68aa4dbb8",
+          "bytes": 6374
+        },
+        {
+          "path": "pos-source\\kbl-qr-decoder.cjs",
+          "sha256": "b1113dba99353bb8c66d730c9e0b1cc5737121d0df8e1b036fb56ffdb75c8f00",
+          "bytes": 4033
         }
       ],
-      "at": "2026-11-03T01:39:42.139135+00:00"
+      "at": "2026-11-03T14:42:16.115490+00:00"
     }
   },
-  "next_action": "POS live lien2 and both exchange layouts verified; source package synchronized. Remaining automation dependencies: three correct SKU photos, reconnect Chrome accounts and repair Groq401.",
+  "next_action": "",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -315,9 +325,33 @@
       "stage": "integrate",
       "status": "in_progress",
       "note": "Actual Windows POS inspection confirms prior install now loaded; source-package layout regression fixed,11 tests pass, no financial/data writes."
+    },
+    {
+      "at": "2026-11-03T14:42:16.115490+00:00",
+      "stage": "integrate",
+      "status": "done",
+      "note": "Identity retry/cancel/local QR installed in actual POS;381 tests pass and Remote assets verified;real phone/customer scan remains owner validation."
+    },
+    {
+      "at": "2026-11-03T14:43:02.669010+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requests identity QR and OCR recovery only; protect all financial and historical behavior."
+    },
+    {
+      "at": "2026-11-03T14:43:02.783671+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "381 full tests pass; packaged local QR, bounded longer provider waits and per-side retry/cancel."
+    },
+    {
+      "at": "2026-11-03T14:43:02.885755+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Actual handlers in isolated browser fixture pass API failure/retry, stop/retry, three contexts and QR image; not physical iPhone/customer-card proof."
     }
   ],
-  "updated_at": "2026-11-03T13:16:31.400790+00:00",
+  "updated_at": "2026-11-03T14:43:02.885755+00:00",
   "goldSocialFormats": {
     "status": "deployed_and_facebook_verified",
     "policy": "gold-platform-v1",
@@ -341,14 +375,17 @@
   "identityOcr": {
     "status": "installed_owner_card_confirmation_pending",
     "scope": "CCCD transport only; business functions and data preserved",
-    "source": "docs/CCCD_OCR_LATENCY_20261103.md",
-    "installedArchiveSha256": "be89f170bb585a8f1c86dbcb218a67dd44073e560ed537743d38da1333fa2974",
+    "source": "docs/CCCD_QR_RECOVERY_20261103.md",
+    "installedArchiveSha256": "fbe8cf3b074dd6eafd22bb0e5dec4ecd27eb53f4fff9a0587c3c5ce829040d17",
     "focusedTests": 9,
     "nonpersonalImageProbeMs": 3420,
-    "totalDeadlineMs": 40000,
-    "normalPosRestartAt": "2026-11-03T16:08:14+07:00",
+    "totalDeadlineMs": 150000,
+    "normalPosRestartAt": "2026-11-03T21:39:13+07:00",
     "customerCardTested": false,
-    "fullSuiteTests": 360
+    "fullSuiteTests": 381,
+    "previousInstalledArchiveSha256": "be89f170bb585a8f1c86dbcb218a67dd44073e560ed537743d38da1333fa2974",
+    "requestDeadlineMs": 60000,
+    "nonpersonalProbeNote": "3420ms belongs to the earlier transport version; not a new real-card benchmark"
   },
   "identityAddress": {
     "status": "installed_owner_card_confirmation_pending",
@@ -363,5 +400,22 @@
     "autoLookupNetworkRequests": 0,
     "installedArchiveSha256": "4b66e4f5fbf8a5bf24a6911b66bddce71c978db05ae1bd8b56744d2708c07e8b",
     "normalPosRestartAt": "2026-11-03T20:14:17+07:00"
+  },
+  "identityRecovery": {
+    "status": "installed_owner_phone_confirmation_pending",
+    "source": "docs/CCCD_QR_RECOVERY_20261103.md",
+    "fullSuiteTests": 381,
+    "focusedCandidateTests": 11,
+    "browserFixture": "failure/retry,stop/retry,buy/sale/pawn,small QR in large image verified",
+    "actualRemoteAssets": {
+      "jsqr": 200,
+      "decoder": 200,
+      "disallowedConfig": 404
+    },
+    "financialChanges": false,
+    "privateCustomerDataSentByAgent": false,
+    "iPhoneLiveCameraTested": false,
+    "realCustomerCardTested": false,
+    "installedArchiveSha256": "fbe8cf3b074dd6eafd22bb0e5dec4ecd27eb53f4fff9a0587c3c5ce829040d17"
   }
 }
