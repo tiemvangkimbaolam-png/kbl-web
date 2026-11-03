@@ -332,6 +332,7 @@ test('a validated gold photo publishes with frozen caption/hashtags while narrat
   await P.publishWebsite(storyId);assert.equal(calls,1);
   const videoId='c'.repeat(64),audioId='d'.repeat(64),captionsId='e'.repeat(64);
   for(const [id,mime,purpose] of [[videoId,'video/mp4','video-temp'],[audioId,'audio/mpeg','audio'],[captionsId,'text/plain','captions']])db.prepare('INSERT INTO assets(id,story_id,mime,bytes,purpose,created_at) VALUES(?,?,?,?,?,?)').run(id,storyId,mime,100,purpose,at);
+  assert.equal((await P.cleanup()).deleted,0,'Early photo receipts must not delete unacknowledged render uploads');
   await P.complete('win',task.job.id,task.lease,{posterIds:[ids[0]],videoId,audioId,captionsId,duration:45,width:1080,height:1920});
   await P.tick({housekeeping:false});
   assert.equal(row('publish',storyId).status,'complete');assert.equal(calls,1);

@@ -319,16 +319,19 @@
   ],
   "updated_at": "2026-11-03T01:39:42.139135+00:00",
   "goldSocialFormats": {
-    "status": "integration_in_progress",
+    "status": "implemented_and_facebook_verified",
     "policy": "gold-platform-v1",
     "source": "docs/GOLD_PLATFORM_MEDIA_20261103.md",
     "actualGoldWebsiteReceipt": "a7eff122222aa711d4fc6dbea81d0ede",
     "pending": [
-      "deploy first-channel capture and verify actual Facebook image receipt",
-      "YouTube/TikTok application configuration and OAuth"
+      "final cleanup guard rollout verification",
+      "YouTube/TikTok application configuration and OAuth",
+      "other social channels owner OAuth/selection"
     ],
-    "at": "2026-11-03T08:33:03.554396+00:00",
+    "at": "2026-11-03T08:40:49.011395+00:00",
     "facebook": "OAuth connected, Tiệm Vàng Kim Bảo Lâm selected, receive new posts enabled",
-    "tests": 352
+    "tests": 352,
+    "receipt": "docs/GOLD_PUBLISH_RECEIPT_20261103.json",
+    "facebookPostUrl": "https://www.facebook.com/122116788465441128/posts/122125776561441128"
   }
 }

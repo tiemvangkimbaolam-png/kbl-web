@@ -30,3 +30,7 @@ Kết quả cuối trước triển khai: 351/351 kiểm thử đạt, không b�
 Sau triển khai54b8e90: Cloudflare production báo success08:22:42Z. OAuth Facebook thật đã lưu tài khoản; chủ đã cấp quyền trước đó, tiếp tục cùng cài đặt. Chọn đúng Page Tiệm Vàng Kim Bảo Lâm và bật Nhận bản tin mới; worker API đã đọc được publicationConnections.facebook. Không bật inbox hoặc các kênh khác.
 
 Bổ sung lượt đầu khi có kênh nhận mới: dùng snapshot POS mới hợp lệ ngay cả khi các giá trị chưa đổi; không sửa hồ sơ cũ, không đổi lịch08:00/13:00/19:00. Chỉ một bản được tạo nguyên tử, chờ đủ biên nhận trước lượt tiếp. Bỏ chọn kênh không sinh bài giống nhau.352/352 kiểm thử, website typecheck và build Cloudflare đều đạt.
+
+Bằng chứng đã đăng Facebook thật: https://www.facebook.com/122116788465441128/posts/122125776561441128 — Page Tiệm Vàng Kim Bảo Lâm, bài công khai; đã mở và đối chiếu ảnh, giá/giờ chốt15:35:34, caption và7hashtag. Story25056906344d5b86d22e53bb14c8498d, ảnh local có điện thoại, video42giây vẫn có bản gốc. Chi tiết docs/GOLD_PUBLISH_RECEIPT_20261103.json. YouTube/TikTok vẫn chưa kết nối; không có biên nhận của các kênh đó.
+
+Dọn media mới chỉ xét video/audio/phụ đề của bản giá khi render đã hoàn tất, tránh xóa tệp vừa upload lúc ảnh đã có biên nhận nhưng worker chưa ACK video.352/352 kiểm thử và build sau bảo vệ này đều đạt.
