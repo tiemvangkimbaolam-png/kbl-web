@@ -59,3 +59,5 @@ AI: nhận việc linh hoạt; Chrome ảnh không bị khóa bởi API key; FIF
 03/11/2026 follow-up: production54b8e90 succeeded; actual Facebook OAuth, Page selection and receive-new-posts saved and verified in UI and worker API. Fresh quote on newly selected channel added without schedule/history rewrite;352/352 tests, website typecheck and build pass. Final rollout and Facebook image receipt pending.
 
 03/11/2026 actual Facebook proof: gold story25056906344d5b86d22e53bb14c8498d image published; Admin outbox published and public Facebook post opened/verified with correct Page, frozen15:35:34 quote, photo and7hashtags. URL https://www.facebook.com/122116788465441128/posts/122125776561441128. Cleanup guards incomplete render uploads.352/352 full tests and build pass. No YouTube/TikTok receipt claimed.
+
+Final code deployment63ab93e: Cloudflare kbl-web-moi success2026-11-03T08:42:34Z. Gold publish queue finished; worker still connected with Facebook selection. Public post/photo/caption/hashtags verified in real Facebook UI. Remaining external connection prerequisites only; no POS files changed.

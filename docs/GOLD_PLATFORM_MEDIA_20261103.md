@@ -34,3 +34,5 @@ Bổ sung lượt đầu khi có kênh nhận mới: dùng snapshot POS mới h�
 Bằng chứng đã đăng Facebook thật: https://www.facebook.com/122116788465441128/posts/122125776561441128 — Page Tiệm Vàng Kim Bảo Lâm, bài công khai; đã mở và đối chiếu ảnh, giá/giờ chốt15:35:34, caption và7hashtag. Story25056906344d5b86d22e53bb14c8498d, ảnh local có điện thoại, video42giây vẫn có bản gốc. Chi tiết docs/GOLD_PUBLISH_RECEIPT_20261103.json. YouTube/TikTok vẫn chưa kết nối; không có biên nhận của các kênh đó.
 
 Dọn media mới chỉ xét video/audio/phụ đề của bản giá khi render đã hoàn tất, tránh xóa tệp vừa upload lúc ảnh đã có biên nhận nhưng worker chưa ACK video.352/352 kiểm thử và build sau bảo vệ này đều đạt.
+
+Nghiệm thu cuối: code63ab93e triển khai Cloudflare thành công15:42:34 giờ Việt Nam. Lượt ảnh Facebook đầu đã hoàn tất hàng đợi; kết nối worker vẫn HTTP200. Các kênh chưa được cấp quyền không được đánh dấu đã đăng.
