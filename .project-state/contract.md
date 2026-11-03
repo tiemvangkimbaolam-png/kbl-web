@@ -35,3 +35,5 @@ Mẫu phải dựng bằng mã, ảnh sản phẩm gốc và snapshot đã chố
 
 
 03/11/2026 — Owner clarifies gold distribution: YouTube/TikTok narrated local video; every other supported selected social channel uses local price image with per-platform caption/hashtags. Publish validated gold images without waiting on TTS. Freeze prior plans/outbox/receipts. Repair Cloudflare OAuth/publishing transport; owner grants social authorization directly. POS formulas/data are protected.
+
+03/11/2026 — Owner reports CCCD API extraction taking ten minutes. Authorized targeted OCR repair and confirmed normal POS exit for installation. Dedicated direct Gemini transport only for identity OCR; bound waiting, reduce upload copies, retain manual QR and all original images/business functions/data. Do not change invoice OCR, sale/exchange/pawn calculations, saved transactions or worker publication. Generic nonpersonal image timing is not evidence of real customer-card accuracy or latency.

@@ -1876,6 +1876,10 @@ async function callGeminiAIAutoModel(apiKey, parts) {
 window.kblCallGeminiAIAutoModel = callGeminiAIAutoModel;
 window.getKblGeminiApiKey = () => String(GEMINI_API_KEY || '').trim();
 
+// CCCD: API trực tiếp, hạn chờ 40 giây; không chạy lại chuỗi AI hóa đơn.
+const kblCccdOcrClient = require('./kbl-cccd-ocr.cjs').createClient();
+window.kblCallCccdOCR = (apiKey, parts) => kblCccdOcrClient.generate(apiKey, parts);
+
 // -----------------------------------------------------------------
 // THU MUA OCR (TAB 1)
 // -----------------------------------------------------------------
@@ -1935,7 +1939,7 @@ async function processBuyOCRBase64(side, dataUrl) {
             { inlineData: { mimeType: mimeType, data: rawBase64 } }
         ];
 
-        const result = await callGeminiAIAutoModel(GEMINI_API_KEY, parts);
+        const result = await window.kblCallCccdOCR(GEMINI_API_KEY, parts);
         const data = result.data;
 
         let rawText = data.candidates[0].content.parts[0].text;
@@ -2014,7 +2018,7 @@ async function processSaleOCRBase64(side, dataUrl) {
             ? 'Đây là ảnh mặt trước CCCD Việt Nam. Bóc tách chính xác và trả về duy nhất JSON thuần túy dạng {"hoTen":"","soCCCD":"","diaChi":"","soDienThoai":""}. Nếu số điện thoại không có trên ảnh thì để chuỗi rỗng. Không thêm markdown.'
             : 'Đây là ảnh mặt sau CCCD Việt Nam. Bóc tách địa chỉ thường trú/quê quán và số điện thoại nếu có. Trả về duy nhất JSON thuần túy dạng {"diaChi":"","soDienThoai":""}. Nếu không thấy thì để chuỗi rỗng. Không thêm markdown.';
         
-        const result = await callGeminiAIAutoModel(GEMINI_API_KEY, [
+        const result = await window.kblCallCccdOCR(GEMINI_API_KEY, [
             { text: prompt },
             { inlineData: { mimeType, data: rawBase64 } }
         ]);

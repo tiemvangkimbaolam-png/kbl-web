@@ -3,6 +3,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <script src="kbl-cccd-ocr.cjs"></script>
     <title>Hệ Thống Quản Lý Cầm Đồ Đa Tiệm - Thương Mại Toàn Diện</title>
     <!-- Nhúng thư viện tự động tạo mã QR Code động định danh phiếu -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -3955,44 +3956,17 @@ if (item.status === "Đã chuộc" || item.status === "Đã thanh lý") {
             ? 'Đây là ảnh mặt trước Căn cước công dân hoặc Thẻ Căn Cước Việt Nam. Hãy bóc tách chính xác và trả về duy nhất JSON {"soCCCD":"","hoTen":"","diaChi":""}. Không markdown.'
             : 'Đây là ảnh mặt sau Căn cước công dân hoặc Thẻ Căn Cước Việt Nam. Hãy bóc tách chính xác và trả về duy nhất JSON {"dateIssue":"YYYY-MM-DD","diaChi":""}. Không markdown.';
         const parts = [{ text: promptText }, { inlineData: { mimeType, data: rawBase64 } }];
-
-        // Trong POS: dùng CHUNG engine Auto-Latest ở renderer.js, nên 3 nơi Thu Mua/Bán/Cầm Đồ không còn lệch model.
-        try {
-            if (window.parent && window.parent !== window && typeof window.parent.kblCallGeminiAIAutoModel === 'function') {
-                const result = await window.parent.kblCallGeminiAIAutoModel(apiKey, parts);
-                const txt = String((result?.data?.candidates?.[0]?.content?.parts || []).map(x => x?.text || '').join('\n')).replace(/```json/gi,'').replace(/```/g,'').trim();
-                const match = txt.match(/\{[\s\S]*\}/); if (!match) throw new Error('AI không trả JSON CCCD hợp lệ.');
-                return JSON.parse(match[0]);
-            }
-        } catch (error) {
-            console.warn('[KBL PAWN AI] Engine chung lỗi, thử engine standalone:', error && error.message ? error.message : error);
+        let result;
+        if (window.parent && window.parent !== window && typeof window.parent.kblCallCccdOCR === 'function') {
+            result = await window.parent.kblCallCccdOCR(apiKey, parts);
+        } else {
+            if (!window.KBLCCCDOCR) throw new Error('Chưa nạp được bộ đọc căn cước. Mở lại POS.');
+            window.__kblPawnCccdClient ||= window.KBLCCCDOCR.createClient();
+            result = await window.__kblPawnCccdClient.generate(apiKey, parts);
         }
-
-        // Nếu mở pawn.html độc lập: vẫn hỏi Models API, không ghim đời model cố định.
-        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=1000`);
-        if (!listRes.ok) throw new Error(`Không đọc được danh sách Gemini (HTTP ${listRes.status}).`);
-        const listData = await listRes.json();
-        const rank = name => {
-            const n=String(name||'').toLowerCase(), m=n.match(/^gemini-(\d+)(?:\.(\d+))?/), major=m?Number(m[1]):0, minor=m?Number(m[2]||0):0;
-            const stable=!/(preview|experimental|exp)/.test(n), lite=/-flash-lite(?:$|-)/.test(n);
-            return (stable?1e10:0)+major*1e8+minor*1e6+(lite?0:1e4);
-        };
-        const models=(Array.isArray(listData.models)?listData.models:[])
-            .filter(m=>Array.isArray(m.supportedGenerationMethods)&&m.supportedGenerationMethods.includes('generateContent'))
-            .map(m=>String(m.name||'').replace(/^models\//,''))
-            .filter(n=>/^gemini-\d+(?:\.\d+)?-flash(?:-lite)?(?:$|-)/.test(n)&&!/(image|tts|audio|live|embedding|robotics|computer-use|native-audio)/.test(n))
-            .sort((a,b)=>rank(b)-rank(a)||b.localeCompare(a,undefined,{numeric:true}));
-        if(!models.length) throw new Error('API key hiện tại không thấy Gemini Flash phù hợp.');
-        let lastError=null;
-        for(const model of models){
-            try{
-                const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts}]})});
-                const data=await res.json(); if(!res.ok){lastError=new Error(data?.error?.message||`HTTP ${res.status}`);continue;}
-                const txt=String((data?.candidates?.[0]?.content?.parts||[]).map(x=>x?.text||'').join('\n')).replace(/```json/gi,'').replace(/```/g,'').trim();
-                const match=txt.match(/\{[\s\S]*\}/); if(!match)throw new Error('AI không trả JSON CCCD hợp lệ.'); return JSON.parse(match[0]);
-            }catch(e){lastError=e;}
-        }
-        throw lastError||new Error('Không có Gemini Flash khả dụng.');
+        // Lỗi API được trả về ngay; không chạy lại toàn bộ model ở iframe.
+        const text = String(result?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '');
+        return JSON.parse(text);
     }
 
     window.onload = function() { 

@@ -317,7 +317,7 @@
       "note": "Actual Windows POS inspection confirms prior install now loaded; source-package layout regression fixed,11 tests pass, no financial/data writes."
     }
   ],
-  "updated_at": "2026-11-03T01:39:42.139135+00:00",
+  "updated_at": "2026-11-03T09:09:43.876775+00:00",
   "goldSocialFormats": {
     "status": "deployed_and_facebook_verified",
     "policy": "gold-platform-v1",
@@ -337,5 +337,17 @@
       "status": "success",
       "completedAt": "2026-11-03T08:42:34Z"
     }
+  },
+  "identityOcr": {
+    "status": "installed_owner_card_confirmation_pending",
+    "scope": "CCCD transport only; business functions and data preserved",
+    "source": "docs/CCCD_OCR_LATENCY_20261103.md",
+    "installedArchiveSha256": "be89f170bb585a8f1c86dbcb218a67dd44073e560ed537743d38da1333fa2974",
+    "focusedTests": 9,
+    "nonpersonalImageProbeMs": 3420,
+    "totalDeadlineMs": 40000,
+    "normalPosRestartAt": "2026-11-03T16:08:14+07:00",
+    "customerCardTested": false,
+    "fullSuiteTests": 360
   }
 }
