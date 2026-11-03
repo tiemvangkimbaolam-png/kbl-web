@@ -4,7 +4,7 @@ import {SHOP_ADDRESS} from './shop-prices';
 import {captionFor,productsOf} from './social-caption.mjs';
 import {apiConsultReady,consultProvider} from './consult-provider';
 import {captureProductSlot,productImages} from './product-schedule';
-import { publicationPlan,PUBLICATION_FORMATS,spacingMinutes } from './publication-plan';
+import { publicationPlan,publicationVariants,GOLD_PUBLICATION_POLICY,spacingMinutes } from './publication-plan';
 import { publishSocialStory } from './publishing';
 import { publicBase } from './social-core.mjs';
 import { env } from 'cloudflare:workers';
@@ -308,7 +308,10 @@ export async function advance(job: any) {
         return;
     }
     if(job.stage==='image'&&localKind(story)){
-        if(await validateLocalImages(story,result.rows))await ensureJob(story.id,'render');
+        if(await validateLocalImages(story,result.rows)){
+            await ensureJob(story.id,'render');
+            if(story.kind==='gold'&&story.publicationPolicy===GOLD_PUBLICATION_POLICY)await ensureJob(story.id,'publish');
+        }
         return;
     }
     const stage = nextStage(job.stage);
@@ -330,19 +333,16 @@ export async function publishWebsite(storyId: string) {
         if (current.some((p: any, i: number) => !p?.published || !p.available || p.posMissing || !p.imageIds?.includes(productsOf(story)[i].imageIds[0]))) return { waiting: true, reason: 'Sản phẩm không còn trưng bày/còn hàng; giữ bản dựng để chủ kiểm tra.' };
     }
     const jobs = await jobsFor(storyId), out = (stage: string) => JSON.parse(jobs.find(j => j.stage === stage)?.result || '{}');
-    if (!STAGES.slice(0, -1).every(s => jobs.some(j => j.stage === s && j.status === 'complete')) || out('review').approved !== true || out('image-review').approved !== true)
+    const independentGold=story.kind==='gold'&&story.publicationPolicy===GOLD_PUBLICATION_POLICY;
+    const requiredStages=STAGES.slice(0,independentGold?5:-1);
+    if (!requiredStages.every(s => jobs.some(j => j.stage === s && j.status === 'complete')) || out('review').approved !== true || out('image-review').approved !== true)
         return { waiting: true, reason: 'Chưa đủ 7 bước và hai duyệt.' };
-    const outputs = out('render'), write = out('write'), images = out('image').rows || [], imageIds = outputs.posterIds?.length ? outputs.posterIds : images.map((r: any) => r.assetId);
-    const variantsFor = (platform: string) => {
-        let planned = Array.isArray(story.publicationFormats?.[platform]) ? story.publicationFormats[platform] : (PUBLICATION_FORMATS[platform] || ['video']);
-        if (platform === 'youtube' || platform === 'tiktok') planned = ['video'];
-        if (platform === 'zalo') planned = ['images'];
-        return planned.filter((v: string, i: number, a: string[]) => ['images', 'video'].includes(v) && a.indexOf(v) === i).filter((v: string) => v !== 'images' || imageIds.length > 0).filter((v: string) => v !== 'video' || !!outputs.videoId);
-    };
+    const renderReady=jobs.some(j=>j.stage==='render'&&j.status==='complete');
+    const outputs = out('render'), write = out('write'), images = out('image').rows || [], imageIds = independentGold?images.slice(0,1).map((r:any)=>r.assetId):(outputs.posterIds?.length ? outputs.posterIds : images.map((r: any) => r.assetId));
     const label = (v: string) => v === 'images' ? 'ảnh' : 'video', reasons: string[] = [];
     let allPending = false;
-    // Website is the primary copy: once all seven stages and both reviews are
-    // done the article goes live, so one broken social channel cannot hold it.
+    // Validated local gold cards can publish while the narrated video renders.
+    // Captured legacy plans and editorial review gates remain unchanged.
     const article = await sql().prepare("SELECT id FROM records WHERE kind='article' AND id=?").bind(storyId).first<any>();
     if (!article) {
         const publishedImages=localKind(story)?imageIds.map((assetId:string,i:number)=>({assetId,caption:images[i]?.caption||story.title})):images;
@@ -363,11 +363,13 @@ export async function publishWebsite(storyId: string) {
         if (legacy) continue;
         const got = (await sql().prepare('SELECT variant,at FROM receipts WHERE story_id=? AND platform=?').bind(storyId, platform).all<any>()).results;
         const has = (v: string) => got.some((r: any) => r.variant === v);
-        const variants = variantsFor(platform);
+        const variants = publicationVariants(story,platform);
         for (let i = 0; i < variants.length; i++) {
             const v = variants[i];
             if (has(v)) continue;
             allPending = true;
+            if(v==='video'&&(!renderReady||!outputs.videoId)){reasons.push(platform+': chờ video đọc giá dựng xong');continue;}
+            if(v==='images'&&!imageIds.length){reasons.push(platform+': chờ ảnh đã đối soát');continue;}
             if (i > 0) {
                 const previous = got.find((r: any) => r.variant === variants[i - 1]);
                 if (!previous) { reasons.push(platform + ': chờ bài ' + label(variants[i - 1]) + ' trước'); continue; }
@@ -378,7 +380,7 @@ export async function publishWebsite(storyId: string) {
                 }
             }
             try {
-                const result = await publishSocialStory(storyId, platform, connectionId, { origin: publicBase(env), videoId: outputs.videoId, headline: write.headline, caption: captionFor({ ...story, id: storyId }, write, platform), legacyCaption: write.summary, imageIds, variant: v as any });
+                const result = await publishSocialStory(storyId, platform, connectionId, { origin: publicBase(env), videoId: independentGold&&v==='images'?'':outputs.videoId, headline: write.headline, caption: captionFor({ ...story, id: storyId }, write, platform), legacyCaption: write.summary, imageIds, variant: v as any });
                 if (result.published) {
                     if (!got.some((r: any) => r.variant === v)) got.push({ variant: v, at: Date.now() });
                 }
@@ -387,6 +389,9 @@ export async function publishWebsite(storyId: string) {
             catch (e: any) { reasons.push(platform + ' (' + label(v) + '): ' + (e?.message || 'chưa nhận được biên nhận; sẽ đối soát trước khi thử lại.')); }
         }
     }
+    // Keep the edition/worker lane until the already queued render completes;
+    // publishing an image must not abandon a local job or advance frozen prices.
+    if(independentGold&&!renderReady){allPending=true;reasons.push('Ảnh đã sẵn sàng; worker đang hoàn thành video đọc giá.');}
     if (!allPending) await cleanup().catch(() => { });
     return { published: true, completed: !allPending, waiting: allPending, reason: allPending ? reasons.join('; ') : undefined };
 }
@@ -471,7 +476,7 @@ export async function cleanup() { const cfg = await settings(), rows = (await sq
         if (p === 'website') return false;
         if (p === 'youtube' || p === 'tiktok') return true;
         if (p === 'zalo') return false;
-        return (Array.isArray(story?.publicationFormats?.[p]) ? story.publicationFormats[p] : (PUBLICATION_FORMATS[p] || ['video'])).includes('video');
+        return publicationVariants(story,p).includes('video');
     };
     const settled = (p: string) => receipt.some(r => r.id === a.story_id + ':' + p) || (needsVideo(p) ? receipt.some(r => r.platform === p && r.variant === 'video' && r.external_id && r.url) : receipt.some(r => r.platform === p && r.external_id && r.url));
     if (required.length && required.every(settled)) {

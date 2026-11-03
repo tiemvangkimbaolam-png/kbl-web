@@ -45,7 +45,7 @@ export async function publishSocialStory(storyId:string,platform:string,connecti
   const checkpoint=async(next:any)=>{await S.put('publishing-outbox',key,{storyId,platform,connectionId,variant,fingerprint,formatVersion,mediaUrl,imageUrls,state:next});};
   await checkpoint(state);
   const authToken=auth.selected?.accessToken||auth.tokens.accessToken;
-  const upload=async(url:string,bytes:Uint8Array,headers:Record<string,string>)=>{const r=await fetch(url,{method:'PUT',headers,body:bytes as any,redirect:'error',signal:AbortSignal.timeout(120000)});return{status:r.status};};
+  const upload=async(url:string,bytes:Uint8Array,headers:Record<string,string>)=>{const r=await fetch(url,{method:'PUT',headers,body:bytes as any,redirect:'manual',signal:AbortSignal.timeout(120000)});return{status:r.status};};
   const next=await advancePublication(state,{...input,platform,token:authToken,targetId:auth.connection.targetId,graphVersion:(await socialEnvironment()).KBL_META_GRAPH_VERSION,mediaUrl,imageUrls,variant,mediaType:variant},{checkpoint,now:Date.now,request:providerRequest,upload,readVideo:async()=>{if(!env.BUCKET)throw Error('Kho media chưa kết nối.');const obj=await env.BUCKET.get(asset!.id);if(!obj)throw Error('Không đọc được video.');return new Uint8Array(await obj.arrayBuffer());}});
   if(next.phase==='published'){
    await S.sql().prepare('INSERT OR IGNORE INTO receipts(id,story_id,platform,variant,external_id,url,at) VALUES(?,?,?,?,?,?,?)').bind(receiptId,storyId,platform,variant,next.externalId,next.url,Date.now()).run();

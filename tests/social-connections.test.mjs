@@ -5,9 +5,20 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
-import { seal, unseal, authorization, exchange, targetList, safeTargets, publicConnection, providerJSON } from '../lib/kbl/social-core.mjs';
+import { seal, unseal, authorization, exchange, targetList, safeTargets, publicConnection, providerJSON,telegramJSON } from '../lib/kbl/social-core.mjs';
 const env={KBL_SOCIAL_ENCRYPTION_KEY:'a'.repeat(64),KBL_PUBLISHER_PUBLIC_BASE_URL:'https://kbl.test',KBL_META_GRAPH_VERSION:'v25.0',KBL_META_APP_ID:'meta-id',KBL_META_APP_SECRET:'META-PRIVATE',KBL_THREADS_APP_ID:'threads-id',KBL_THREADS_APP_SECRET:'THREADS-PRIVATE',KBL_GOOGLE_CLIENT_ID:'google-id',KBL_GOOGLE_CLIENT_SECRET:'GOOGLE-PRIVATE',KBL_TIKTOK_CLIENT_KEY:'tt-id',KBL_TIKTOK_CLIENT_SECRET:'TT-PRIVATE',KBL_ZALO_APP_ID:'zalo-id',KBL_ZALO_APP_SECRET:'ZALO-PRIVATE'};
 const json=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+test('Cloudflare-compatible OAuth/Telegram transport refuses redirects without forwarding secrets',async()=>{
+ let calls=0;const fetcher=async(url,init)=>{calls++;if(init.redirect==='error')throw TypeError('Workers does not implement error mode');assert.equal(init.redirect,'manual');return json({access_token:'FIXTURE',expires_in:3600,ok:true,result:{is_bot:true}});};
+ assert.equal((await exchange(env,'facebook',{code:'FIXTURE'},fetcher)).accessToken,'FIXTURE');
+ assert.equal((await telegramJSON('FIXTURE','getMe',{},fetcher)).ok,true);
+ assert.equal(calls,3);
+ for(const transport of [f=>providerJSON('https://example.test/?secret=PRIVATE',{fetcher:f}),f=>telegramJSON('PRIVATE','getMe',{},f)]){
+  let redirects=0;
+  await assert.rejects(()=>transport(async(url,init)=>{redirects++;assert.equal(init.redirect,'manual');return new Response('',{status:302,headers:{Location:'https://other.test/?secret=PRIVATE'}});}),e=>!e.message.includes('PRIVATE')&&/chuyển hướng/.test(e.message));
+  assert.equal(redirects,1);
+ }
+});
 test('AES-GCM token vault authenticates connection identity and never stores token plaintext',async()=>{
  const value={accessToken:'PRIVATE-ACCESS',refreshToken:'PRIVATE-REFRESH'},vault=await seal(value,env.KBL_SOCIAL_ENCRYPTION_KEY,'connection:1');
  assert.equal(JSON.stringify(vault).includes('PRIVATE'),false);assert.deepEqual(await unseal(vault,env.KBL_SOCIAL_ENCRYPTION_KEY,'connection:1'),value);

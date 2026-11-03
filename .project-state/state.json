@@ -317,5 +317,18 @@
       "note": "Actual Windows POS inspection confirms prior install now loaded; source-package layout regression fixed,11 tests pass, no financial/data writes."
     }
   ],
-  "updated_at": "2026-11-03T01:39:42.139135+00:00"
+  "updated_at": "2026-11-03T01:39:42.139135+00:00",
+  "goldSocialFormats": {
+    "status": "integration_in_progress",
+    "policy": "gold-platform-v1",
+    "source": "docs/GOLD_PLATFORM_MEDIA_20261103.md",
+    "actualGoldWebsiteReceipt": "a7eff122222aa711d4fc6dbea81d0ede",
+    "pending": [
+      "deploy and verify format policy",
+      "repeat owner Facebook OAuth after transport repair",
+      "select authorized receiving Page and verify actual image receipt",
+      "YouTube/TikTok application configuration and OAuth"
+    ],
+    "at": "2026-11-03T08:19:59.924407+00:00"
+  }
 }

@@ -57,12 +57,13 @@ export async function handleSocialAdmin(req:Request,path:string[],actor:{uid:str
    const taken=await S.sql().prepare("DELETE FROM records WHERE kind='social-state' AND id=? RETURNING id").bind(stateId).first();if(!taken)fail('Callback này đã được xử lý.',409);
    if(u.searchParams.has('error'))return Response.redirect(pending.origin+'/admin/ket-noi?social=cancelled',303);
    const code=u.searchParams.get('code');if(!code||code.length>4096)fail('Chưa nhận được mã OAuth hợp lệ.');
+   let step='đổi mã cấp quyền';
    try{
-    const tokens=await exchange(config,platform,{code,verifier:pending.verifier}),targets=await targetList(config,platform,tokens);
+    const tokens=await exchange(config,platform,{code,verifier:pending.verifier});step='đọc danh sách tài khoản nhận';const targets=await targetList(config,platform,tokens);
     const old=await S.get('social-connection',pending.id),target=targets.length===1?targets[0]:null;
     await saveSecret({id:pending.id,platform,label:pending.label,inboxRequested:pending.inboxRequested===true,status:target?'connected':'choose-target',targetId:target?.id||null,targetLabel:target?.label||null,expiresAt:tokens.expiresAt,scope:tokens.scope,connectedAt:Date.now(),lastError:null},{tokens,targets,selected:target},old?.version);
     return Response.redirect(pending.origin+'/admin/ket-noi?social=connected&connection='+pending.id,303);
-   }catch(error){return Response.redirect(pending.origin+'/admin/ket-noi?social=failed',303);}
+   }catch(error:any){await S.event('social-connect-failed',platform+' chưa hoàn tất bước '+step+'. '+(error?.status===502?error.message:'Kiểm tra lại quyền ứng dụng và cấu hình kết nối.'));return Response.redirect(pending.origin+'/admin/ket-noi?social=failed',303);}
   }
  }
  if(path[0]==='targets'&&path[1]){

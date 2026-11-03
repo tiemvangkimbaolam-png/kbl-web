@@ -6,8 +6,9 @@ import {pathToFileURL} from 'node:url';
 import { createRequire } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import { webcrypto, createHash } from 'node:crypto';
+import {seal} from '../lib/kbl/social-core.mjs';
 const { build } = createRequire(fs.realpathSync('node_modules/wrangler/package.json'))('esbuild');
-let G, P, POS, db;
+let G, P, POS, PLAN, db;
 const env = {}, realFetch = globalThis.fetch, realNow = Date.now;
 const at = Date.parse('2026-10-27T01:02:00Z'); // 08:02 in Vietnam; fixtures only.
 const value = { price_buy_9999: 10000001, price_sell_9999: 10200003,price_buy_980:9900001,price_sell_980:10100003,price_buy_610:6100001,price_sell_610:6500003, price_buy_750: 7500001, price_sell_750: 7800003 };
@@ -21,11 +22,11 @@ before(async () => {
     globalThis.crypto ||= webcrypto;
     globalThis.__KBL_GOLD_TEST_ENV = env;
     fs.mkdirSync('.sites-runtime', { recursive: true });
-    await build({ stdin: { contents: "export * as G from './lib/kbl/gold'; export * as P from './lib/kbl/pipeline'; export * as POS from './lib/kbl/pos';", resolveDir: process.cwd(), loader: 'ts' }, outfile: '.sites-runtime/gold-pipeline.mjs', bundle: true, format: 'esm', platform: 'node', plugins: [{ name: 'test-env', setup(b) {
+    await build({ stdin: { contents: "export * as G from './lib/kbl/gold'; export * as P from './lib/kbl/pipeline'; export * as POS from './lib/kbl/pos'; export * as PLAN from './lib/kbl/publication-plan';", resolveDir: process.cwd(), loader: 'ts' }, outfile: '.sites-runtime/gold-pipeline.mjs', bundle: true, format: 'esm', platform: 'node', plugins: [{ name: 'test-env', setup(b) {
         b.onResolve({ filter: /^cloudflare:workers$/ }, () => ({ path: 'env', namespace: 'test-env' }));
         b.onLoad({ filter: /.*/, namespace: 'test-env' }, () => ({ contents: 'export const env=globalThis.__KBL_GOLD_TEST_ENV;', loader: 'js' }));
     } }] });
-    ({ G, P, POS } = await import(pathToFileURL(path.resolve('.sites-runtime/gold-pipeline.mjs')).href + '?v=' + realNow()));
+    ({ G, P, POS, PLAN } = await import(pathToFileURL(path.resolve('.sites-runtime/gold-pipeline.mjs')).href + '?v=' + realNow()));
 });
 beforeEach(() => {
     Date.now = () => at;
@@ -199,7 +200,7 @@ test('gold story completes local data checks, cards and video without Chrome, re
     assert.deepEqual(stored('story', storyId).priceSnapshot, original);
     assert.equal(stored('article', storyId).editionAt, at);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM assets WHERE purpose IN('video-temp','audio','captions') AND deleted_at IS NOT NULL").get().n, 3);
-    assert.equal(db.prepare("SELECT COUNT(*) n FROM assets WHERE mime='image/png' AND deleted_at IS NULL AND public=1").get().n, 2);
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM assets WHERE mime='image/png' AND deleted_at IS NULL AND public=1").get().n, 1);
     assert.equal(row('image','held-news').status,'running');assert.equal(row('image','held-news').lease_hash,'unchanged-news-lease');
 });
 
@@ -286,6 +287,93 @@ function finishGoldFixture(storyId){
  db.prepare("UPDATE jobs SET status='complete' WHERE story_id=?").run(storyId);
  db.prepare("INSERT INTO receipts(id,story_id,platform,variant,external_id,url,at) VALUES(?,?,'website','website',?,?,?)").run(storyId+':website',storyId,storyId,'/tin-tuc/'+storyId,Date.now());
 }
+
+test('new gold plans route only YouTube/TikTok to video and all other selected channels to images, preserving legacy plans',async()=>{
+ const selected=Object.fromEntries(['facebook','instagram','threads','telegram','youtube','tiktok'].map((p,i)=>[p,String(i+1).repeat(32)]));
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationConnections',json(?)) WHERE kind='settings'").run(JSON.stringify(selected));
+ const plan=await PLAN.publicationPlan('gold');
+ assert.equal(plan.publicationPolicy,'gold-platform-v1');
+ assert.deepEqual(plan.platforms,['website',...Object.keys(selected)]);
+ for(const p of Object.keys(selected))assert.deepEqual(PLAN.publicationVariants(plan,p),['youtube','tiktok'].includes(p)?['video']:['images']);
+ const legacy=await PLAN.publicationPlan();
+ assert.deepEqual(PLAN.publicationVariants(legacy,'facebook'),['images','video']);
+ assert.deepEqual(PLAN.publicationVariants({publicationFormats:{facebook:['video']}},'facebook'),['video']);
+ await price();const {storyId}=await G.captureGoldSlot(at);
+ assert.deepEqual(stored('story',storyId).publicationFormats,plan.publicationFormats);
+});
+
+test('a validated gold photo publishes with frozen caption/hashtags while narrated video is pending, without resending after render',async()=>{
+ const connection='a'.repeat(32),key='1'.repeat(64);
+ env.KBL_SOCIAL_ENCRYPTION_KEY=key;
+ const vault=await seal({tokens:{accessToken:'FIXTURE-NOT-REAL'}},key,'kbl-social:1:telegram:'+connection);
+ record('social-connection',connection,{platform:'telegram',status:'connected',targetId:'-100123',vault});
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationEnabled',json('true'),'$.publicationConnections',json(?)) WHERE kind='settings'").run(JSON.stringify({telegram:connection}));
+ await price();const {storyId}=await G.captureGoldSlot(at),snapshot=stored('story',storyId).priceSnapshot;
+ await P.tick({housekeeping:false});
+ const ids=['a'.repeat(64),'b'.repeat(64)];
+ for(const id of ids)db.prepare('INSERT INTO assets(id,story_id,mime,bytes,purpose,created_at) VALUES(?,?,?,?,?,?)').run(id,storyId,'image/jpeg',100,'news-image',at);
+ let task=await claim(storyId,'image');
+ await P.complete('win',task.job.id,task.lease,{rows:ids.map(assetId=>({assetId,caption:'Fixture card'}))});
+ assert.equal(row('publish',storyId).status,'queued');
+ task=await claim(storyId,'render');
+ let calls=0;
+ globalThis.fetch=async(url,opts)=>{
+  calls++;assert.match(String(url),/\/sendPhoto$/);const body=opts.body;
+  assert.match(body.get('caption'),/10\.000\.001/);assert.match(body.get('caption'),/#GiaVang/);
+  assert.match(body.get('caption'),/08:02/);assert.match(body.get('caption'),/utm_source=telegram/);
+  assert.ok(body.get('photo'));assert.equal(body.get('video'),null);
+  return Response.json({ok:true,result:{message_id:42,chat:{username:'fixture'}}});
+ };
+ try{
+  const early=await P.publishWebsite(storyId);
+  assert.equal(early.waiting,true);assert.equal(calls,1);
+  assert.equal(row('render',storyId).status,'leased');
+  assert.deepEqual(stored('article',storyId).images.map(r=>r.assetId),[ids[0]]);
+  await P.publishWebsite(storyId);assert.equal(calls,1);
+  const videoId='c'.repeat(64),audioId='d'.repeat(64),captionsId='e'.repeat(64);
+  for(const [id,mime,purpose] of [[videoId,'video/mp4','video-temp'],[audioId,'audio/mpeg','audio'],[captionsId,'text/plain','captions']])db.prepare('INSERT INTO assets(id,story_id,mime,bytes,purpose,created_at) VALUES(?,?,?,?,?,?)').run(id,storyId,mime,100,purpose,at);
+  await P.complete('win',task.job.id,task.lease,{posterIds:[ids[0]],videoId,audioId,captionsId,duration:45,width:1080,height:1920});
+  await P.tick({housekeeping:false});
+  assert.equal(row('publish',storyId).status,'complete');assert.equal(calls,1);
+  assert.deepEqual(stored('story',storyId).priceSnapshot,snapshot);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM receipts WHERE platform='telegram' AND variant='video'").get().n,0);
+ }finally{delete env.KBL_SOCIAL_ENCRYPTION_KEY;}
+});
+
+test('missing video on a selected YouTube/TikTok channel stays pending rather than dropping the required variant',async()=>{
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationEnabled',json('true'),'$.publicationConnections',json(?)) WHERE kind='settings'").run(JSON.stringify({youtube:'a'.repeat(32),tiktok:'b'.repeat(32)}));
+ await price();const {storyId}=await G.captureGoldSlot(at);await P.tick({housekeeping:false});
+ const ids=['a'.repeat(64),'b'.repeat(64)];for(const id of ids)db.prepare('INSERT INTO assets(id,story_id,mime,bytes,purpose,created_at) VALUES(?,?,?,?,?,?)').run(id,storyId,'image/jpeg',100,'news-image',at);
+ const task=await claim(storyId,'image');await P.complete('win',task.job.id,task.lease,{rows:ids.map(assetId=>({assetId,caption:'Fixture card'}))});
+ const outcome=await P.publishWebsite(storyId);assert.equal(outcome.completed,false);assert.match(outcome.reason,/youtube: chờ video/);assert.match(outcome.reason,/tiktok: chờ video/);
+ assert.equal(row('publish',storyId).status,'queued');
+});
+
+test('an unfinished Facebook photo upload keeps its fingerprint when the gold video completes',async()=>{
+ const connection='a'.repeat(32),key='1'.repeat(64);
+ env.KBL_SOCIAL_ENCRYPTION_KEY=key;env.KBL_META_GRAPH_VERSION='v25.0';
+ record('social-connection',connection,{platform:'facebook',status:'connected',targetId:'fixture-page',vault:await seal({tokens:{accessToken:'FIXTURE'}},key,'kbl-social:1:facebook:'+connection)});
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationEnabled',json('true'),'$.publicationConnections',json(?)) WHERE kind='settings'").run(JSON.stringify({facebook:connection}));
+ await price();const {storyId}=await G.captureGoldSlot(at);await P.tick({housekeeping:false});
+ const ids=['a'.repeat(64),'b'.repeat(64)];for(const id of ids)db.prepare('INSERT INTO assets(id,story_id,mime,bytes,purpose,created_at) VALUES(?,?,?,?,?,?)').run(id,storyId,'image/jpeg',100,'news-image',at);
+ let task=await claim(storyId,'image');await P.complete('win',task.job.id,task.lease,{rows:ids.map(assetId=>({assetId,caption:'Fixture card'}))});
+ const calls=[];
+ globalThis.fetch=async(url,opts)=>{calls.push(String(url));if(String(url).endsWith('/photos'))return Response.json({id:'photo'});if(String(url).endsWith('/feed')){assert.match(opts.body.get('message'),/#GiaVang/);return Response.json({id:'post'});}return Response.json({id:'post',permalink_url:'https://facebook.com/fixture-post'});};
+ try{
+  await P.publishWebsite(storyId);
+  assert.match(calls[0],/\/photos$/);
+  const before=db.prepare("SELECT data FROM records WHERE kind='publishing-outbox'").get();
+  task=await claim(storyId,'render');
+  const videoId='c'.repeat(64),audioId='d'.repeat(64),captionsId='e'.repeat(64);
+  for(const [id,mime,purpose] of [[videoId,'video/mp4','video-temp'],[audioId,'audio/mpeg','audio'],[captionsId,'text/plain','captions']])db.prepare('INSERT INTO assets(id,story_id,mime,bytes,purpose,created_at) VALUES(?,?,?,?,?,?)').run(id,storyId,mime,100,purpose,at);
+  await P.complete('win',task.job.id,task.lease,{posterIds:[ids[0]],videoId,audioId,captionsId,duration:45,width:1080,height:1920});
+  await P.publishWebsite(storyId);await P.publishWebsite(storyId);await P.publishWebsite(storyId);
+  const after=db.prepare("SELECT data FROM records WHERE kind='publishing-outbox'").get();
+  assert.equal(JSON.parse(before.data).fingerprint,JSON.parse(after.data).fingerprint);
+  assert.equal(calls.filter(u=>u.endsWith('/photos')).length,1);assert.equal(calls.filter(u=>u.endsWith('/feed')).length,1);
+  assert.equal(JSON.parse(after.data).state.phase,'published');assert.equal(calls.some(u=>u.endsWith('/videos')),false);
+ }finally{delete env.KBL_SOCIAL_ENCRYPTION_KEY;delete env.KBL_META_GRAPH_VERSION;}
+});
 test('changed quotes are coalesced only after all prior receipts; the old running quote stays immutable',async()=>{
  db.prepare("UPDATE records SET data=json_set(data,'$.publicationEnabled',json('true')) WHERE kind='settings'").run();
  await price();const first=await G.captureGoldSlot(at),original=stored('story',first.storyId).priceSnapshot;
