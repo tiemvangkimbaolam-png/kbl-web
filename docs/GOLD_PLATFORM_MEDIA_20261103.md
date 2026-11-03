@@ -26,3 +26,7 @@ Yêu cầu chốt: bảng giá dựng từ mẫu local có sẵn, số điện t
 Nguồn kỹ thuật: [Cloudflare Request redirect modes](https://developers.cloudflare.com/workers/runtime-apis/request/), [TikTok video caption](https://developers.tiktok.com/docs/en/content-posting-api-reference-direct-post).
 
 Kết quả cuối trước triển khai: 351/351 kiểm thử đạt, không bỏ qua; website typecheck và build Cloudflare thành công.
+
+Sau triển khai54b8e90: Cloudflare production báo success08:22:42Z. OAuth Facebook thật đã lưu tài khoản; chủ đã cấp quyền trước đó, tiếp tục cùng cài đặt. Chọn đúng Page Tiệm Vàng Kim Bảo Lâm và bật Nhận bản tin mới; worker API đã đọc được publicationConnections.facebook. Không bật inbox hoặc các kênh khác.
+
+Bổ sung lượt đầu khi có kênh nhận mới: dùng snapshot POS mới hợp lệ ngay cả khi các giá trị chưa đổi; không sửa hồ sơ cũ, không đổi lịch08:00/13:00/19:00. Chỉ một bản được tạo nguyên tử, chờ đủ biên nhận trước lượt tiếp. Bỏ chọn kênh không sinh bài giống nhau.352/352 kiểm thử, website typecheck và build Cloudflare đều đạt.

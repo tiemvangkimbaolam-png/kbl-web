@@ -324,11 +324,11 @@
     "source": "docs/GOLD_PLATFORM_MEDIA_20261103.md",
     "actualGoldWebsiteReceipt": "a7eff122222aa711d4fc6dbea81d0ede",
     "pending": [
-      "deploy and verify format policy",
-      "repeat owner Facebook OAuth after transport repair",
-      "select authorized receiving Page and verify actual image receipt",
+      "deploy first-channel capture and verify actual Facebook image receipt",
       "YouTube/TikTok application configuration and OAuth"
     ],
-    "at": "2026-11-03T08:19:59.924407+00:00"
+    "at": "2026-11-03T08:33:03.554396+00:00",
+    "facebook": "OAuth connected, Tiệm Vàng Kim Bảo Lâm selected, receive new posts enabled",
+    "tests": 352
   }
 }

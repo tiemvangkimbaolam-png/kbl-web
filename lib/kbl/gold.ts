@@ -1,4 +1,4 @@
-import { publicationPlan } from './publication-plan';
+import { publicationPlan,selectedPublicationConnections } from './publication-plan';
 import { sql, get, list, settings, sha, id } from './store';
 import {oldestUnfinishedStoryId,UNFINISHED_STORY_WHERE} from './story-order';
 
@@ -64,9 +64,13 @@ export async function captureGoldFollowup(at=Date.now()) {
     if(!receipt||!completed)return {waiting:true,reason:'awaiting-publication-receipts'};
     const snapshot=await currentSnapshot(at);if(!snapshot)return {waiting:true,reason:'awaiting-fresh-pos-price'};
     const signature=(rows:any[])=>JSON.stringify(rows.map(({code,buy,sell,unit})=>({code,buy,sell,unit})).sort((a,b)=>a.code.localeCompare(b.code)));
-    const value=signature(snapshot.rows);if(value===signature(previous.priceSnapshot.rows))return {waiting:true,reason:'quote-unchanged'};
+    const value=signature(snapshot.rows),unchanged=value===signature(previous.priceSnapshot.rows);
+    const newTargets=Object.entries(selectedPublicationConnections(cfg)).filter(([p,id])=>previous.publicationConnections?.[p]!==id).sort(([a],[b])=>a.localeCompare(b));
+    if(unchanged&&!newTargets.length)return {waiting:true,reason:'quote-unchanged'};
     const cap=await sql().prepare("SELECT COUNT(*) n FROM records WHERE kind='story'").first<any>();if(cap.n>=1000)return {waiting:true,reason:'story-quota'};
-    const slot='change:'+row.id+':'+(await sha(value)).slice(0,32);
+    // A newly selected receiving channel gets one fresh real quote, even when
+    // price values are unchanged. Never retrofit or resend a captured edition.
+    const slot=(newTargets.length?'channel:':'change:')+row.id+':'+(await sha(newTargets.length?JSON.stringify({value,newTargets}):value)).slice(0,32);
     await sql().prepare("INSERT OR IGNORE INTO editions(id,kind,data,created_at) VALUES(?,'gold',?,?)").bind(slot,JSON.stringify({status:'awaiting-price',slot}),at).run();
     const existing=await sql().prepare('SELECT captured_at,data FROM editions WHERE id=?').bind(slot).first<any>();
     if(existing?.captured_at!=null)return {captured:true,duplicate:true,storyId:JSON.parse(existing.data).storyId,slot};

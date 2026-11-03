@@ -405,6 +405,24 @@ test('unchanged observations and stale prices cannot create follow-up news',asyn
  assert.equal(db.prepare("SELECT COUNT(*) n FROM records WHERE kind='story'").get().n,1);
 });
 
+test('a newly selected channel gets one fresh unchanged quote without retrofitting history or changing the schedule',async()=>{
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationEnabled',json('true')) WHERE kind='settings'").run();
+ await price();const first=await G.captureGoldSlot(at),frozen=stored('story',first.storyId);await P.ensureJob(first.storyId,'publish');finishGoldFixture(first.storyId);
+ const later=at+120000;Date.now=()=>later;await price(value,later,2);
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationConnections',json(?)) WHERE kind='settings'").run(JSON.stringify({facebook:'a'.repeat(32)}));
+ const [a,b]=await Promise.all([G.captureGoldFollowup(later),G.captureGoldFollowup(later)]);
+ assert.equal(a.captured,true);assert.equal(a.storyId,b.storyId);assert.match(a.slot,/^channel:/);
+ const next=stored('story',a.storyId);assert.deepEqual(next.platforms,['website','facebook']);assert.deepEqual(next.publicationFormats.facebook,['images']);
+ assert.deepEqual(stored('story',first.storyId).priceSnapshot,frozen.priceSnapshot);assert.deepEqual(stored('story',first.storyId).platforms,['website']);
+ assert.equal((await G.captureGoldFollowup(later+1)).reason,'awaiting-publication-receipts');
+ await P.ensureJob(a.storyId,'publish');finishGoldFixture(a.storyId);
+ db.prepare("INSERT INTO receipts(id,story_id,platform,variant,external_id,url,at) VALUES(?,?,'facebook','images','fixture-post','https://facebook.com/fixture-post',?)").run(a.storyId+':facebook:images',a.storyId,later);
+ assert.equal((await G.captureGoldFollowup(later+2)).reason,'quote-unchanged');
+ assert.equal(stored('settings','main').goldSchedule,undefined,'Default schedule was not rewritten');
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationConnections',json('{}')) WHERE kind='settings'").run();
+ assert.equal((await G.captureGoldFollowup(later+3)).reason,'quote-unchanged');
+});
+
 test('follow-up capture rechecks prior publication receipts atomically before creating any job',async()=>{
  db.prepare("UPDATE records SET data=json_set(data,'$.publicationEnabled',json('true')) WHERE kind='settings'").run();
  await price();const first=await G.captureGoldSlot(at);await P.ensureJob(first.storyId,'publish');finishGoldFixture(first.storyId);
