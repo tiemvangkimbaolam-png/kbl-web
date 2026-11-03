@@ -51,12 +51,12 @@
     },
     "integrate": {
       "status": "in_progress",
-      "note": "Five actual gold receipts, Cloudflare385 success and protected POS presentation installed. API probe unanswered; product photos and Chrome connectivity remain external dependencies.",
+      "note": "Production802d3e6 success; same saved question answered via Gemini200 after manual redirect fix, Groq401. Five real gold receipts; POS presentation installed with business files protected.",
       "evidence": [
         {
           "path": "docs\\NGHIEM_THU_LOCAL_20261103.md",
-          "sha256": "5ce72b6107b67fbb387cb52b8ae8a3317e2fdb3359a0346baa3e172fb31662a9",
-          "bytes": 4075
+          "sha256": "5df795f23faf4f9c47520e166794751764cb89fad55219231295d8971dd47a79",
+          "bytes": 5638
         },
         {
           "path": "docs\\BIEN_NHAN_DANG_THAT_20261103.json",
@@ -64,10 +64,10 @@
           "bytes": 6023
         }
       ],
-      "at": "2026-11-03T01:06:26.853653+00:00"
+      "at": "2026-11-03T01:17:53.854080+00:00"
     }
   },
-  "next_action": "Read deployed API error statuses; reconnect Chrome without duplicate sends; obtain three correct SKU photos. Local gold proven live; POS installed, physical view pending.",
+  "next_action": "Local gold and Gemini API proven live; reconnect existing Chrome without duplicate prompts, obtain three correct SKU photos, and owner repair Groq401. Physical POS view and social permissions remain.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -308,7 +308,13 @@
       "stage": "integrate",
       "status": "in_progress",
       "note": "Five actual gold receipts, Cloudflare385 success and protected POS presentation installed. API probe unanswered; product photos and Chrome connectivity remain external dependencies."
+    },
+    {
+      "at": "2026-11-03T01:17:53.854080+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Production802d3e6 success; same saved question answered via Gemini200 after manual redirect fix, Groq401. Five real gold receipts; POS presentation installed with business files protected."
     }
   ],
-  "updated_at": "2026-11-03T01:06:26.853653+00:00"
+  "updated_at": "2026-11-03T01:17:53.854080+00:00"
 }
