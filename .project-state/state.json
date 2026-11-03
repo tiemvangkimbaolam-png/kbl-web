@@ -317,7 +317,7 @@
       "note": "Actual Windows POS inspection confirms prior install now loaded; source-package layout regression fixed,11 tests pass, no financial/data writes."
     }
   ],
-  "updated_at": "2026-11-03T09:09:43.876775+00:00",
+  "updated_at": "2026-11-03T13:16:31.400790+00:00",
   "goldSocialFormats": {
     "status": "deployed_and_facebook_verified",
     "policy": "gold-platform-v1",
@@ -349,5 +349,19 @@
     "normalPosRestartAt": "2026-11-03T16:08:14+07:00",
     "customerCardTested": false,
     "fullSuiteTests": 360
+  },
+  "identityAddress": {
+    "status": "installed_owner_card_confirmation_pending",
+    "catalogAsOf": "2026-11-03",
+    "source": "docs/CCCD_ADDRESS_CONVERSION_20261103.md",
+    "tests": 371,
+    "pureAddressFixtureMs": 3.2,
+    "browserFixtureVerified": true,
+    "realCustomerCardTested": false,
+    "financialFunctionsUnchanged": true,
+    "historicalRecordsWritten": false,
+    "autoLookupNetworkRequests": 0,
+    "installedArchiveSha256": "4b66e4f5fbf8a5bf24a6911b66bddce71c978db05ae1bd8b56744d2708c07e8b",
+    "normalPosRestartAt": "2026-11-03T20:14:17+07:00"
   }
 }

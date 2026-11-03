@@ -10,13 +10,15 @@
   },
   "patched": {
     "main.js": "81868b4c7a4a86c9165a2b6d4c9f12f299c695b7b649cdae561ca176a49662a5",
-    "renderer.js": "f8fba3ee2fff693454340f255f466e1f12b777fcdbb4c06974c8c6c7173903ff",
-    "pawn.html": "5e1cdfe38f9dcf5e80a6e605844fd1fd8ce3fda101e7306b9162f49e6f62ee36",
+    "renderer.js": "2d136e2154bb4cd92703db3035d1dc07cd8d103a133d967e4c92926c5aa5feae",
+    "pawn.html": "e5ef90cb34f0e914a487e46811d2d9ad56eab021c7e72e2fef709ad935453a38",
     "index.html": "4247d39006c75c48d60b5745b665a0ff29a02ddc4a789af691044c41ee6ccbcd",
     "package.json": "2776d2ab948174b40c2eb9a9b46bb7186b5ee2cdd81fb84d770c0c1f05c9e3e0",
     "kbl-product-photos.cjs": "840d883a54af1305a4d65342caee81cb29c01cdd39e248f24fe90695e0312e85",
     "kbl-jewel-ui.js": "a0aa2a6d527dc226b44e29ea41eb4fcb9883330042acedf829edb5d72c81240a",
-    "kbl-cccd-ocr.cjs": "c206c241b1e9453fbb5a0865aa7abe16c9a5be6ee3a57a62144c0419ba7df824"
+    "kbl-cccd-ocr.cjs": "c206c241b1e9453fbb5a0865aa7abe16c9a5be6ee3a57a62144c0419ba7df824",
+    "kbl-address-converter.cjs": "b23d20ab529b681735943f852d4c19fb37d99fbfa6790cada71b0a09273b1009",
+    "kbl-address-data.cjs": "298b00508c26a74b30c9a516a245492b10c49e9a621f925d596b7e6238547a8f"
   },
   "connectionOnly": true,
   "verification": "Reversing connection-only changes yields byte-identical latest originals, except removal of embedded legacy relay credential. Optional missing stylesheet/script tags removed from index/pawn, without changing inline POS function bodies.",
@@ -93,5 +95,15 @@
     "totalDeadlineMs": 40000,
     "imageUploadCopyMaxEdge": 2000,
     "noCustomerDataInTests": true
+  },
+  "identityAddressConversion20261103": {
+    "scope": "Only newly scanned identity addresses; no financial or historical record changes",
+    "source": "Cục Thống kê official old/new workbook and current administrative export",
+    "catalogAsOf": "2026-11-03",
+    "localOnly": true,
+    "fuzzyAutoConversion": false,
+    "splitUnitsRequireOwnerConfirmation": true,
+    "staleAfterDays": 90,
+    "residenceOnly": true
   }
 }

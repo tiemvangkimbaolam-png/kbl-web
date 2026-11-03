@@ -3,6 +3,8 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <script src="kbl-address-data.cjs"></script>
+    <script src="kbl-address-converter.cjs"></script>
     <script src="kbl-cccd-ocr.cjs"></script>
     <title>Hệ Thống Quản Lý Cầm Đồ Đa Tiệm - Thương Mại Toàn Diện</title>
     <!-- Nhúng thư viện tự động tạo mã QR Code động định danh phiếu -->
@@ -3955,14 +3957,21 @@ if (item.status === "Đã chuộc" || item.status === "Đã thanh lý") {
         const promptText = side === 'front'
             ? 'Đây là ảnh mặt trước Căn cước công dân hoặc Thẻ Căn Cước Việt Nam. Hãy bóc tách chính xác và trả về duy nhất JSON {"soCCCD":"","hoTen":"","diaChi":""}. Không markdown.'
             : 'Đây là ảnh mặt sau Căn cước công dân hoặc Thẻ Căn Cước Việt Nam. Hãy bóc tách chính xác và trả về duy nhất JSON {"dateIssue":"YYYY-MM-DD","diaChi":""}. Không markdown.';
-        const parts = [{ text: promptText }, { inlineData: { mimeType, data: rawBase64 } }];
+        const parts = [{ text: promptText + " Trường diaChi chỉ lấy Nơi thường trú hoặc Nơi cư trú. Không lấy quê quán, nơi sinh hoặc địa chỉ cơ quan cấp. Giữ nguyên địa danh cũ nhìn rõ trên thẻ, ngăn cách xã/phường, quận/huyện và tỉnh/thành bằng dấu phẩy; không tự đổi địa giới. Không thấy nơi cư trú thì để diaChi rỗng." }, { inlineData: { mimeType, data: rawBase64 } }];
+        const addressOptions = { field: document.getElementById('inp-address'), afterApply: syncAllData };
         let result;
         if (window.parent && window.parent !== window && typeof window.parent.kblCallCccdOCR === 'function') {
-            result = await window.parent.kblCallCccdOCR(apiKey, parts);
+            result = await window.parent.kblCallCccdOCR(apiKey, parts, addressOptions);
         } else {
             if (!window.KBLCCCDOCR) throw new Error('Chưa nạp được bộ đọc căn cước. Mở lại POS.');
             window.__kblPawnCccdClient ||= window.KBLCCCDOCR.createClient();
             result = await window.__kblPawnCccdClient.generate(apiKey, parts);
+            if (window.KBLAddressConverter && window.KBLAddressData) {
+                try {
+                    window.__kblPawnAddressAdapter ||= window.KBLAddressConverter.createAdapter(window.KBLAddressData);
+                    result = window.__kblPawnAddressAdapter.enrich(result, addressOptions);
+                } catch { /* Giữ nguyên kết quả CCCD khi bảng địa chỉ chưa sẵn sàng. */ }
+            }
         }
         // Lỗi API được trả về ngay; không chạy lại toàn bộ model ở iframe.
         const text = String(result?.data?.candidates?.[0]?.content?.parts?.[0]?.text || '');

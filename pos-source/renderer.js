@@ -1878,7 +1878,13 @@ window.getKblGeminiApiKey = () => String(GEMINI_API_KEY || '').trim();
 
 // CCCD: API trực tiếp, hạn chờ 40 giây; không chạy lại chuỗi AI hóa đơn.
 const kblCccdOcrClient = require('./kbl-cccd-ocr.cjs').createClient();
-window.kblCallCccdOCR = (apiKey, parts) => kblCccdOcrClient.generate(apiKey, parts);
+let kblIdentityAddressAdapter = null;
+try { kblIdentityAddressAdapter = require('./kbl-address-converter.cjs').createAdapter(require('./kbl-address-data.cjs')); }
+catch { console.warn('[KBL] Bảng đối chiếu địa chỉ chưa sẵn sàng; giữ địa chỉ căn cước.'); }
+window.kblCallCccdOCR = async (apiKey, parts, options = {}) => {
+    const result = await kblCccdOcrClient.generate(apiKey, parts);
+    return kblIdentityAddressAdapter ? kblIdentityAddressAdapter.enrich(result, options) : result;
+};
 
 // -----------------------------------------------------------------
 // THU MUA OCR (TAB 1)
@@ -1935,11 +1941,11 @@ async function processBuyOCRBase64(side, dataUrl) {
             : "Mặt sau CCCD, tìm: { \"dateIssue\": \"YYYY-MM-DD\", \"diaChi\": \"\" }. Trả về JSON thuần túy, không có markdown.";
 
         const parts = [
-            { text: pt },
+            { text: pt + " Trường diaChi chỉ lấy Nơi thường trú hoặc Nơi cư trú. Không lấy quê quán, nơi sinh hoặc địa chỉ cơ quan cấp. Giữ nguyên địa danh cũ nhìn rõ trên thẻ, ngăn cách xã/phường, quận/huyện và tỉnh/thành bằng dấu phẩy; không tự đổi địa giới. Không thấy nơi cư trú thì để diaChi rỗng." },
             { inlineData: { mimeType: mimeType, data: rawBase64 } }
         ];
 
-        const result = await window.kblCallCccdOCR(GEMINI_API_KEY, parts);
+        const result = await window.kblCallCccdOCR(GEMINI_API_KEY, parts, { field: getEl('buy-address'), afterApply: syncBuyUI });
         const data = result.data;
 
         let rawText = data.candidates[0].content.parts[0].text;
@@ -2016,12 +2022,12 @@ async function processSaleOCRBase64(side, dataUrl) {
 
         const prompt = side === 'front'
             ? 'Đây là ảnh mặt trước CCCD Việt Nam. Bóc tách chính xác và trả về duy nhất JSON thuần túy dạng {"hoTen":"","soCCCD":"","diaChi":"","soDienThoai":""}. Nếu số điện thoại không có trên ảnh thì để chuỗi rỗng. Không thêm markdown.'
-            : 'Đây là ảnh mặt sau CCCD Việt Nam. Bóc tách địa chỉ thường trú/quê quán và số điện thoại nếu có. Trả về duy nhất JSON thuần túy dạng {"diaChi":"","soDienThoai":""}. Nếu không thấy thì để chuỗi rỗng. Không thêm markdown.';
+            : 'Đây là ảnh mặt sau CCCD Việt Nam. Bóc tách nơi thường trú/nơi cư trú và số điện thoại nếu có. Trả về duy nhất JSON thuần túy dạng {"diaChi":"","soDienThoai":""}. Nếu không thấy thì để chuỗi rỗng. Không thêm markdown.';
         
         const result = await window.kblCallCccdOCR(GEMINI_API_KEY, [
-            { text: prompt },
+            { text: prompt + " Trường diaChi chỉ lấy Nơi thường trú hoặc Nơi cư trú. Không lấy quê quán, nơi sinh hoặc địa chỉ cơ quan cấp. Giữ nguyên địa danh cũ nhìn rõ trên thẻ, ngăn cách xã/phường, quận/huyện và tỉnh/thành bằng dấu phẩy; không tự đổi địa giới. Không thấy nơi cư trú thì để diaChi rỗng." },
             { inlineData: { mimeType, data: rawBase64 } }
-        ]);
+        ], { field: getEl('s-cus-address'), afterApply: calcSellMath });
 
         const rawText = String(result.data?.candidates?.[0]?.content?.parts?.[0]?.text || '')
             .replace(/```json/g, '').replace(/```/g, '').trim();
