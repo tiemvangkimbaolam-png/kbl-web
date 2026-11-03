@@ -31,3 +31,11 @@ test('latest POS files match recorded source provenance, with byte-identical pho
  for(const [name,expected]of Object.entries(proof.patched))assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex'),expected,name);
  for(const name of ['kbl-product-photos.cjs','package.json'])assert.equal(proof.patched[name],proof.originals[name]);
 });
+
+test('the packaged POS presentation includes the same exchange layout as the maintained local runtime',()=>{
+ const marker='/* KBL compact UI 2026-11-02:';
+ const ui=fs.readFileSync('pos-source/kbl-jewel-ui.js','utf8').replaceAll('\r\n','\n');
+ const runtime=fs.readFileSync('windows/pos-compact-runtime.js','utf8').replaceAll('\r\n','\n').trim();
+ assert.equal(ui.split(marker).length,2,'A single presentation module must be packaged');
+ assert.equal((marker+ui.split(marker)[1]).trim(),runtime,'Source packaging must not restore the old layout over the installed fix');
+});

@@ -136,6 +136,7 @@ function srt(timings) { const time = t => { const n = Math.round(t * 1000); retu
     rows.push(`${rows.length + 1}\n${time(p[0].start)} --> ${time(p.at(-1).end)}\n${p.map(w => w.text).join(' ')}\n`);
 } return rows.join('\n'); }
 async function render({ job, lease, bridge, config, workDir }) {
+    job = structuredClone(job);
     const tools = preflight(config);
     if (!tools.ready)
         throw Error('Chưa tìm thấy FFmpeg/ffprobe và node-edge-tts. Đặt bộ mới trong thư mục worker hiện tại hoặc khai báo existingWorkerDir.');
@@ -146,8 +147,11 @@ async function render({ job, lease, bridge, config, workDir }) {
     if (!/^[a-zA-Z0-9_-]{1,100}$/.test(storyId || '')) throw Error('Mã hồ sơ dựng không hợp lệ.');
     // Each immutable set of inputs has its own directory. A revised script or
     // image must never reuse the previous video just because storyId matches.
-    const renderer = tools.remotion && tools.chrome && config.renderer !== 'ffmpeg' ? 'remotion' : 'ffmpeg';
-    const inputHash = crypto.createHash('sha256').update(JSON.stringify({ version: 5, renderer, kind:job.context.story?.kind, company:job.context.company,products:job.context.story?.productSnapshots||null,images: images.map(x => x.assetId), script: write.script, voice: voice.VOICE, rate: captions.pace(write.script), width: 1080, height: 1920, fps: renderer === 'remotion' ? 30 : 24, font: process.platform === 'win32' ? 'Arial' : 'DejaVu Sans' })).digest('hex');
+    const snapshotCards = job.context.story?.kind === 'gold' || !!job.context.story?.productSnapshots;
+    // Gold/product videos contain the complete approved card. News keeps its
+    // existing renderer; no live-price lookup can replace a card mid-render.
+    const renderer = !snapshotCards && tools.remotion && tools.chrome && config.renderer !== 'ffmpeg' ? 'remotion' : 'ffmpeg';
+    const inputHash = crypto.createHash('sha256').update(JSON.stringify({ version: 5, ...(snapshotCards ? { cardTheme: require('./cards.cjs').THEME_VERSION, captionTheme: 1 } : {}), renderer, kind:job.context.story?.kind, company:job.context.company,products:job.context.story?.productSnapshots||null,images: images.map(x => x.assetId), script: write.script, voice: voice.VOICE, rate: captions.pace(write.script), width: 1080, height: 1920, fps: renderer === 'remotion' ? 30 : 24, font: process.platform === 'win32' ? 'Arial' : 'DejaVu Sans' })).digest('hex');
     const dir = path.join(workDir, storyId, inputHash);
     fs.mkdirSync(dir, { recursive: true });
     for (let i = 0; i < images.length; i++) {
@@ -170,6 +174,7 @@ async function render({ job, lease, bridge, config, workDir }) {
     let ass = captions.ass(speech.timings, duration, false);
     if (process.platform === 'win32')
         ass = ass.replace(/DejaVu Sans/g, 'Arial');
+    if (snapshotCards) ass = ass.replace(/^Style: News,.*$/m, 'Style: News,Arial,42,&H002D4D9B,&H00432C10,&H00FBFDFF,&HFFFBFDFF,1,0,0,0,100,100,0,0,1,0,0,2,80,80,142,1');
     fs.writeFileSync(path.join(dir, 'captions.ass'), ass, 'utf8');
     const output = path.join(dir, 'video.mp4'), receiptFile = path.join(dir, 'render-receipt.json'), half = duration / images.length;
     const building = path.join(dir, renderer === 'remotion' ? 'video.remotion.mp4' : 'video.building.mp4');
@@ -193,7 +198,7 @@ async function render({ job, lease, bridge, config, workDir }) {
             const maxRate = Math.max(650000, Math.min(2400000, Math.round(159000000 / duration - 128000))), bitrate = Math.round(maxRate / 1000) + 'k';
             await run(process.execPath, [tools.remotion.cli, 'render', path.join(sourceDir, 'index.ts'), 'KBLVideo', building, '--props=' + propsFile, '--public-dir=' + dir, '--codec=h264', '--video-bitrate=' + bitrate, '--audio-bitrate=128k', '--concurrency=2', '--browser-executable=' + tools.chrome, '--log=error'], tools.remotion.dir, 45);
         } else {
-            const scenes=images.map((_,i)=>`[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:white,setsar=1,fps=24[v${i}]`).join(';'),filter=scenes+';'+images.map((_,i)=>`[v${i}]`).join('')+`concat=n=${images.length}:v=1:a=0,subtitles=captions.ass[v]`;
+            const filter = portraitFilter(images.length, snapshotCards) + ',subtitles=captions.ass[v]';
             await run(tools.ffmpeg, ['-y', '-nostdin', ...sceneFiles.flatMap(file=>['-loop','1','-t',String(half),'-i',file]), '-i', 'voice.mp3', '-filter_complex', filter, '-map', '[v]', '-map', images.length+':a', '-c:v', 'libx264', '-threads', '2', '-preset', 'veryfast', '-crf', '25', '-maxrate', '1200k', '-bufsize', '2400k', '-c:a', 'aac', '-b:a', '128k', '-pix_fmt', 'yuv420p', '-af', 'apad', '-t', String(duration), '-movflags', '+faststart', 'video.building.mp4'], dir);
         }
     }
@@ -209,4 +214,8 @@ async function render({ job, lease, bridge, config, workDir }) {
     const posterIds=[];for(const file of posterFiles)posterIds.push(await upload(file,'image/jpeg','social-card'));
     return { ...(posterIds.length?{posterIds}:job.context.story?.kind==='gold'?{posterIds:[images[0].assetId]}:{}),videoId: await upload(output, 'video/mp4', 'video-temp'), audioId: await upload(path.join(dir, 'voice.mp3'), 'audio/mpeg', 'audio'), captionsId: await upload(path.join(dir, 'captions.srt'), 'application/x-subrip', 'captions'), duration: Number(meta.format.duration), width: 1080, height: 1920, voiceProfile: speech.voiceProfile, timingMode: speech.timingMode };
 }
-module.exports = { render, preflight, toolsFor, srt, remotionProps };
+function portraitFilter(count, snapshotCards = true) {
+    const background = snapshotCards ? require('./cards.cjs').THEME.paper : 'white';
+    return Array.from({ length: count }, (_, i) => `[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:${background},setsar=1,fps=24[v${i}]`).join(';') + ';' + Array.from({ length: count }, (_, i) => `[v${i}]`).join('') + `concat=n=${count}:v=1:a=0`;
+}
+module.exports = { render, preflight, toolsFor, srt, remotionProps, portraitFilter };

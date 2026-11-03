@@ -8,7 +8,7 @@ export default function SocialConnections() {
  const oauthLock=useRef(false),intentConsumed=useRef(false);
  async function load(){try{const [status,providers,publication]=await Promise.all([api('admin/social/status'),api('admin/social/providers'),api('admin/publication-config')]);setState({...status,...providers,publication});setError('');}catch(e:any){setError(e.message);}}
  async function loadBindings(){try{const v=await api('admin/inbox');setBindings(v.bindings||[]);}catch{}}
- useEffect(()=>{load();loadBindings();const timer=setInterval(load,15000);return()=>clearInterval(timer);},[]);
+ useEffect(()=>{load();loadBindings();const timer=setInterval(()=>{if(!document.hidden)void load();},30000);return()=>clearInterval(timer);},[]);
  async function run(fn:()=>Promise<any>){setBusy(true);setError('');try{await fn();await load();await loadBindings();}catch(e:any){setError(e.message);}finally{setBusy(false);}}
  async function connect(platform:string,inbox=enableInbox){
   if(oauthLock.current)return;oauthLock.current=true;setOAuth({platform,pending:true});

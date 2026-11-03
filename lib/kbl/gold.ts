@@ -1,5 +1,6 @@
 import { publicationPlan } from './publication-plan';
 import { sql, get, list, settings, sha, id } from './store';
+import {oldestUnfinishedStoryId,UNFINISHED_STORY_WHERE} from './story-order';
 
 const CODES = ['9999', '980', '750', '610', '585', '416'];
 const PRICE_URL = 'https://tiemvangkimbaolam.id.vn/bang-gia';
@@ -45,16 +46,45 @@ export async function captureGoldSlot(at = Date.now()) {
     if (existing.captured_at !== null) return { captured: true, duplicate: true, storyId: JSON.parse(existing.data).storyId, slot };
     const snapshot = await currentSnapshot(at);
     if (!snapshot) return { waiting: true, reason: 'awaiting-fresh-pos-price', slot };
+    return seedGoldEdition(slot,snapshot,at);
+}
+
+// Price changes during a story are coalesced into the latest *real* quote.
+// Only a finished publication queue can start this follow-up; old snapshots,
+// jobs, assets and receipts are never replaced by a newer price.
+export async function captureGoldFollowup(at=Date.now()) {
+    const cfg=await settings();
+    if(!cfg.teamEnabled||!cfg.publicationEnabled||await oldestUnfinishedStoryId('gold'))return {waiting:true,reason:'awaiting-publication-receipts'};
+    const row=await sql().prepare("SELECT id,data FROM records WHERE kind='story' AND json_extract(data,'$.kind')='gold' ORDER BY created_at DESC,id DESC LIMIT 1").first<any>();
+    if(!row)return {waiting:true,reason:'awaiting-first-scheduled-edition'};
+    const previous=JSON.parse(row.data);
+    if(previous.status!=='published'||!Array.isArray(previous.priceSnapshot?.rows))return {waiting:true,reason:'awaiting-gold-publication'};
+    const receipt=await sql().prepare("SELECT id FROM receipts WHERE story_id=? AND platform='website' AND external_id<>'' AND url<>''").bind(row.id).first<any>();
+    const completed=await sql().prepare("SELECT id FROM jobs WHERE story_id=? AND stage='publish' AND status='complete'").bind(row.id).first<any>();
+    if(!receipt||!completed)return {waiting:true,reason:'awaiting-publication-receipts'};
+    const snapshot=await currentSnapshot(at);if(!snapshot)return {waiting:true,reason:'awaiting-fresh-pos-price'};
+    const signature=(rows:any[])=>JSON.stringify(rows.map(({code,buy,sell,unit})=>({code,buy,sell,unit})).sort((a,b)=>a.code.localeCompare(b.code)));
+    const value=signature(snapshot.rows);if(value===signature(previous.priceSnapshot.rows))return {waiting:true,reason:'quote-unchanged'};
+    const cap=await sql().prepare("SELECT COUNT(*) n FROM records WHERE kind='story'").first<any>();if(cap.n>=1000)return {waiting:true,reason:'story-quota'};
+    const slot='change:'+row.id+':'+(await sha(value)).slice(0,32);
+    await sql().prepare("INSERT OR IGNORE INTO editions(id,kind,data,created_at) VALUES(?,'gold',?,?)").bind(slot,JSON.stringify({status:'awaiting-price',slot}),at).run();
+    const existing=await sql().prepare('SELECT captured_at,data FROM editions WHERE id=?').bind(slot).first<any>();
+    if(existing?.captured_at!=null)return {captured:true,duplicate:true,storyId:JSON.parse(existing.data).storyId,slot};
+    return seedGoldEdition(slot,snapshot,at,row.id);
+}
+
+async function seedGoldEdition(slot:string,snapshot:any,at:number,followupOf?:string) {
     const storyId = (await sha('KBL-GOLD:' + slot)).slice(0, 32), marker = id();
     const label = new Date(at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
     const title = 'Bản tin giá vàng · ' + label;
-    const story = { title, topic: 'Bản tin giá vàng cửa hàng từ bản chụp POS chỉ đọc. Nêu đúng giá mua/bán đồng/chỉ, tuổi vàng, thời điểm quan sát. Không bịa lịch sử, nguyên nhân hoặc dự báo đầu tư. Giá đã chốt phải được giữ nguyên cho đến khi hoàn thành.', sourceUrl: PRICE_URL, ...await publicationPlan(), status: 'working', kind: 'gold', editionSlot: slot, editionAt: at, priceSnapshot: snapshot };
+    const story = { title, topic: 'Bản tin giá vàng cửa hàng từ bản chụp POS chỉ đọc. Nêu đúng giá mua/bán đồng/chỉ, tuổi vàng, thời điểm quan sát. Không bịa lịch sử, nguyên nhân hoặc dự báo đầu tư. Giá đã chốt phải được giữ nguyên cho đến khi hoàn thành.', sourceUrl: PRICE_URL, ...await publicationPlan(), status: 'working', kind: 'gold', editionSlot: slot, editionAt: at, priceSnapshot: snapshot, ...(followupOf?{followupOf}:{}) };
     const excerpt = 'Bản chụp giá chỉ đọc do POS Kim Bảo Lâm đồng bộ, đơn vị đồng/chỉ. Quan sát lúc ' + new Date(snapshot.observedAt).toISOString() + '. ' + snapshot.rows.map((r: any) => `${r.label}: mua ${r.buy}, bán ${r.sell} ${r.unit}`).join('; ') + '. Không có dữ liệu so sánh lịch sử hoặc dự báo.';
     const research = { items: [{ title, url: PRICE_URL, excerpt, publishedAt: new Date(snapshot.observedAt).toISOString() }], evidenceKind: 'pos-price-snapshot', sourceEvidence: [{ kind: 'pos-price-snapshot', verifiedBy: 'pos-import-contract', url: PRICE_URL, contentHash: await sha(JSON.stringify(snapshot)), ...snapshot }], priceSnapshot: snapshot, capturedAt: at };
     const edition = { status: 'captured', slot, storyId, captureMarker: marker, priceSnapshot: snapshot };
     const guard = "EXISTS(SELECT 1 FROM editions WHERE id=? AND json_extract(data,'$.captureMarker')=?)";
+    const followupGuard=followupOf?" AND EXISTS(SELECT 1 FROM jobs WHERE story_id=? AND stage='publish' AND status='complete') AND EXISTS(SELECT 1 FROM receipts WHERE story_id=? AND platform='website' AND external_id<>'' AND url<>'') AND NOT EXISTS(SELECT 1 FROM records s WHERE "+UNFINISHED_STORY_WHERE+" AND json_extract(s.data,'$.kind')='gold')":'';
     const saved = await sql().batch([
-        sql().prepare("UPDATE editions SET captured_at=?,data=? WHERE id=? AND kind='gold' AND captured_at IS NULL AND NOT EXISTS(SELECT 1 FROM records WHERE kind='story' AND id=?) AND (SELECT COUNT(*) FROM records WHERE kind='story')<1000 AND EXISTS(SELECT 1 FROM records WHERE kind='pos-sync' AND id='price' AND json_extract(data,'$.revision')=? AND json_extract(data,'$.digest')=? AND json_extract(data,'$.receivedAt')=? AND json_extract(data,'$.workerId')=?) AND EXISTS(SELECT 1 FROM records WHERE kind='pos-binding' AND id='main' AND json_extract(data,'$.workerId')=?) AND EXISTS(SELECT 1 FROM records WHERE kind='settings' AND id='main' AND json_extract(data,'$.teamEnabled')=1)").bind(at, JSON.stringify(edition), slot, storyId, snapshot.revision, snapshot.digest, snapshot.syncedAt, snapshot.workerId, snapshot.workerId),
+        sql().prepare("UPDATE editions SET captured_at=?,data=? WHERE id=? AND kind='gold' AND captured_at IS NULL AND NOT EXISTS(SELECT 1 FROM records WHERE kind='story' AND id=?) AND (SELECT COUNT(*) FROM records WHERE kind='story')<1000 AND EXISTS(SELECT 1 FROM records WHERE kind='pos-sync' AND id='price' AND json_extract(data,'$.revision')=? AND json_extract(data,'$.digest')=? AND json_extract(data,'$.receivedAt')=? AND json_extract(data,'$.workerId')=?) AND EXISTS(SELECT 1 FROM records WHERE kind='pos-binding' AND id='main' AND json_extract(data,'$.workerId')=?) AND EXISTS(SELECT 1 FROM records WHERE kind='settings' AND id='main' AND json_extract(data,'$.teamEnabled')=1)"+followupGuard).bind(at, JSON.stringify(edition), slot, storyId, snapshot.revision, snapshot.digest, snapshot.syncedAt, snapshot.workerId, snapshot.workerId,...(followupOf?[followupOf,followupOf]:[])),
         sql().prepare("INSERT INTO records(kind,id,data,created_at,updated_at) SELECT 'story',?,?,?,? WHERE " + guard).bind(storyId, JSON.stringify(story), at, at, slot, marker),
         sql().prepare("INSERT INTO jobs(id,story_id,stage,status,owner,result,result_hash,created_at,updated_at) SELECT ?,?,'research','complete','pos-readonly',?,?,?,? WHERE " + guard).bind(`KBL-${storyId}-research`, storyId, JSON.stringify(research), await sha(JSON.stringify(research)), at, at, slot, marker),
         sql().prepare("INSERT INTO jobs(id,story_id,stage,status,created_at,updated_at) SELECT ?,?,'write','queued',?,? WHERE " + guard).bind(`KBL-${storyId}-write`, storyId, at, at, slot, marker)

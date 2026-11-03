@@ -10,7 +10,7 @@ const { build } = createRequire(fs.realpathSync('node_modules/wrangler/package.j
 let G, P, POS, db;
 const env = {}, realFetch = globalThis.fetch, realNow = Date.now;
 const at = Date.parse('2026-10-27T01:02:00Z'); // 08:02 in Vietnam; fixtures only.
-const value = { price_buy_9999: 10000001, price_sell_9999: 10200003, price_buy_750: 7500001, price_sell_750: 7800003 };
+const value = { price_buy_9999: 10000001, price_sell_9999: 10200003,price_buy_980:9900001,price_sell_980:10100003,price_buy_610:6100001,price_sell_610:6500003, price_buy_750: 7500001, price_sell_750: 7800003 };
 function record(kind, id, data) { db.prepare('INSERT INTO records(kind,id,data,created_at,updated_at) VALUES(?,?,?,?,?)').run(kind, id, JSON.stringify(data), at, at); }
 function stored(kind, id) { const r = db.prepare('SELECT data FROM records WHERE kind=? AND id=?').get(kind, id); return r ? JSON.parse(r.data) : null; }
 function row(stage, story) { return db.prepare('SELECT * FROM jobs WHERE story_id=? AND stage=?').get(story, stage); }
@@ -60,9 +60,11 @@ test('fresh real POS import atomically seeds immutable gold story, internal evid
     assert.equal(row('research', result.storyId).owner, 'pos-readonly');
     assert.equal(row('write', result.storyId).status, 'queued');
     assert.equal(edition().captured_at, at);
-    const task = await claim(result.storyId, 'write', 'writer');
-    assert.equal(task.job.attempt, 1);
-    assert.match(task.job.prompt, /không phải bản tải HTTP/);
+    assert.equal((await claim(result.storyId, 'write', 'writer')).wait,true,'Gold must not enter Chrome writing');
+    await P.tick({housekeeping:false});
+    assert.equal(row('write',result.storyId).owner,'local-data-template');
+    assert.equal(row('review',result.storyId).owner,'local-data-validator');
+    assert.match(JSON.parse(row('write',result.storyId).result).summary,/10\.000\.001/);
     for (const offset of [5, 11]) {
         const later = at + offset * 3600000;
         Date.now = () => later;
@@ -162,22 +164,24 @@ test('a concurrent POS revision or paused team cannot capture a snapshot read be
     assert.equal(edition().captured_at, null);
 });
 
-test('gold story completes normal independent review, images and render after the hour with frozen quote, then cleans only temporary media', async () => {
+test('gold story completes local data checks, cards and video without Chrome, retaining a frozen quote and held news lease', async () => {
+    record('story','held-news',{kind:'news',status:'working'});
+    db.prepare("UPDATE records SET created_at=? WHERE id='held-news'").run(at-1000);
+    await P.ensureJob('held-news','image');
+    db.prepare("UPDATE jobs SET status='running',owner='news-creator',lease_hash='unchanged-news-lease' WHERE story_id='held-news'").run();
     await price();
     const { storyId } = await G.captureGoldSlot(at), original = stored('story', storyId).priceSnapshot;
-    const writing = { headline: 'Bản tin giá fixture chỉ kiểm thử', summary: 'Bản tin thử nghiệm chỉ kiểm tra luồng, không phải giá thật của cửa hàng hay nội dung xuất bản thực tế. '.repeat(2), script: 'Nội dung fixture cho kiểm thử giá chốt, không phải dữ liệu giao dịch hoặc khuyến nghị mua bán. '.repeat(3), sourceUrls: ['https://tiemvangkimbaolam.id.vn/bang-gia'] };
-    let task = await claim(storyId, 'write', 'writer');
-    await P.complete('win', task.job.id, task.lease, writing);
-    assert.equal((await claim(storyId, 'review', 'writer')).wait, true, 'Creator cannot self-review');
-    task = await claim(storyId, 'review', 'reviewer');
-    await P.complete('win', task.job.id, task.lease, { approved: true, reason: 'Fixture đã đối chiếu số liệu POS, đơn vị và thời điểm.' });
+    await P.tick({housekeeping:false});
+    assert.equal((await claim(storyId,'write','writer')).wait,true);
+    assert.equal((await claim(storyId,'review','reviewer')).wait,true);
+    assert.equal(row('review',storyId).owner,'local-data-validator');
     const images = ['a'.repeat(64), 'b'.repeat(64)];
     const asset = (id, mime, purpose) => db.prepare('INSERT INTO assets(id,story_id,mime,bytes,purpose,created_at) VALUES(?,?,?,?,?,?)').run(id, storyId, mime, 100, purpose, at);
     images.forEach(id => asset(id, 'image/png', 'news-image'));
-    task = await claim(storyId, 'image', 'writer');
+    let task = await claim(storyId, 'image', 'writer');
     await P.complete('win', task.job.id, task.lease, { rows: images.map(assetId => ({ assetId, caption: 'Ảnh fixture' })) });
-    task = await claim(storyId, 'image-review', 'reviewer');
-    await P.complete('win', task.job.id, task.lease, { approved: true, reason: 'Fixture: đã xem đúng hai ảnh minh họa.', inspectedAssetHashes: images });
+    assert.equal((await claim(storyId,'image-review','reviewer')).wait,true);
+    assert.equal(row('image-review',storyId).owner,'local-file-validator');
     const later = at + 2 * 3600000;
     Date.now = () => later;
     await price({ price_buy_9999: 14000000, price_sell_9999: 15000000 }, later - 1000, 2);
@@ -196,6 +200,21 @@ test('gold story completes normal independent review, images and render after th
     assert.equal(stored('article', storyId).editionAt, at);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM assets WHERE purpose IN('video-temp','audio','captions') AND deleted_at IS NOT NULL").get().n, 3);
     assert.equal(db.prepare("SELECT COUNT(*) n FROM assets WHERE mime='image/png' AND deleted_at IS NULL AND public=1").get().n, 2);
+    assert.equal(row('image','held-news').status,'running');assert.equal(row('image','held-news').lease_hash,'unchanged-news-lease');
+});
+
+test('gold changes wait for their own receipts but a held editorial image cannot block a new frozen gold edition',async()=>{
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationEnabled',json('true')) WHERE kind='settings'").run();
+ await price();const first=await G.captureGoldSlot(at);await P.ensureJob(first.storyId,'publish');finishGoldFixture(first.storyId);
+ record('story','editorial-held',{kind:'news',status:'working'});await P.ensureJob('editorial-held','image');
+ db.prepare("UPDATE jobs SET status='attention',owner='news-creator',lease_hash='keep-editorial' WHERE story_id='editorial-held'").run();
+ const later=at+120000;Date.now=()=>later;await price({...value,price_sell_9999:10900003},later,2);
+ const next=await G.captureGoldFollowup(later);assert.equal(next.captured,true);
+ assert.equal(stored('story',next.storyId).priceSnapshot.rows[0].sell,10900003);
+ assert.equal(row('image','editorial-held').lease_hash,'keep-editorial');
+ assert.equal((await G.captureGoldFollowup(later+1)).reason,'awaiting-publication-receipts');
+ const task=await P.promptFor({...row('write',next.storyId),stage:'image-review'});
+ assert.match(task.prompt,/hai thẻ bảng giá do Windows dựng/);assert.doesNotMatch(task.prompt,/Tạo hai ảnh minh họa gốc/);
 });
 
 test('new gold editions freeze selected publication connection without changing earlier captured stories', async () => {
@@ -209,4 +228,132 @@ test('new gold editions freeze selected publication connection without changing 
     const again=await G.captureGoldSlot(at);
     assert.equal(again.storyId,result.storyId);
     assert.equal(stored('story',result.storyId).publicationConnections.telegram,connection);
+});
+
+test('a website receipt does not unlock the next story while selected-channel publication is still pending',async()=>{
+ record('story','first',{kind:'gold',status:'published',platforms:['website','telegram'],priceSnapshot:{rows:[{sell:10200003}]}});
+ await P.ensureJob('first','publish');
+ db.prepare("INSERT INTO receipts(id,story_id,platform,variant,external_id,url,at) VALUES('first:website','first','website','website','first','/tin-tuc/first',?)").run(at);
+ record('story','second',{kind:'gold',status:'working',editionAt:at+1});
+ db.prepare("UPDATE records SET created_at=? WHERE kind='story' AND id='second'").run(at+1);
+ await P.ensureJob('second','image');
+ assert.equal((await claim('second','image')).wait,true);
+ assert.equal((await P.publishWebsite('second')).waiting,true);
+ assert.equal(row('image','second').attempt,0);
+ db.prepare("INSERT INTO receipts(id,story_id,platform,variant,external_id,url,at) VALUES('first:telegram','first','telegram','video','fixture-receipt','https://t.me/fixture/1',?)").run(at);
+ db.prepare("UPDATE jobs SET status='complete' WHERE story_id='first' AND stage='publish'").run();
+ assert.equal((await claim('second','image')).job.storyId,'second');
+ assert.equal(stored('story','first').priceSnapshot.rows[0].sell,10200003);
+});
+
+test('connected image browsers can cover news even with a Gemini API key, with no parallel API dispatch',async()=>{
+ env.GEMINI_API_KEY='FIXTURE-NOT-A-KEY';
+ try{
+ record('story','news-browser',{kind:'news',status:'working',title:'Fixture only'});
+ db.prepare("UPDATE records SET data=json_set(data,'$.paired',json('true'),'$.status','ready','$.lastSeen',?) WHERE kind='account' AND id='writer'").run(at);
+ await P.ensureJob('news-browser','image');
+ await P.tick({housekeeping:false}); // fake fetch throws if any provider is called
+ assert.equal(row('image','news-browser').status,'queued');
+ assert.equal((await P.claim('win','writer',[],row('image','news-browser').id)).job.stage,'image');
+ }finally{delete env.GEMINI_API_KEY;}
+});
+
+test('a busy creator does not reserve the next compatible task; another provider can cover without resending the held job',async()=>{
+ record('story','shared',{kind:'news',status:'working',title:'Fixture only'});
+ record('account','cover',{workerId:'win',enabled:true,provider:'gemini',roles:['write','image'],paired:true,status:'ready',lastSeen:at});
+ await P.ensureJob('shared','write');await P.ensureJob('shared','image');
+ db.prepare("UPDATE jobs SET status='running',owner='writer',lease_hash='held-fixture',lease_until=? WHERE story_id='shared' AND stage='write'").run(at+60000);
+ assert.equal((await P.claim('win','writer',[],row('image','shared').id)).wait,true);
+ assert.equal((await P.claim('win','cover',[],row('image','shared').id)).job.stage,'image');
+ assert.equal(row('write','shared').lease_hash,'held-fixture');
+ assert.equal(row('write','shared').status,'running');
+});
+
+test('scheduled outlook is retained behind a backlog, deduped and grounded in events affecting gold',async()=>{
+ for(let i=0;i<5;i++)record('story','backlog-'+i,{kind:'news',status:'working'});
+ Date.now=()=>Date.parse('2026-10-27T11:31:00Z'); // 18:31 Vietnam
+ await P.tick({housekeeping:false});await P.tick({housekeeping:false});
+ const rows=db.prepare("SELECT id,data FROM records WHERE kind='story' AND json_extract(data,'$.kind')='outlook'").all();
+ assert.equal(rows.length,1);
+ const story=JSON.parse(rows[0].data);assert.match(story.topic,/Fed, CPI, việc làm, USD/);
+ const prompt=await P.promptFor(row('research',rows[0].id));
+ assert.match(prompt.prompt,/sự kiện kinh tế sắp công bố/);
+ assert.equal((await P.claim('win','writer',[],row('research',rows[0].id).id)).wait,true);
+});
+
+function finishGoldFixture(storyId){
+ db.prepare("UPDATE records SET data=json_set(data,'$.status','published') WHERE kind='story' AND id=?").run(storyId);
+ db.prepare("UPDATE jobs SET status='complete' WHERE story_id=?").run(storyId);
+ db.prepare("INSERT INTO receipts(id,story_id,platform,variant,external_id,url,at) VALUES(?,?,'website','website',?,?,?)").run(storyId+':website',storyId,storyId,'/tin-tuc/'+storyId,Date.now());
+}
+test('changed quotes are coalesced only after all prior receipts; the old running quote stays immutable',async()=>{
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationEnabled',json('true')) WHERE kind='settings'").run();
+ await price();const first=await G.captureGoldSlot(at),original=stored('story',first.storyId).priceSnapshot;
+ const later=at+120000;Date.now=()=>later;
+ await price({...value,price_sell_9999:10300003},later,2);
+ assert.equal((await G.captureGoldFollowup(later)).waiting,true);
+ assert.deepEqual(stored('story',first.storyId).priceSnapshot,original);
+ await P.ensureJob(first.storyId,'publish');finishGoldFixture(first.storyId);
+ const changes=await Promise.all([G.captureGoldFollowup(later),G.captureGoldFollowup(later)]);
+ assert.equal(changes.every(x=>x.captured),true);
+ assert.equal(changes[0].storyId,changes[1].storyId);
+ const second=stored('story',changes[0].storyId);assert.equal(second.followupOf,first.storyId);
+ assert.equal(second.priceSnapshot.rows[0].sell,10300003);
+ assert.equal(db.prepare("SELECT COUNT(*) n FROM records WHERE kind='story'").get().n,2);
+ assert.deepEqual(stored('story',first.storyId).priceSnapshot,original);
+ await price({...value,price_sell_9999:10400003},later+1,3);
+ assert.equal((await G.captureGoldFollowup(later+1)).waiting,true);
+ assert.equal(stored('story',second.id||changes[0].storyId).priceSnapshot.rows[0].sell,10300003);
+});
+
+test('unchanged observations and stale prices cannot create follow-up news',async()=>{
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationEnabled',json('true')) WHERE kind='settings'").run();
+ await price();const first=await G.captureGoldSlot(at);await P.ensureJob(first.storyId,'publish');finishGoldFixture(first.storyId);
+ const later=at+3600000;Date.now=()=>later;
+ await price(value,later,2);
+ assert.equal((await G.captureGoldFollowup(later)).reason,'quote-unchanged');
+ await price({...value,price_sell_9999:10500003},later-360000,3);
+ assert.equal((await G.captureGoldFollowup(later)).reason,'awaiting-fresh-pos-price');
+ assert.equal(db.prepare("SELECT COUNT(*) n FROM records WHERE kind='story'").get().n,1);
+});
+
+test('follow-up capture rechecks prior publication receipts atomically before creating any job',async()=>{
+ db.prepare("UPDATE records SET data=json_set(data,'$.publicationEnabled',json('true')) WHERE kind='settings'").run();
+ await price();const first=await G.captureGoldSlot(at);await P.ensureJob(first.storyId,'publish');finishGoldFixture(first.storyId);
+ const later=at+120000;Date.now=()=>later;await price({...value,price_sell_9999:10600003},later,2);
+ const batch=env.DB.batch;env.DB.batch=statements=>{env.DB.batch=batch;db.prepare("UPDATE jobs SET status='queued' WHERE story_id=? AND stage='publish'").run(first.storyId);return batch(statements);};
+ assert.equal((await G.captureGoldFollowup(later)).waiting,true);
+ assert.equal(db.prepare("SELECT COUNT(*) n FROM records WHERE kind='story'").get().n,1);
+ assert.equal(db.prepare("SELECT COUNT(*) n FROM jobs WHERE story_id<>?").get(first.storyId).n,0);
+});
+
+test('published POS product set fills local copy, verifies original images and renders without any Chrome assignment',async()=>{
+ db.prepare("UPDATE records SET data=json_set(data,'$.autoProducts',json('true'),'$.publicationEnabled',json('true')) WHERE kind='settings'").run();
+ record('pos-sync','product',{receivedAt:at});
+ const originals=['1','2','3'].map(x=>x.repeat(64));
+ for(let i=0;i<3;i++){
+  record('product','fixture-product-'+i,{source:'pos',sku:'FIXTURE-'+i,name:'Món fixture '+i,purity:'610',weight:3.75+i,price:1000000+i,imageIds:[originals[i]],published:true,available:true});
+  db.prepare("INSERT INTO assets(id,mime,bytes,purpose,created_at) VALUES(?,'image/jpeg',100,'product',?)").run(originals[i],at);
+ }
+ await P.tick({housekeeping:false});
+ const s=db.prepare("SELECT id,data FROM records WHERE kind='story' AND json_extract(data,'$.kind')='product'").get();assert.ok(s);
+ assert.equal(row('write',s.id).owner,'local-data-template');assert.equal(row('review',s.id).owner,'local-data-validator');assert.equal(row('image-review',s.id).owner,'local-file-validator');
+ assert.deepEqual(JSON.parse(row('image',s.id).result).rows.map(r=>r.assetId),originals);
+ assert.equal((await claim(s.id,'write','writer')).wait,true);assert.equal((await claim(s.id,'image-review','reviewer')).wait,true);
+ const task=await claim(s.id,'render');assert.equal(task.job.stage,'render');
+ const ids=['4','5','6','7','8','9'].map(x=>x.repeat(64));
+ for(let i=0;i<ids.length;i++)db.prepare('INSERT INTO assets(id,story_id,mime,bytes,purpose,created_at) VALUES(?,?,?,?,?,?)').run(ids[i],s.id,i===0?'video/mp4':i===1?'audio/mpeg':i===2?'text/plain':'image/jpeg',100,i===0?'video-temp':i===1?'audio':i===2?'captions':'news-image',at);
+ await P.complete('win',task.job.id,task.lease,{videoId:ids[0],audioId:ids[1],captionsId:ids[2],posterIds:ids.slice(3),duration:45,width:1080,height:1920});
+ await P.tick({housekeeping:false});
+ assert.equal(stored('story',s.id).status,'published');assert.deepEqual(stored('article',s.id).images.map(i=>i.assetId),ids.slice(3));
+ assert.equal(db.prepare('SELECT public FROM assets WHERE id=?').get(ids[3]).public,1);assert.equal(db.prepare('SELECT deleted_at FROM assets WHERE id=?').get(originals[0]).deleted_at,null);
+});
+
+test('local fill refuses altered snapshot and never replaces an already leased Chrome result',async()=>{
+ await price();const s=await G.captureGoldSlot(at);
+ db.prepare("UPDATE jobs SET status='running',owner='held-owner',lease_hash='keep-lease' WHERE story_id=? AND stage='write'").run(s.storyId);
+ await P.tick({housekeeping:false});assert.equal(row('write',s.storyId).owner,'held-owner');assert.equal(row('write',s.storyId).lease_hash,'keep-lease');assert.equal(row('review',s.storyId),undefined);
+ db.prepare("UPDATE jobs SET status='queued',owner=NULL,lease_hash=NULL WHERE story_id=? AND stage='write'").run(s.storyId);
+ db.prepare("UPDATE records SET data=json_set(data,'$.priceSnapshot.rows[0].sell',77777777) WHERE kind='story' AND id=?").run(s.storyId);
+ await P.tick({housekeeping:false});assert.equal(row('write',s.storyId).status,'queued');assert.equal(row('review',s.storyId),undefined);
 });

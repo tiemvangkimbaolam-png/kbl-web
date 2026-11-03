@@ -1,6 +1,11 @@
 import {recordTraffic,trafficSummary} from './traffic';
 import {readTVDesign,saveTVDesign} from './tv-design-api';
 import {handleCustomer} from './customer';
+import {handleHoldings} from './holdings';
+import {handleCustomerPlans} from './customer-plans';
+import {readShopPrices,SHOP_ADDRESS} from './shop-prices';
+import {publicRead} from './public-cache.mjs';
+import {publicPrices} from './public-prices';
 import {handleTryOn} from './tryon';
 import {handleCustomerAdmin} from './customer-admin';
 import {submitFeedback} from './feedback';
@@ -15,9 +20,9 @@ import { env } from 'cloudflare:workers';
 import { z } from 'zod';
 import * as S from './store';
 import * as P from './pipeline';
+import {unfinishedPublicationHeads} from './story-order';
 import * as POS from './pos';
 import { admin, worker } from './auth';
-import { assistantState } from './assistant-state.mjs';
 import { readVcbRate, readWorldMarket } from './market.mjs';
 import { bindingHealth } from './health.mjs';
 import { accountInput, productInput, text, money, fail, httpsURL, PROVIDER_URLS } from './domain.mjs';
@@ -29,9 +34,8 @@ async function body(req: Request, max = 100000) { if (!req.headers.get('content-
 async function rate(req: Request, scope: string, max = 12) { const key = await S.sha((req.headers.get('cf-connecting-ip') || 'unknown') + ':' + scope + ':' + Math.floor(Date.now() / 3600000)); const r = await S.sql().prepare('INSERT INTO records(kind,id,data,created_at,updated_at) VALUES(\'rate\',?,\'1\',?,?) ON CONFLICT(kind,id) DO UPDATE SET data=CAST(CAST(records.data AS INTEGER)+1 AS TEXT) RETURNING data').bind(key, Date.now(), Date.now()).first<any>(); if (Number(r.data) > max)
     fail('Đã nhận nhiều yêu cầu; thử lại sau.', 429); }
 async function readAssistantState(cfg?: any) {
-    const [settings, accounts, workers] = await Promise.all([cfg || S.settings(), S.list('account', 20), S.list('worker', 20)]);
-    if (apiConsultReady() && settings.autoConsult !== false) return { enabled: true, available: true, state: 'ready', message: 'Đã cấu hình AI tư vấn qua máy chủ.' };
-    return assistantState(settings, accounts, workers);
+    const settings = cfg || await S.settings(),enabled=settings.autoConsult!==false,available=enabled&&apiConsultReady();
+    return {enabled,available,state:!enabled?'disabled':available?'ready':'waiting-api',message:!enabled?'Tư vấn AI đang tạm dừng.':available?'Tư vấn qua API Groq/Gemini; không giao cho Chrome.':'Đã lưu câu hỏi; chờ API Groq/Gemini hoặc cửa hàng trả lời.'};
 }
 async function assetResponse(req: Request, aid: string) { const a = await S.sql().prepare('SELECT * FROM assets WHERE id=? AND deleted_at IS NULL').bind(aid).first<any>(); if (!a)
     fail('File không còn trên máy chủ.', 404); if (!a.public)
@@ -91,17 +95,21 @@ export async function handle(req: Request): Promise<Response> {
         if (path[0] === 'public') {
             if(path[1]==='fx'&&method==='GET')return response(await readVcbRate());
             if(path[1]==='traffic'&&method==='POST'){await rate(req,'traffic',120);return response(await recordTraffic(await body(req,1500)));}
-            if(path[1]==='tv-design'&&method==='GET')return response(await readTVDesign());
+            if(path[1]==='tv-design'&&method==='GET')return response(await publicRead('tv-design',readTVDesign));
+            if(path[1]==='prices'&&method==='GET')return response(await publicPrices(u.searchParams.get('view')==='tv'));
+            if(path[1]==='customer-plans')return await handleCustomerPlans(req,path.slice(2));
+            if(path[1]==='holdings')return await handleHoldings(req,path.slice(2));
             if(path[1]==='customer')return await handleCustomer(req,path.slice(2));
             if(path[1]==='try-on')return await handleTryOn(req,path.slice(2));
             if(path[1]==='feedback'&&method==='POST')return await submitFeedback(req);
-            if(path[1]==='price-history'&&method==='GET')return response(await readPriceHistory(Number(u.searchParams.get('days')||7)));
+            if(path[1]==='price-history'&&method==='GET')return response(await readPriceHistory(Number(u.searchParams.get('days')||7),u.searchParams.get('series')||'all'));
             if (method === 'GET' && path[1] === 'market')
                 return response(await readWorldMarket());
             if (method === 'GET' && path[1] === 'catalog') {
+                return response(await publicRead('catalog',async()=>{
                 const cfg = await S.settings();
-                const posBound = await POS.locked(), cloudPrice = await publicCloudPrices();
-                return response({ cloudPrice, assistant: await readAssistantState(cfg), products: (await S.list('product', 500)).filter((p: any) => p.published && p.available && (!posBound || p.source === 'pos')), articles: await S.list('article', 30), prices: cloudPrice.active ? cloudPrice.prices : (await S.list('price', 40)).filter((p: any) => !posBound || p.id.startsWith('pos-')), company: { name: cfg.companyName, phone: cfg.phone, address: cfg.address, hours: cfg.hours }, posBound, connected: true });
+                const shop=await readShopPrices(),posBound=shop.bound,cloudPrice=shop.cloudPrice;
+                return { cloudPrice, assistant: await readAssistantState(cfg), products: (await S.list('product', 500)).filter((p: any) => p.published && p.available && (!posBound || p.source === 'pos')), articles: await S.list('article', 30), prices:shop.prices,priceSnapshot:shop.snapshotId,priceSource:shop.source, company: { name: cfg.companyName, phone: cfg.phone, address: SHOP_ADDRESS, hours: cfg.hours }, posBound, connected: true };}));
             }
             if (method === 'GET' && path[1] === 'article') {
                 const a = await S.get('article', path[2]);
@@ -155,10 +163,7 @@ export async function handle(req: Request): Promise<Response> {
                 }
                 const pendingQuestion = await S.get('consultation',threadId);
                 if (pendingQuestion.status === 'api-processing') await S.put('consultation',threadId,{...pendingQuestion,status:'awaiting-reply'},pendingQuestion.version);
-                if (assistant.enabled) {
-                    try { await P.ensureJob(threadId, 'consult'); queued = true; }
-                    catch { /* Saved privately; the scheduled tick can recover its idempotent job. */ }
-                }
+                queued = assistant.enabled;
                 return response({ id: threadId, token, queued, assistant, message: 'Đã lưu câu hỏi. ' + assistant.message }, 201);
             }
             if (method === 'GET' && path[1] === 'consult' && path[2]) {
@@ -192,12 +197,23 @@ export async function handle(req: Request): Promise<Response> {
                 }
             }
             if (method === 'GET' && path[1] === 'state') {
-                const [cfg, accounts, workers, products, stories, prices, orders, consultations, channels, commands, jobs, events, receipts, storage, editions, aiHealth] = await Promise.all([S.settings(), S.list('account', 20), S.list('worker', 20), S.list('product', 500), S.list('story', 80), S.list('price', 40), S.list('order', 100), S.list('consultation', 100), S.list('channel', 20), S.list('command', 30), S.sql().prepare('SELECT id,story_id,stage,status,owner,exclude_account,lease_until,attempt,error,created_at,updated_at FROM jobs ORDER BY created_at DESC LIMIT 250').all(), S.sql().prepare('SELECT * FROM events ORDER BY id DESC LIMIT 80').all(), S.sql().prepare('SELECT * FROM receipts ORDER BY at DESC LIMIT 100').all(), S.sql().prepare('SELECT COALESCE(SUM(bytes),0) bytes,COUNT(*) files FROM assets WHERE deleted_at IS NULL').first(), S.sql().prepare('SELECT * FROM editions ORDER BY created_at DESC LIMIT 12').all(), S.list('ai-provider-health', 5)]);
+                const view=u.searchParams.get('view');
+                const views=['tong-quan','seo','ai-team','san-pham','bang-gia','noi-dung','don-hang','tu-van','khach-hang','ket-noi','luu-tru','cai-dat'];
+                if(view&&!views.includes(view))fail('Màn hình quản trị chưa hợp lệ.',400);
+                const needs=(...names:string[])=>!view||names.includes(view);
+                const rows=(kind:string,limit:number,...names:string[])=>needs(...names)?S.list(kind,limit):Promise.resolve([]);
+                const query=(q:string,...names:string[])=>needs(...names)?S.sql().prepare(q).all():Promise.resolve({results:[]});
+                const [cfg, accounts, workers, products, stories, prices, orders, consultations, channels, commands, jobs, events, receipts, storage, editions, aiHealth] = await Promise.all([
+                    S.settings(),S.list('account',20),S.list('worker',20),rows('product',500,'san-pham'),rows('story',80,'tong-quan','ai-team','noi-dung'),rows('price',40,'bang-gia'),rows('order',100,'don-hang'),rows('consultation',100,'tu-van'),rows('channel',20,'ket-noi'),rows('command',30,'ai-team','ket-noi'),
+                    query('SELECT id,story_id,stage,status,owner,exclude_account,lease_until,attempt,error,created_at,updated_at FROM jobs ORDER BY created_at DESC LIMIT 250','tong-quan','ai-team','noi-dung'),
+                    query('SELECT * FROM events ORDER BY id DESC LIMIT 80','tong-quan','ai-team'),query('SELECT * FROM receipts ORDER BY at DESC LIMIT 100','noi-dung'),
+                    needs('luu-tru')?S.sql().prepare('SELECT COALESCE(SUM(bytes),0) bytes,COUNT(*) files FROM assets WHERE deleted_at IS NULL').first():null,
+                    query('SELECT * FROM editions ORDER BY created_at DESC LIMIT 12','noi-dung','luu-tru'),rows('ai-provider-health',5,'tong-quan','ai-team','tu-van')]);
                 return response({ settings: cfg, accounts, workers, products, stories, prices, orders, consultations: consultations.map(({ tokenHash, ...v }: any) => v), channels, commands, jobs: jobs.results, events: events.results, receipts: receipts.results, storage, editions: editions.results, aiHealth, apiConsult: apiConsultReady(), posBound: await POS.locked(), posSync: await S.list('pos-sync', 10), serverTime: Date.now() });
             }
             if (method === 'POST' && path[1] === 'settings') {
                 const v = await body(req), old = await S.settings();
-                const allowed = z.object({ teamEnabled: z.boolean().optional(), autoResearch: z.boolean().optional(), autoOutlook: z.boolean().optional(), autoConsult: z.boolean().optional(), autoProducts: z.boolean().optional(), feedbackConnectionId: z.string().regex(/^(?:[a-f0-9]{32})?$/).optional(), productHours: z.array(z.number().int().min(0).max(23)).min(1).max(6).optional(), goldSchedule: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)).min(1).max(6).optional(), publicationSpacingMinutes: z.number().int().min(0).max(1440).optional(), publicationEnabled: z.boolean().optional(), storageLimitMB: z.number().int().min(32).max(2048).optional(), companyName: z.string().min(3).max(150).optional(), phone: z.string().max(30).optional(), address: z.string().max(300).optional(), hours: z.string().max(100).optional() }).strict().parse(v);
+                const allowed = z.object({ teamEnabled: z.boolean().optional(), specialistRouting: z.boolean().optional(), autoResearch: z.boolean().optional(), autoOutlook: z.boolean().optional(), autoConsult: z.boolean().optional(), autoProducts: z.boolean().optional(), feedbackConnectionId: z.string().regex(/^(?:[a-f0-9]{32})?$/).optional(), productHours: z.array(z.number().int().min(0).max(23)).min(1).max(6).optional(), goldSchedule: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)).min(1).max(6).optional(), publicationSpacingMinutes: z.number().int().min(0).max(1440).optional(), publicationEnabled: z.boolean().optional(), storageLimitMB: z.number().int().min(32).max(2048).optional(), companyName: z.string().min(3).max(150).optional(), phone: z.string().max(30).optional(), address: z.string().max(300).optional(), hours: z.string().max(100).optional() }).strict().parse(v);
                 if (allowed.teamEnabled === true) {
                     const ac = await S.list('account', 20);
                     if (!ac.length)
@@ -345,6 +361,7 @@ export async function handle(req: Request): Promise<Response> {
             if (method === 'POST' && path[1] === 'pos-pawn') return response(await POS.pawns(wid, await body(req, 3000000)));
             if (method === 'POST' && path[1] === 'pos-warranty') return response(await POS.warranties(wid, await body(req), u.origin));
             if (method === 'POST' && path[1] === 'pos-transaction') return response(await POS.transaction(wid, await body(req)));
+            if (method === 'POST' && path[1] === 'pos-void') return response(await POS.voidSale(wid, await body(req)));
             if (method === 'POST' && path[1] === 'pos-photo') {
                 await POS.bind(wid);
                 const sku = text(u.searchParams.get('sku'), 60), product = await S.get('product', 'pos-' + await S.sha(sku));
@@ -389,6 +406,18 @@ export async function handle(req: Request): Promise<Response> {
                 return response({ ok: true });
             }
             if (method === 'GET' && path[1] === 'queue') {
+                if(u.searchParams.get('active')==='1'){
+                    let held:any=[];try{held=JSON.parse(u.searchParams.get('held')||'[]');}catch{fail('Danh sách công việc chưa hợp lệ.');}
+                    if(!Array.isArray(held)||held.length>40||held.some((id:any)=>typeof id!=='string'||!/^[a-zA-Z0-9:_-]{1,160}$/.test(id)))fail('Danh sách công việc chưa hợp lệ.');
+                    const cols='id,story_id,stage,status,owner,exclude_account,lease_until,attempt,result,result_hash,error,created_at,updated_at';
+                    // Older Windows builds choose a higher-stage task first.
+                    // Offer only queued tasks the FIFO gate can actually grant;
+                    // otherwise a later write task can hide the head research.
+                    const heads=await unfinishedPublicationHeads();
+                    const active=await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE status IN ('queued','leased','running','attention','blocked','waiting-revision') AND NOT(status='queued' AND (stage='consult' OR (stage IN ('write','review','image-review') AND story_id IN (SELECT id FROM records WHERE kind='story' AND json_extract(data,'$.kind') IN ('gold','product'))))) AND (?=0 OR story_id IN (SELECT value FROM json_each(?)) OR status<>'queued') ORDER BY created_at ASC LIMIT 300`).bind(heads.length,JSON.stringify(heads)).all<any>();
+                    const claimed=held.length?await S.sql().prepare(`SELECT ${cols} FROM jobs WHERE id IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(held)).all<any>():{results:[]};
+                    return response({jobs:[...new Map([...active.results,...claimed.results].map((j:any)=>[j.id,j])).values()],settings:await S.settings()});
+                }
                 const rows = (await S.sql().prepare("SELECT id,story_id,stage,status,owner,exclude_account,lease_until,attempt,result,result_hash,error,created_at,updated_at FROM jobs ORDER BY CASE WHEN status IN ('complete','canceled') THEN 1 ELSE 0 END,created_at ASC LIMIT 300").all<any>()).results;
                 return response({ jobs: rows, settings: await S.settings() });
             }
@@ -409,8 +438,11 @@ export async function handle(req: Request): Promise<Response> {
                 if (method === 'POST' && path[3] === 'dispatch') {
                     if (!['leased', 'running', 'attention'].includes(job.status))
                         fail('Lượt đã bị dừng; không gửi prompt.', 409);
-                    await S.sql().prepare('UPDATE jobs SET status=\'running\',lease_until=?,updated_at=? WHERE id=? AND status IN (\'leased\',\'attention\') AND lease_hash=?').bind(Date.now() + 30 * 60000, Date.now(), job.id, job.lease_hash).run();
-                    return response({ ok: true });
+                    // Old extensions poll held results and call dispatch again.
+                    // Reading a held conversation is not a new send and must
+                    // not hide the owner's attention state or renew its lease.
+                    await S.sql().prepare('UPDATE jobs SET status=\'running\',lease_until=?,updated_at=? WHERE id=? AND status=\'leased\' AND lease_hash=?').bind(Date.now() + 30 * 60000, Date.now(), job.id, job.lease_hash).run();
+                    return response({ ok: true, reviewRequired: job.status === 'attention' });
                 }
                 if (method === 'POST' && path[3] === 'complete')
                     return response(await P.complete(wid, job.id, lease, v.result));

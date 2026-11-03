@@ -5,6 +5,7 @@ import PriceHistory from '../price-history';
 import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import template from './template';
+import {mountNumberPreviews} from '../../../public/tien-ich/number-preview.mjs';
 import { estimatePawn, ringSize, perChi } from './tools.mjs';
 import { cash, date } from '../ui';
 
@@ -20,6 +21,7 @@ export default function ReferenceHome(props:Props) {
   const products=(props.data?.products||[]).filter((p:any)=>inProductSection(p,filter)&&(!search||[p.name,p.sku,p.purity].join(' ').toLowerCase().includes(search.toLowerCase())));
   useEffect(()=>{
     const r=root.current!;
+    const numberPreviews=mountNumberPreviews(r);
     document.body.classList.add('kbl-home-57109','kbl-ui-polish-v53','kbl-reference-home');
     const q=(id:string)=>r.querySelector<HTMLElement>('#'+id);
     const detailBoard=q('price-board'),toolbar=detailBoard?.querySelector('.price-board-toolbar');
@@ -78,7 +80,7 @@ export default function ReferenceHome(props:Props) {
     const refLane=r.querySelector<HTMLElement>('.product-lane--reference');if(refLane)refLane.hidden=true;
 
     const map=q('shop-map');if(map){map.replaceChildren();const a=document.createElement('a');a.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent('Tiệm vàng Kim Bảo Lâm 59/1 Nguyễn Thị Tươi Tân Đông Hiệp');a.target='_blank';a.rel='noopener noreferrer';a.textContent='⌖ Mở bản đồ chỉ đường';map.appendChild(a);}
-    return()=>{r.removeEventListener('click',click);r.removeEventListener('input',input);r.removeEventListener('submit',submit);clearTimeout(introTimer);dismissIntro();layout.remove();document.body.classList.remove('kbl-home-57109','kbl-ui-polish-v53','kbl-reference-home');};
+    return()=>{numberPreviews.destroy();r.removeEventListener('click',click);r.removeEventListener('input',input);r.removeEventListener('submit',submit);clearTimeout(introTimer);dismissIntro();layout.remove();document.body.classList.remove('kbl-home-57109','kbl-ui-polish-v53','kbl-reference-home');};
   },[]);
   useEffect(()=>{if(!root.current)return;const n=root.current.querySelector('#price-updated');if(n)n.textContent=prices.length?date(prices[0].capturedAt):props.error?'Không đọc được bảng giá':'Chưa có giá được công bố';},[props.data,props.error]);
   useEffect(()=>{try{localStorage.setItem('kbl-favorites-v2',JSON.stringify(favorite));}catch{}},[favorite]);
@@ -86,7 +88,7 @@ export default function ReferenceHome(props:Props) {
   useEffect(()=>{const controller=new AbortController();let active=true;async function load(){try{const r=await fetch('/api/public/market',{cache:'no-store',signal:controller.signal});if(r.ok&&active)setMarket(await r.json());}catch{if(active)setMarket({available:false,error:'Chưa đọc được nguồn tham khảo.'});}}void load();const timer=setInterval(()=>{if(!document.hidden)void load();},60000);return()=>{active=false;controller.abort();clearInterval(timer);};},[]);
   useEffect(()=>{if(!root.current||!market)return;const q=(id:string)=>root.current!.querySelector<HTMLElement>('#'+id),price=q('kbl-home-xau-price'),change=q('kbl-home-xau-change'),meta=q('kbl-home-xau-meta');if(price)price.textContent=market.available?'XAU/USD · $'+Number(market.xauUsd).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' / oz':'XAU/USD · —';if(change)change.textContent=market.changeAvailable?`${market.changeUsd>=0?'+':''}${market.changeUsd.toFixed(2)}$ · ${market.changePercent>=0?'+':''}${market.changePercent.toFixed(2)}%`:'';if(meta)meta.textContent=market.available?`${market.stale?'Bản lưu tạm · ':''}Nguồn hiển thị: ${market.goldUpdatedAt||'không ghi thời gian'}. Lấy lúc ${date(market.fetchedAt)} · Giá tham khảo.`:market.error||'Chưa có dữ liệu giá vàng thế giới.';},[market]);
   return <>
-    <link rel="stylesheet" href="/reference-home/original.css"/><link rel="stylesheet" href="/reference-home/patch.css"/>
+    <link rel="stylesheet" href="/reference-home/original.css"/><link rel="stylesheet" href="/reference-home/patch.css"/><link rel="stylesheet" href="/tien-ich/number-preview.css"/>
     <StaticMarkup nodeRef={root}/>
     {hosts['price-board']&&createPortal(<PriceHistory/>,hosts['price-board'])}
     {hosts['price-grid']&&createPortal(prices.length?displayGoldPrices(prices).map((p:any)=><article className="price-card" key={p.id}><div className="price-card-head"><h3>{p.label.replace('9999','999.9')}</h3><span className="gold-badge">◆</span></div><div className="price-card-values"><div className="price-value"><span>Mua vào</span><strong>{cash(perChi(p.buy,p.unit))}</strong></div><div className="price-value"><span>Bán ra</span><strong>{cash(perChi(p.sell,p.unit))}</strong></div></div>{p.stale && <div className="price-card-foot">Giá lưu — cần xác nhận tại tiệm</div>}</article>):<div className="reference-price-empty">{props.error||'Chưa có giá được công bố. Bảng giá sẽ xuất hiện khi cửa hàng chốt dữ liệu thật.'}<button className="btn btn-soft" onClick={props.onReload}>Làm mới</button></div>,hosts['price-grid'])}

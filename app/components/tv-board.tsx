@@ -3,6 +3,8 @@ import { useRef, useLayoutEffect, useEffect } from "react";
 import type { CSSProperties, PointerEvent } from "react";
 import {
   tvBox,
+  tvStyle,
+  TV_CELL_PARTS,
   TV_PARTS,
   TV_FONTS,
   type TVDesign,
@@ -142,14 +144,14 @@ export function TVBoard({
       );
   }
   function text(
-    part: Exclude<TVPart, "table">,
+    part: string,
     content: string,
     x: number,
     y: number,
     w: number,
     h: number,
   ) {
-    const s = d.styles[part],
+    const s = tvStyle(d, part)!,
       anchor =
         s.align === "left" ? "start" : s.align === "right" ? "end" : "middle";
     const units = [...content].reduce(
@@ -164,7 +166,7 @@ export function TVBoard({
         data-tv-part={part}
         role={onSelect ? "button" : undefined}
         tabIndex={onSelect ? 0 : undefined}
-        aria-label={onSelect ? `Chỉnh ${TV_PARTS[part]}` : undefined}
+        aria-label={onSelect ? `Chỉnh ${part.startsWith("cell:") ? TV_CELL_PARTS[part.slice(5)] : TV_PARTS[part as TVPart]}` : undefined}
         onKeyDown={(e) => {
           if (onSelect && (e.key === "Enter" || e.key === " ")) {
             e.preventDefault();
@@ -219,6 +221,11 @@ export function TVBoard({
         )}
       </g>
     );
+  }
+
+  function cellText(key: string, content: string) {
+    const part="cell:"+key,b=tvBox(d,part);
+    return b.visible && text(part,content,b.x,b.y,b.w,b.h);
   }
 
   function resized(
@@ -468,29 +475,15 @@ export function TVBoard({
             </g>
           ))}
           {["Loại vàng", d.buyText, d.sellText].map((v, i) =>
-            text("headers", v, b.x + i * col, b.y, col, rh),
+            cellText(["head-labels","head-buy","head-sell"][i],v),
           )}
-          {rows.map((p: any, i: number) => (
+          {rows.map((p: any) => {const code=p.label.replace(/\D/g,"");const price=(n:number)=>{const value=cash(perChi(n,p.unit));return d.compactPrices?value.replace(/\s*₫/g,""):value;};return (
             <g key={p.id}>
-              {text("labels", p.label, b.x, b.y + (i + 1) * rh, col, rh)}
-              {text(
-                "buy",
-                cash(perChi(p.buy, p.unit)),
-                b.x + col,
-                b.y + (i + 1) * rh,
-                col,
-                rh,
-              )}
-              {text(
-                "sell",
-                cash(perChi(p.sell, p.unit)),
-                b.x + col * 2,
-                b.y + (i + 1) * rh,
-                col,
-                rh,
-              )}
+              {cellText("labels-"+code,p.label)}
+              {cellText("buy-"+code,price(p.buy))}
+              {cellText("sell-"+code,price(p.sell))}
             </g>
-          ))}
+          );})}
           {!rows.length && (
             <text
               x={b.x + b.w / 2}

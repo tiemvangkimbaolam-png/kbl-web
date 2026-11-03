@@ -283,6 +283,14 @@ test("saved canvas layers remain compatible with old designs and reject duplicat
     [layer],
   );
 });
+test("independent TV cells and their own typography survive owner save, public reload and concurrent editor rejection",async()=>{
+ const current=(await call('admin/tv-design')).data,d=structuredClone(current.design),sibling=structuredClone(d.cells['sell-9999']);
+ d.cells['buy-9999'].x-=34;d.cellStyles['buy-9999']={...d.styles.buy,size:94};
+ const saved=await call('admin/tv-design','POST',{design:d,version:current.version});assert.equal(saved.status,200);
+ const read=(await call('public/tv-design','GET',undefined,{})).data;
+ assert.deepEqual(read.design.cells,d.cells);assert.deepEqual(read.design.cellStyles,d.cellStyles);assert.deepEqual(read.design.cells['sell-9999'],sibling);
+ assert.equal((await call('admin/tv-design','POST',{design:current.design,version:current.version})).status,409);
+});
 test("TV image upload requires owner, checks image type/size/magic, honors storage and serves the intended image publicly", async () => {
   const files = new Map();
   globalThis.__TV_ENV.BUCKET = {

@@ -165,3 +165,31 @@ test('maximum receipt batches stay bounded in database queries and retain every 
     const items=Array.from({length:100},(_,i)=>({...warranty().items[0],productSku:'BULK-'+i}));queryCount=0;r=await call('worker/pos-warranty',warranty('HD-BULK',items));a.equal(r.status,200,JSON.stringify(r.body));a.equal(r.body.warranties.length,100);a.ok(queryCount<20);
     r=await call('public/pos-receipt',undefined,{'x-kbl-receipt-token':records[499].publicToken});a.equal(r.status,200);a.equal(r.body.record.totalDue,123456789);
 });
+
+test('anonymous sale void uses a durable Cloudflare receipt, never changes POS bytes, and cannot reopen stock before the next snapshot',async()=>{
+    const sku='VOID-ANON', tx={id:'HD-ANON',mode:'ban',cusPhone:'',invCode:sku,totalPay:987654,profit:12345}, file=path.join(root,'sales_db.json');
+    fs.writeFileSync(file,JSON.stringify([tx]));const original=fs.readFileSync(file), l=ledger();
+    const rows=C.inventory({mode:'snapshot',inventory:[product(sku)]},price);
+    await call('worker/pos-snapshot',{complete:true,products:rows,revision:nextStockRevision()});
+    await call('worker/pos-warranty',{...warranty(tx.id,[{...warranty().items[0],productSku:sku}]),phone:'',customerName:'Khách lẻ'});
+    const relay=create({ledger:l,bridge:nativeBridge,config:{serverUrl:'https://kbl.test',posDataDir:root}});
+    const input={eventType:'void',mode:'ban',invoiceId:tx.id,skus:[sku],phone:'',realizedProfit:12345};
+    let r=await relay.accept('transaction-event',input);a.equal(r.status,200,JSON.stringify(r));
+    a.deepEqual(fs.readFileSync(file),original);
+    let state=(await call('admin/state',undefined,owner)).body;
+    a.equal(state.products.find(p=>p.sku===sku).available,false);
+    const receipt=db.prepare("SELECT data FROM records WHERE kind='pos-void'").get();a.ok(receipt);
+    a.equal(receipt.data.includes('realizedProfit'),false);a.equal(receipt.data.includes('totalPay'),false);
+    a.equal(JSON.parse(db.prepare("SELECT data FROM records WHERE kind='pos-warranty' AND json_extract(data,'$.invoiceId')=?").get(tx.id).data).posStatus,'canceled');
+    r=await relay.accept('transaction-event',input);a.equal(r.status,200);
+    a.equal(db.prepare("SELECT COUNT(*) n FROM records WHERE kind='pos-void'").get().n,1);
+    await call('worker/pos-snapshot',{complete:true,products:rows,revision:nextStockRevision()});
+    const ack=l.get('pos-ack')['void:'+hash(tx.id)];
+    a.equal((await call('worker/pos-void',{...ack.result,eventType:'void',mode:'ban',loyaltyNotApplicable:true,invoiceId:tx.id,skus:[sku],revision:nextStockRevision()})).status,200);
+    state=(await call('admin/state',undefined,owner)).body;a.equal(state.products.find(p=>p.sku===sku).available,true);
+    const V=require('../windows/pos-void.cjs');
+    a.throws(()=>V.fromPOS({...input,phone:'0900000000'},[tx]),/đối soát/);
+    a.throws(()=>V.fromPOS({...input,mode:'tra'},[tx]),/đối soát/);
+    a.throws(()=>V.fromPOS(input,[tx],{synced:{[tx.id]:{pointsAdded:10}}}),/đối soát/);
+    a.throws(()=>V.fromPOS({...input,skus:['OTHER']},[tx]),/SKU/);
+});

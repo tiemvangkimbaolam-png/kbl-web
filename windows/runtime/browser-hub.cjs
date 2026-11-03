@@ -66,7 +66,8 @@ function createHub({bridge,dataDir,now=Date.now}) {
   function canResumeUnsent(r){return r.status==='attention'&&r.message==='Chưa đăng nhập chatgpt hoặc ô nhập đã đổi.'&&state.accounts.find(a=>a.id===r.accountId)?.provider==='chatgpt'&&['research','write','review'].includes(r.kind)&&!r.task?.attachmentHashes?.length&&r.task?.nonce&&!r.raw&&!r.submission&&r.jobExpiresAt>now();}
   function recoverable(r){
     const messages=['Phiên trình duyệt quá 20 phút; chưa tự gửi prompt lần hai.','Phiên trình duyệt quá 30 phút; đang chờ kiểm tra kết quả cũ.','Chờ câu trả lời quá 12 phút; chưa gửi lại prompt.','Chờ câu trả lời quá 30 phút; kiểm tra lại đúng cuộc hội thoại, chưa gửi lại prompt.','Chưa thu được kết quả của lượt cũ; sẽ kiểm tra lại, không gửi prompt mới.','Không thu được JSON đúng mã phiên ở tab cũ; giữ cuộc hội thoại, chưa gửi prompt mới.'];
-    return r.status==='attention'&&(messages.includes(r.message)||r.code==='TAB_CLOSED'||canResumePrepared(r))&&['research','write','review','image-review','images'].includes(r.kind)&&r.task?.nonce&&!r.raw&&!r.submission&&r.jobExpiresAt>now();
+    const ownerImage=r.kind==='images'&&r.rows?.length===1&&r.task?.scene===1&&r.task.ownerConfirmedUnsentImage===true&&r.message==='Chưa có dấu phiên ảnh đã gửi trong đúng tab; giữ việc, không gửi lại.';
+    return r.status==='attention'&&(messages.includes(r.message)||ownerImage||r.code==='TAB_CLOSED'||canResumePrepared(r))&&['research','write','review','image-review','images'].includes(r.kind)&&r.task?.nonce&&!r.raw&&!r.submission&&r.jobExpiresAt>now();
   }
   function canCollectHeldText(r,a){return !!r&&r.accountId===a.id&&a.provider==='claude'&&!a.blocked&&r.status==='attention'&&r.code==='UI_NEEDS_REVIEW'&&['research','write','review'].includes(r.kind)&&r.task?.provider==='claude'&&r.task.kind===r.kind&&r.task.runId===r.id&&/^[a-f0-9]{36}$/.test(r.id)&&/^[a-f0-9]{36}$/.test(r.task.nonce||'')&&!r.task.attachmentHashes?.length&&!r.raw&&!r.submission&&r.jobExpiresAt>now();}
   const save=()=>{const finished=Object.values(state.runs).filter(r=>['confirmed','expired'].includes(r.status)).sort((a,b)=>b.updatedAt-a.updatedAt);for(const r of finished){delete r.raw;delete r.submission;delete r.task;delete r.collectionGrant;}for(const r of finished.slice(100))delete state.runs[r.id];ledger.set('browser',state);};
@@ -283,6 +284,20 @@ function createHub({bridge,dataDir,now=Date.now}) {
     }finally{busy=false;}
   }
   function unblock(id){const a=state.accounts.find(a=>a.id===id);if(!a)throw fault('ACCOUNT_MISSING','Không có hồ sơ.');if(Object.values(state.runs).some(r=>r.accountId===id&&r.status==='attention'))throw fault('REVIEW_RUN_FIRST','Có phiên chưa rõ kết quả. Kiểm tra phiên chat và xử lý hồ sơ trước; chưa tự gửi prompt lần nữa.');a.blocked=false;save();}
-  return {view,add,auth,enabled,tick,poll,result,asset,failure,unblock,retry,reconcile,pairing,issuePairing,redeemPairing,requestLogin,loginStatus};
+  async function continueUnsentImage(id,scene,confirmed){
+    if(confirmed!==true)throw fault('OWNER_CONFIRM','Chủ tiệm cần xác nhận cảnh ảnh này chưa được gửi.');
+    if(busy)throw fault('BUSY','Worker đang xử lý; thử lại sau.');busy=true;
+    try{
+      const r=state.runs[id];
+      if(!r||r.kind!=='images'||r.rows?.length!==1||scene!==1||r.task?.scene!==1||!['dispatched','attention'].includes(r.status)||r.raw||r.submission)throw fault('SCENE_CHANGED','Cảnh đã thay đổi hoặc có kết quả; chưa giao lại.');
+      const s=await bridge.sync(),c=s.claims?.[r.jobId];
+      if(!s.connected||!claimFor(r,c)||s.outbox.some(o=>receiptFor(r,o)&&!['confirmed','discarded'].includes(o.status)))throw fault('RESULT_PENDING','Giữ kết quả/lease hiện có để đối soát.');
+      if(r.task.ownerConfirmedUnsentImage)throw fault('ALREADY_CONFIRMED','Đã xác nhận cảnh này; không gửi thêm lệnh.');
+      ledger.set('owner-unsent-image:'+r.id+':'+r.task.nonce,{runId:r.id,nonce:r.task.nonce,scene,confirmedAt:now(),retainedSceneAsset:r.rows[0].assetId});
+      r.task.ownerConfirmedUnsentImage=true;r.task.acceptedSceneNonces=Object.keys(r.acceptedNonces||{});r.status='dispatched';r.updatedAt=now();r.message='Chủ xác nhận cảnh 2 chưa gửi; tiếp tục đúng cảnh, giữ ảnh 1 và mã lượt.';save();
+      return {message:r.message};
+    }finally{busy=false;}
+  }
+  return {view,add,auth,enabled,tick,poll,result,asset,failure,unblock,retry,reconcile,pairing,issuePairing,redeemPairing,requestLogin,loginStatus,continueUnsentImage};
 }
 module.exports={createHub,PROTOCOL,hash};

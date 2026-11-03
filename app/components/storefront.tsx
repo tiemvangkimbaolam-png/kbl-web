@@ -13,13 +13,13 @@ const CATS = [['all', 'Tất cả'], ['nhan', 'Nhẫn'], ['bong-tai', 'Bông tai
 export default function Storefront({ reference = false, initialData=null }: { reference?: boolean; initialData?: any }) {
     const [feedback,setFeedback]=useState(false);
     const [tryOn, setTryOn] = useState<any>(undefined);
-    const deepLinkApplied = useRef(false), catalogSequence = useRef(0);
+    const deepLinkApplied = useRef(false), catalogSequence = useRef(0), latestQuotes=useRef<any>(null);
     const [chatProductId, setChatProductId] = useState<string | null>(null);
     const [data, setData] = useState<any>(initialData), [error, setError] = useState(''), [search, setSearch] = useState(''), [cat, setCat] = useState('all'), [menu, setMenu] = useState(false), [cart, setCart] = useState<any[]>([]), [modal, setModal] = useState(''), [busy, setBusy] = useState(false), [receipt, setReceipt] = useState<any>(null), [chat, setChat] = useState(false), [chatState, setChatState] = useState<any>(null), [question, setQuestion] = useState(''), [chatError, setChatError] = useState(''), [detail, setDetail] = useState<any>(null);
     async function load() { const sequence = ++catalogSequence.current; try {
         const catalog = await api('public/catalog');
         if (sequence !== catalogSequence.current) return;
-        setData(catalog);
+        setData(latestQuotes.current?{...catalog,...latestQuotes.current}:catalog);
         setDetail((old: any) => old ? catalog.products?.find((p: any) => p.id === old.id) || { ...old, available: false, published: false } : null);
         if (!deepLinkApplied.current && new URLSearchParams(location.search).get('gio-hang') === '1') setModal('cart');
         const selected = new URLSearchParams(location.search).get('san-pham');
@@ -36,7 +36,8 @@ export default function Storefront({ reference = false, initialData=null }: { re
     useEffect(() => { load(); try {
         setCart(savedCart(localStorage.getItem('kbl-cart-v2')));
     }
-    catch { } const refresh = setInterval(() => { if (!document.hidden) void load(); }, 60000); return () => { ++catalogSequence.current; clearInterval(refresh); }; }, []);
+    catch { } const refresh = setInterval(() => { if (!document.hidden) void load(); }, 300000); return () => { ++catalogSequence.current; clearInterval(refresh); }; }, []);
+    useEffect(()=>{let active=true,pending=false;async function prices(){if(pending||document.hidden)return;pending=true;try{const quotes=await api('public/prices');if(active){latestQuotes.current=quotes;setData((old:any)=>old?{...old,...quotes}:old);}}catch{/* Keep original source time if the network fails. */}finally{pending=false;}}void prices();const timer=setInterval(prices,15000);const visible=()=>{if(!document.hidden)void prices();};document.addEventListener('visibilitychange',visible);return()=>{active=false;clearInterval(timer);document.removeEventListener('visibilitychange',visible);};},[]);
     useEffect(() => { try { localStorage.setItem('kbl-cart-v2', JSON.stringify(cart)); } catch { /* Private mode may deny storage; current cart still works. */ } }, [cart]);
     useEffect(() => { if (!chat || !chatState?.token)
         return; const timer = setInterval(async () => { try {
