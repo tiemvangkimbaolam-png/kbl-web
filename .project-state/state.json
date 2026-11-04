@@ -41,18 +41,18 @@
     },
     "integrate": {
       "status": "pending",
-      "note": "Read-only LAN preview ready;main website unchanged pending owner phone review per approved plan;photo source mismatch held out of featured display.",
+      "note": "Read-only preview and complete source package ready;owner phone review before main release;capture filenames match actual JPEG format.",
       "evidence": [
         {
           "path": "docs\\WEBSITE_REBUILD_PREVIEW_20261104.md",
-          "sha256": "a7aa0762e517df415a28164bd92e75f41122087870f11a07a2fb30e441309152",
+          "sha256": "02551fcc182e3cd2de48ea1ec255adfd987a285b038ff8e21d5ba783099895d0",
           "bytes": 5936
         }
       ],
-      "at": "2026-11-04T02:01:37.138872+00:00"
+      "at": "2026-11-04T02:04:33.906558+00:00"
     }
   },
-  "next_action": "Owner reviews http://192.168.1.9:18747/ on phone and authorizes publication;retain jobs/data and existing Cloudflare bindings.",
+  "next_action": "Owner reviews http://192.168.1.9:18747/ and authorizes release;retain existing jobs,data,Cloudflare bindings.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -425,9 +425,15 @@
       "stage": "integrate",
       "status": "pending",
       "note": "Read-only LAN preview ready;main website unchanged pending owner phone review per approved plan;photo source mismatch held out of featured display."
+    },
+    {
+      "at": "2026-11-04T02:04:33.906558+00:00",
+      "stage": "integrate",
+      "status": "pending",
+      "note": "Read-only preview and complete source package ready;owner phone review before main release;capture filenames match actual JPEG format."
     }
   ],
-  "updated_at": "2026-11-04T02:01:37.138872+00:00",
+  "updated_at": "2026-11-04T02:04:33.906558+00:00",
   "goldSocialFormats": {
     "status": "deployed_and_facebook_verified",
     "policy": "gold-platform-v1",

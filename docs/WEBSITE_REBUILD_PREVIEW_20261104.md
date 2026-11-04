@@ -39,4 +39,4 @@ Chrome mới/hồ sơ tạm riêng; Lighthouse13.6.0, simulated mobile/desktop, 
 - Gói build đang chạy cục bộ, chưa tải lên Cloudflare. Khi chủ duyệt: lưu version hiện tại của Worker, triển khai gói đã kiểm tra **không đổi migrations/bindings**, kiểm tra lại public GET và giá/URL/channels, đo trên tên miền thật; dùng version cũ để rollback nếu có lỗi. Không tự chuyển DNS, reset snapshot hoặc xử lý lại job đang giữ.
 - Nguồn sạch và ZIP đầy đủ bàn giao trong workspace. GitHub public vẫn chưa được cho phép đẩy; không đẩy mã ở lượt này.
 
-Ảnh đầu trang: outputs/KBL_WEB_THU_DESKTOP_20261104.png và outputs/KBL_WEB_THU_MOBILE_20261104.png. Bộ đo đầy đủ12JSON ở work/website-rebuild-20261104/, không đưa caches/DB/cấu hình vận hành vào ZIP.
+Ảnh đầu trang: outputs/KBL_WEB_THU_DESKTOP_20261104.jpg và outputs/KBL_WEB_THU_MOBILE_20261104.jpg. Bộ đo đầy đủ12JSON ở work/website-rebuild-20261104/, không đưa caches/DB/cấu hình vận hành vào ZIP.
