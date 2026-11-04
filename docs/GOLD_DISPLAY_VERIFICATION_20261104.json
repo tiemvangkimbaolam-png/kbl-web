@@ -8,9 +8,9 @@
   "physicalPrintingTested": false,
   "fullSuiteTests": 381,
   "fullSuiteFailures": 0,
-  "installationStatus": "pending_normal_pos_exit",
-  "candidateArchiveSha256": "63699f1961d1e8dae782395d91f8544862cbf8fe586648e3bbdc6a3bf0734afd",
-  "currentInstalledArchiveSha256": "50175abd4c5a935cb081cf9cd283c7f6a32991a130f2e38c2603a4cba97e0c67",
+  "installationStatus": "installed_with_retry_button_theme",
+  "candidateArchiveSha256": "cbe47b71b2fa0641f6caa8cac0ef3c7d6839a7bf30cc806434d2486df970497b",
+  "currentInstalledArchiveSha256": "cbe47b71b2fa0641f6caa8cac0ef3c7d6839a7bf30cc806434d2486df970497b",
   "sourceFileNames": [
     "renderer.js",
     "index.html",
@@ -18,5 +18,6 @@
     "main.js",
     "tv.html",
     "mobile-price.html"
-  ]
+  ],
+  "previousInstalledArchiveSha256": "50175abd4c5a935cb081cf9cd283c7f6a32991a130f2e38c2603a4cba97e0c67"
 }

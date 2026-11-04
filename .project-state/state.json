@@ -5,59 +5,54 @@
   "stages": {
     "specify": {
       "status": "done",
-      "note": "Owner requests every gold purity display/print label 9999 as 999.9; internal identifiers, calculations and historical data preserved.",
+      "note": "Owner requests retry buttons match existing POS theme;keep adjacent QR and preserve all behavior.",
       "evidence": [
         {
           "path": ".project-state\\contract.md",
-          "sha256": "766d0dc609b3fb1896c25fb4d6e9150e1ece09ee378e4673abd06303284ff025",
-          "bytes": 10136
+          "sha256": "597f70d051bef1c5967869ed67b30819ed3bbe12cfe5ef6cccfd66d540fc1119",
+          "bytes": 10519
         }
       ],
-      "at": "2026-11-04T00:50:13.961227+00:00"
+      "at": "2026-11-04T00:57:54.991344+00:00"
     },
     "build": {
       "status": "done",
-      "note": "Six display files patched;32 scripts structurally compared and381 regression checks pass;codes and calculations unchanged.",
+      "note": "Only retry/stop classes and inline presentation changed;queue byte-identical;13 focused checks pass.",
       "evidence": [
         {
-          "path": "pos-source\\renderer.js",
-          "sha256": "8c0741c556dac9d3e40673aa87b80ca0ed29ed63ecefe17fb0df335465d72bb6",
-          "bytes": 640535
-        },
-        {
-          "path": "docs\\GOLD_DISPLAY_VERIFICATION_20261104.json",
-          "sha256": "22431af049aee4c12370de7d3f56fd76d8058eac97e1eab391c54ddf39d49610",
-          "bytes": 736
+          "path": "docs\\RETRY_THEME_VERIFICATION_20261104.json",
+          "sha256": "7579aaf4d39922fb87aef3e5f61304713656631c854bb04593ef90555fb4f252",
+          "bytes": 660
         }
       ],
-      "at": "2026-11-04T00:50:32.085686+00:00"
+      "at": "2026-11-04T00:57:55.094135+00:00"
     },
     "demonstrate": {
       "status": "done",
-      "note": "Actual rendering functions show999.9 on synthetic A4 and invoice fixture;physical printing not tested.",
+      "note": "Browser fixture with actual module/theme verifies all3 tabs same row,disabled/stop/QR;not a native POS capture.",
       "evidence": [
         {
-          "path": "docs\\GOLD_DISPLAY_VERIFICATION_20261104.json",
-          "sha256": "22431af049aee4c12370de7d3f56fd76d8058eac97e1eab391c54ddf39d49610",
-          "bytes": 736
+          "path": "docs\\CCCD_NUT_DONG_BO_20261104.md",
+          "sha256": "848a16992da2c60cbd85a553d90b14656ef11034226a538fb946b8b5575a4c8a",
+          "bytes": 1891
         }
       ],
-      "at": "2026-11-04T00:50:32.185653+00:00"
+      "at": "2026-11-04T00:57:55.194244+00:00"
     },
     "integrate": {
-      "status": "pending",
-      "note": "Archive prepared and verified;POS still open;waiting for normal owner exit before guarded installation.",
+      "status": "done",
+      "note": "Combined retry theme and gold999.9 archive installed while POS closed,reopened;protected files and compact rollback verified.",
       "evidence": [
         {
-          "path": "docs\\NHAN_VANG_999_9_20261104.md",
-          "sha256": "0f4e9b449c6a38260d5827cd19831a66c92e112e41e023e59f9aeeddb21fe10c",
-          "bytes": 2561
+          "path": "docs\\RETRY_THEME_VERIFICATION_20261104.json",
+          "sha256": "7579aaf4d39922fb87aef3e5f61304713656631c854bb04593ef90555fb4f252",
+          "bytes": 660
         }
       ],
-      "at": "2026-11-04T00:50:32.285639+00:00"
+      "at": "2026-11-04T00:57:55.298734+00:00"
     }
   },
-  "next_action": "Verify zero POS processes then run guarded install-gold-label.py and reopen normally.",
+  "next_action": "",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -382,9 +377,33 @@
       "stage": "integrate",
       "status": "pending",
       "note": "Archive prepared and verified;POS still open;waiting for normal owner exit before guarded installation."
+    },
+    {
+      "at": "2026-11-04T00:57:54.991344+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requests retry buttons match existing POS theme;keep adjacent QR and preserve all behavior."
+    },
+    {
+      "at": "2026-11-04T00:57:55.094135+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "Only retry/stop classes and inline presentation changed;queue byte-identical;13 focused checks pass."
+    },
+    {
+      "at": "2026-11-04T00:57:55.194244+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Browser fixture with actual module/theme verifies all3 tabs same row,disabled/stop/QR;not a native POS capture."
+    },
+    {
+      "at": "2026-11-04T00:57:55.298734+00:00",
+      "stage": "integrate",
+      "status": "done",
+      "note": "Combined retry theme and gold999.9 archive installed while POS closed,reopened;protected files and compact rollback verified."
     }
   ],
-  "updated_at": "2026-11-04T00:50:32.285639+00:00",
+  "updated_at": "2026-11-04T00:57:55.298734+00:00",
   "goldSocialFormats": {
     "status": "deployed_and_facebook_verified",
     "policy": "gold-platform-v1",
@@ -463,13 +482,23 @@
     "githubPush": "still awaiting explicit permission"
   },
   "goldDisplay": {
-    "status": "verified_installation_pending_normal_pos_exit",
+    "status": "installed_physical_print_confirmation_pending",
     "source": "docs/NHAN_VANG_999_9_20261104.md",
     "tests": 381,
     "scriptsCompared": 32,
-    "candidateArchiveSha256": "63699f1961d1e8dae782395d91f8544862cbf8fe586648e3bbdc6a3bf0734afd",
     "businessDataWritten": false,
     "financialChanges": false,
-    "physicalPrintingTested": false
+    "physicalPrintingTested": false,
+    "installedArchiveSha256": "cbe47b71b2fa0641f6caa8cac0ef3c7d6839a7bf30cc806434d2486df970497b"
+  },
+  "identityRetryTheme": {
+    "status": "installed",
+    "source": "docs/CCCD_NUT_DONG_BO_20261104.md",
+    "focusedTests": 13,
+    "installedArchiveSha256": "cbe47b71b2fa0641f6caa8cac0ef3c7d6839a7bf30cc806434d2486df970497b",
+    "normalReopenProcessId": 7672,
+    "readQueueUnchanged": true,
+    "businessDataWritten": false,
+    "browserFixtureVerified": true
   }
 }

@@ -43,10 +43,10 @@
    panel.replaceChildren();panel.hidden=!state.images.size;if(panel.hidden){panel.style.display='none';return;}panel.style.display='contents';
    for(const side of ['front','back','qr'])if(state.images.has(side)){
     const button=doc.createElement('button');button.type='button';button.dataset.side=side;button.textContent=side==='qr'?'↻ Đọc QR':side==='front'?'↻ Mặt trước':'↻ Mặt sau';button.title=side==='qr'?'Đọc lại QR':side==='front'?'Đọc lại mặt trước':'Đọc lại mặt sau';button.setAttribute('aria-label','↻ '+button.title);button.disabled=state.busy||state.pending>0;
-    button.style.cssText='flex:0 0 auto;margin:0;padding:6px 8px;min-height:32px;border:1px solid #bd8a65;border-radius:6px;background:#fff;color:#153448;cursor:pointer;font:11px/1.2 Arial,sans-serif;white-space:nowrap;';button.style.opacity=button.disabled?'0.55':'1';
+    button.className='btn btn-blue kbl-identity-retry-button';button.style.cssText='display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:auto;margin:0;padding:6px 8px;min-height:32px;font-family:inherit;font-size:11px;font-weight:600;line-height:1.2;white-space:nowrap;';button.style.opacity=button.disabled?'0.55':'1';
     button.addEventListener('click',()=>session.retry(side,(image,job)=>worker(side,image,job)));panel.append(button);
    }
-   if(state.busy||state.pending){const stop=doc.createElement('button');stop.type='button';stop.textContent='Dừng đọc';stop.style.cssText='flex:0 0 auto;margin:0;padding:6px 8px;min-height:32px;border:1px solid #bd8a65;border-radius:6px;background:#fff;color:#9b3223;cursor:pointer;font:11px/1.2 Arial,sans-serif;white-space:nowrap;';stop.addEventListener('click',()=>{session.stop();status.textContent='Đã dừng đọc. Ảnh vẫn còn; bấm Đọc lại khi cần.';});panel.append(stop);}
+   if(state.busy||state.pending){const stop=doc.createElement('button');stop.type='button';stop.textContent='Dừng đọc';stop.className='btn btn-outline kbl-identity-retry-button';stop.style.cssText='display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:auto;margin:0;padding:6px 8px;min-height:32px;font-family:inherit;font-size:11px;font-weight:600;line-height:1.2;white-space:nowrap;';stop.addEventListener('click',()=>{session.stop();status.textContent='Đã dừng đọc. Ảnh vẫn còn; bấm Đọc lại khi cần.';});panel.append(stop);}
    if(state.message){status.textContent=state.message;status.className=state.error?'ai-status-alert ai-status-error':'ai-status-alert';}
   }
   session=createSession({onState:render,capture,validate});

@@ -45,3 +45,5 @@ Mẫu phải dựng bằng mã, ảnh sản phẩm gốc và snapshot đã chố
 04/11/2026 — Owner requests compact retry buttons beside QR VNeID in tabs1,2,4. Presentation only; preserve OCR/session callbacks, calculations and records. Public GitHub push still awaits explicit authorization from prior turn.
 
 04/11/2026 — Chủ tiệm yêu cầu rà toàn bộ nhãn hàm lượng vàng 9999 và đổi cách hiển thị/in thành 999.9, đặc biệt ô Tên hàng hóa của Bảng kê thu mua. Giữ mã nội bộ 9999, khóa bảng giá, giá trị ô chọn, công thức và dữ liệu đã lưu; không thay thế toàn cục trong hồ sơ hoặc mã sản phẩm. Cài khi POS đã thoát bình thường, không ép đóng.
+
+04/11/2026 — Chủ tiệm yêu cầu nút đọc lại vừa thêm phải đồng bộ giao diện với các nút cũ. Dùng chung lớp nút của POS, giữ vị trí cạnh QR ở ba tab và nguyên các callback/hàng đợi/OCR. Gộp cài với nhãn 999.9 đã chuẩn bị khi ứng dụng đã đóng; không ép đóng, không đổi công thức hoặc dữ liệu.
