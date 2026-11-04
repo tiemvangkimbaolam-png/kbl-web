@@ -6,6 +6,7 @@ import ChatWidget from './chat-widget';
 import FeedbackBox from './feedback-box';
 import ReferenceHome from './reference-home';
 import { savedCart } from './public-state.mjs';
+import { mergePublicPrices, markFailedPriceRefresh } from '@/lib/kbl/public-price-merge.mjs';
 import ReferenceTryOn from './reference-home/try-on';
 import ProductDetails from './product-details';
 import { findPublicProduct, productInquiry } from '@/lib/kbl/product-view.mjs';
@@ -19,7 +20,7 @@ export default function Storefront({ reference = false, initialData=null }: { re
     async function load() { const sequence = ++catalogSequence.current; try {
         const catalog = await api('public/catalog');
         if (sequence !== catalogSequence.current) return;
-        setData(latestQuotes.current?{...catalog,...latestQuotes.current}:catalog);
+        setData(old => mergePublicPrices(catalog, latestQuotes.current));
         setDetail((old: any) => old ? catalog.products?.find((p: any) => p.id === old.id) || { ...old, available: false, published: false } : null);
         if (!deepLinkApplied.current && new URLSearchParams(location.search).get('gio-hang') === '1') setModal('cart');
         const selected = new URLSearchParams(location.search).get('san-pham');
@@ -37,7 +38,7 @@ export default function Storefront({ reference = false, initialData=null }: { re
         setCart(savedCart(localStorage.getItem('kbl-cart-v2')));
     }
     catch { } const refresh = setInterval(() => { if (!document.hidden) void load(); }, 300000); return () => { ++catalogSequence.current; clearInterval(refresh); }; }, []);
-    useEffect(()=>{let active=true,pending=false;async function prices(){if(pending||document.hidden)return;pending=true;try{const quotes=await api('public/prices');if(active){latestQuotes.current=quotes;setData((old:any)=>old?{...old,...quotes}:old);}}catch{/* Keep original source time if the network fails. */}finally{pending=false;}}void prices();const timer=setInterval(prices,15000);const visible=()=>{if(!document.hidden)void prices();};document.addEventListener('visibilitychange',visible);return()=>{active=false;clearInterval(timer);document.removeEventListener('visibilitychange',visible);};},[]);
+    useEffect(()=>{let active=true,pending=false;async function prices(){if(pending||document.hidden)return;pending=true;try{const quotes=await api('public/prices');if(active){latestQuotes.current=mergePublicPrices(latestQuotes.current,quotes)||quotes;setData((old:any)=>mergePublicPrices(old,quotes));}}catch{if(active)setData((old:any)=>markFailedPriceRefresh(old));}finally{pending=false;}}void prices();const timer=setInterval(prices,15000);const visible=()=>{if(!document.hidden)void prices();};document.addEventListener('visibilitychange',visible);return()=>{active=false;clearInterval(timer);document.removeEventListener('visibilitychange',visible);};},[]);
     useEffect(() => { try { localStorage.setItem('kbl-cart-v2', JSON.stringify(cart)); } catch { /* Private mode may deny storage; current cart still works. */ } }, [cart]);
     useEffect(() => { if (!chat || !chatState?.token)
         return; const timer = setInterval(async () => { try {
