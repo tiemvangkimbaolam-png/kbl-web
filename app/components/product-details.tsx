@@ -10,9 +10,9 @@ export default function ProductDetails({ product: p, onAsk, onReserve }: { produ
     const available = p.available === true && p.published === true;
     return <div className="kbl-product-detail">
         <figure className="kbl-product-gallery">
-            {image ? <a href={'/api/media/' + image} target="_blank" rel="noreferrer" aria-label={'Mở ảnh gốc ' + p.name}><img src={'/api/media/' + image} alt={p.name} width={640} height={640}/></a> : <div className="kbl-product-no-image"><ImageIcon size={40}/><span>Chưa đồng bộ ảnh sản phẩm</span></div>}
+            {image ? <a href={'/api/media/' + image} target="_blank" rel="noreferrer" aria-label={'Mở ảnh gốc ' + p.name}><img src={'/api/media/' + image} alt={p.name} width={640} height={640}/></a> : <div className="kbl-product-no-image"><ImageIcon size={40}/><span>Ảnh sản phẩm đang được bổ sung</span></div>}
             {facts.imageIds.length > 1 && <div className="kbl-product-thumbnails">{facts.imageIds.map((id: string, i: number) => <button type="button" key={id} aria-label={'Ảnh ' + (i + 1)} aria-pressed={id === image} onClick={() => setImage(id)}><img src={'/api/media/' + id} alt={'Góc ảnh ' + (i + 1)} width={64} height={64}/></button>)}</div>}
-            {image && <figcaption>Ảnh sản phẩm đã đồng bộ từ cửa hàng. Bấm ảnh để xem bản gốc.</figcaption>}
+            {image && <figcaption>Chọn ảnh để xem bản gốc của mẫu.</figcaption>}
         </figure>
         <div className="stack">
             <p className="small muted">Mã sản phẩm <strong>{p.sku}</strong></p>
@@ -22,13 +22,13 @@ export default function ProductDetails({ product: p, onAsk, onReserve }: { produ
                 <div><dt>{p.source === 'pos' ? 'Trọng lượng vàng ròng' : 'Trọng lượng'}</dt><dd>{p.source === 'pos' ? weight(facts.netWeightChi) : (p.weight > 0 ? new Intl.NumberFormat('vi-VN').format(p.weight) + ' g' : 'Chưa có dữ liệu')}</dd></div>
                 {facts.grossWeightChi !== null && <div><dt>Tổng trọng lượng</dt><dd>{weight(facts.grossWeightChi)}</dd></div>}
                 {facts.stoneWeightChi !== null && <div><dt>Trọng lượng hột/đá</dt><dd>{weight(facts.stoneWeightChi)}</dd></div>}
-                {facts.posGoldRate !== undefined && <div><dt>Đơn giá vàng POS</dt><dd>{cash(facts.posGoldRate)} / chỉ</dd></div>}
+                {facts.posGoldRate !== undefined && <div><dt>Đơn giá vàng tham khảo</dt><dd>{cash(facts.posGoldRate)} / chỉ</dd></div>}
                 {facts.posWorkmanship !== undefined && <div><dt>Tiền công bán</dt><dd>{cash(facts.posWorkmanship)}</dd></div>}
                 <div><dt>Nguồn gốc / xuất xứ</dt><dd>Vui lòng xem tem và hồ sơ sản phẩm tại cửa hàng.</dd></div>
                 <div><dt>Tình trạng</dt><dd>{available ? 'Đang trưng bày' : 'Cần kiểm tra lại tại cửa hàng'}</dd></div>
             </dl>
-            <div><p className="small muted">Giá tham khảo của sản phẩm</p><h3 className="kbl-product-total">{cash(p.price)}</h3></div>
-            <p className="small muted">{p.updatedAt ? 'Đồng bộ ' + date(p.updatedAt) + '. ' : ''}Giá lấy từ POS; cửa hàng xác nhận lại giá và tồn kho khi giao dịch.</p>
+            <div><p className="small muted">Giá tham khảo của sản phẩm</p><p className="kbl-product-total">{cash(p.price)}</p></div>
+            <p className="small muted">{p.updatedAt ? 'Cập nhật ' + date(p.updatedAt) + '. ' : ''}Cửa hàng xác nhận lại giá và tình trạng sản phẩm khi giao dịch.</p>
             <div className="row" style={{ flexWrap: 'wrap' }}>
                 {onReserve && available && p.price !== null && <button type="button" className="button" onClick={onReserve}><ShoppingBag size={16}/>Giữ mẫu này</button>}
                 {onAsk ? <button type="button" className="button secondary" onClick={onAsk}><MessageCircle size={16}/>Hỏi về sản phẩm này</button> : <a className="button secondary" href={'/?tu-van=' + encodeURIComponent(p.sku)}><MessageCircle size={16}/>Hỏi về sản phẩm này</a>}

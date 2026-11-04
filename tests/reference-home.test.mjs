@@ -9,11 +9,13 @@ test('reference ring converter retains the actual Ni table and accepts Vietnames
   assert.throws(()=>ringSize('15.6.0'));
   assert.throws(()=>ringSize('0'));
 });
-test('website-only estimate retains original inclusive days and tier thresholds without changing POS',()=>{
+test('website-only estimate follows approved100m boundary and inclusive days without changing POS',()=>{
   assert.equal(estimatePawn('49.999.999','2026-10-26','2026-10-26').monthly,3);
   const at50=estimatePawn('50.000.000','2026-10-26','2026-10-26');
-  assert.equal(at50.monthly,2.5);assert.equal(at50.days,1);assert.equal(at50.interest,41667);
-  assert.equal(estimatePawn(200e6,'2026-10-26','2026-11-24').monthly,2.2);
+  assert.equal(at50.monthly,3);assert.equal(at50.days,1);assert.equal(at50.interest,50000);
+  const at100=estimatePawn(100e6,'2026-10-26','2026-11-24');assert.equal(at100.monthly,3);assert.equal(at100.interest,3000000);assert.deepEqual(at100.fees,{ls:1.5,ptd:.5,pdq:.5,cpbg:.5});
+  const above=estimatePawn(100000001,'2026-10-26','2026-11-24');assert.equal(above.monthly,2.5);assert.equal(above.interest,2500000);assert.deepEqual(above.fees,{ls:1.5,ptd:.4,pdq:.3,cpbg:.3});
+  assert.equal(estimatePawn(200e6,'2026-10-26','2026-11-24').monthly,2.5);
   assert.equal(estimatePawn(200e6,'2026-10-26','2026-11-24').days,30);
   assert.throws(()=>estimatePawn(100e6,'2026-10-26','2026-10-25'));
   assert.throws(()=>estimatePawn(100e6,'2026-02-30','2026-03-01'));

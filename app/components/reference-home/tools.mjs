@@ -1,4 +1,4 @@
-// Public website tools, copied from the user's existing published convention.
+// Public website estimates follow the owner's approved policy (04/11/2026).
 // These functions do not access or alter POS records or formulas.
 export const RING_DIAMETERS = [13,13.4,13.7,14,14.3,14.7,15,15.3,15.6,16,16.2,16.6,16.9,17.2,17.5,17.8,18.2,18.5,18.8,19,19.4,19.7,20,20.4,20.7,21,21.3,21.7,22,22.3];
 export function ringSize(value) {
@@ -23,9 +23,10 @@ export function estimatePawn(principal,start,end) {
   if(!Number.isFinite(amount)||!Number.isInteger(amount)||amount<=0||amount>1e12) throw Error('Nhập số tiền cầm hợp lệ.');
   const days=(day(end)-day(start))/86400000+1;
   if(days<1||days>3650) throw Error('Ngày chuộc cần từ ngày cầm trở đi, tối đa 10 năm.');
-  const monthly=amount<50e6?3:amount<200e6?2.5:2.2;
+  const monthly=amount>100e6?2.5:3;
+  const fees=amount>100e6?{ls:1.5,ptd:0.4,pdq:0.3,cpbg:0.3}:{ls:1.5,ptd:0.5,pdq:0.5,cpbg:0.5};
   const interest=Math.round(amount*monthly/100*days/30);
-  return {amount,days,monthly,interest,total:amount+interest};
+  return {amount,days,monthly,fees,interest,total:amount+interest};
 }
 export function perChi(value,unit='đồng/lượng') {
   if(!Number.isFinite(value)||value<0) return null;

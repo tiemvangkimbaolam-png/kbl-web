@@ -44,4 +44,4 @@ export function Modal({ title, onClose, children }: {
         first.focus();
     }
 } } document.addEventListener('keydown', key); return () => { clearTimeout(timer); document.removeEventListener('keydown', key); previous?.focus?.(); }; }, []); return <div className="modal-backdrop kbl-modal-v2" onClick={e => { if (e.target === e.currentTarget)
-    onClose(); }}><div className="modal" role="dialog" aria-modal="true" aria-label={title} ref={box}><header><h2>{title}</h2><button className="icon-button" aria-label="Đóng" onClick={onClose}><X size={18}/></button></header>{children}</div></div>; }
+    onClose(); }}><div className="modal" role="dialog" aria-modal="true" aria-label={title} ref={box}><header><h2>{title}</h2><button type="button" className="icon-button" aria-label="Đóng" onClick={onClose}><X size={18}/></button></header>{children}</div></div>; }

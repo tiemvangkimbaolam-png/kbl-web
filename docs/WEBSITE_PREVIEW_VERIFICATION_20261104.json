@@ -1,0 +1,243 @@
+{
+  "status": "preview_ready_owner_phone_review_pending",
+  "productionDeployed": false,
+  "productionDataWritten": false,
+  "publicReadOnlySnapshot": {
+    "products": 377,
+    "productsWithImages": 1,
+    "photoReview": "KBL-KA96VM is Nhẫn per owner;linked chain photo not promoted;no replacement photo or record changes"
+  },
+  "fullSuite": {
+    "tests": 382,
+    "pass": 382,
+    "fail": 0
+  },
+  "cloudflareBuild": "pass",
+  "webTypecheck": "pass",
+  "repositoryTypecheck": {
+    "status": "existing_unrelated_error",
+    "file": "windows/remotion/src/Root.tsx:7",
+    "code": "TS2558",
+    "fileUnchanged": true
+  },
+  "responsive": [
+    {
+      "documentWidth": 305,
+      "overflowCells": [],
+      "sections": [
+        "prices",
+        "products",
+        "services",
+        "contact"
+      ],
+      "tableRight": 292,
+      "viewport": 320
+    },
+    {
+      "documentWidth": 345,
+      "overflowCells": [],
+      "sections": [
+        "prices",
+        "products",
+        "services",
+        "contact"
+      ],
+      "tableRight": 332,
+      "viewport": 360
+    },
+    {
+      "documentWidth": 375,
+      "overflowCells": [],
+      "sections": [
+        "prices",
+        "products",
+        "services",
+        "contact"
+      ],
+      "tableRight": 358,
+      "viewport": 390
+    },
+    {
+      "documentWidth": 753,
+      "overflowCells": [],
+      "sections": [
+        "prices",
+        "products",
+        "services",
+        "contact"
+      ],
+      "tableRight": 724,
+      "viewport": 768
+    },
+    {
+      "documentWidth": 1425,
+      "overflowCells": [],
+      "sections": [
+        "prices",
+        "products",
+        "services",
+        "contact"
+      ],
+      "tableRight": 1291.5,
+      "viewport": 1440
+    }
+  ],
+  "browserRuntime": {
+    "searchSku": true,
+    "sameSkuInquiryLink": true,
+    "cartAddAndQuantity": true,
+    "ring15_6mmNi9": true,
+    "pawn100m30days3m": true,
+    "pawn10000000130days2500000": true,
+    "lazyChatAndTryOnEntry": true,
+    "modalCloseAndKeyboard": true,
+    "networkFailureKeepsPrices": true,
+    "networkReconnect": true,
+    "physicalPhoneTested": false
+  },
+  "lighthouse": {
+    "version": "13.6.0",
+    "localOnly": true,
+    "productionScoreVerified": false,
+    "statistics": {
+      "home-mobile": {
+        "performance": {
+          "median": 100,
+          "min": 100,
+          "max": 100
+        },
+        "accessibility": {
+          "median": 100,
+          "min": 100,
+          "max": 100
+        },
+        "lcpMs": {
+          "median": 1229.7158,
+          "min": 1219.222,
+          "max": 1233.4788
+        },
+        "cls": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "tbtMs": {
+          "median": 2,
+          "min": 1.5,
+          "max": 16
+        }
+      },
+      "home-desktop": {
+        "performance": {
+          "median": 100,
+          "min": 100,
+          "max": 100
+        },
+        "accessibility": {
+          "median": 100,
+          "min": 100,
+          "max": 100
+        },
+        "lcpMs": {
+          "median": 300.6247,
+          "min": 296.9824,
+          "max": 302.8162
+        },
+        "cls": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "tbtMs": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "prices-mobile": {
+        "performance": {
+          "median": 100,
+          "min": 100,
+          "max": 100
+        },
+        "accessibility": {
+          "median": 100,
+          "min": 100,
+          "max": 100
+        },
+        "lcpMs": {
+          "median": 919.5839000000001,
+          "min": 918.9492,
+          "max": 921.0690999999999
+        },
+        "cls": {
+          "median": 0.001568961588541667,
+          "min": 0.001568961588541667,
+          "max": 0.001568961588541667
+        },
+        "tbtMs": {
+          "median": 5,
+          "min": 1.5,
+          "max": 9.5
+        }
+      },
+      "product-mobile": {
+        "performance": {
+          "median": 100,
+          "min": 100,
+          "max": 100
+        },
+        "accessibility": {
+          "median": 100,
+          "min": 100,
+          "max": 100
+        },
+        "lcpMs": {
+          "median": 922.3951,
+          "min": 921.6148000000001,
+          "max": 923.4558999999999
+        },
+        "cls": {
+          "median": 0.002582441677517361,
+          "min": 0.002582441677517361,
+          "max": 0.002582441677517361
+        },
+        "tbtMs": {
+          "median": 8,
+          "min": 6.5,
+          "max": 14.5
+        }
+      }
+    },
+    "initialDeferredResourceRequests": []
+  },
+  "protectedSource": [
+    "pos-source",
+    "windows",
+    "lib",
+    "worker",
+    "cloudflare",
+    "wrangler.cloudflare.json",
+    "drizzle"
+  ],
+  "protectedSourceDiffFromBase": "none",
+  "sourceSha256": {
+    "app/components/reference-home/index.tsx": "6d6a9fe64b750f289cf105ae42ad3dce0f432159cd6f169d251a2b30a63fdcb4",
+    "app/components/reference-home/home.css": "407684acb2c28ae5f3ea9a5b3e85dc795059d79011f80594d9b140831fa88c88",
+    "app/components/reference-home/customer-tools.tsx": "a3c0ed71bbb9a2690d872d55b38abd100e4176fd9d8816134a386c2d56229260",
+    "app/components/reference-home/tools.mjs": "064e9c7f830ae4890cd1cf7e7a062fbf1c2dc83826940aec712fa07adb20cc37",
+    "app/components/storefront.tsx": "a28a476bf4fa35b99df4620c18ff4d465689c51bb373ebf59a15c747bc746b07",
+    "app/components/product-details.tsx": "7643a73e37841f2627054ba24ea264820e4a3b8ca1cef5c3b0a84200fad00df8",
+    "app/components/public-data.tsx": "b0a0b8e40889a89cdade87d8c15fc33bf4bcd099ae7e1d9ff0c89705eb871b3a",
+    "app/components/price-history.tsx": "e4cfec8320c9fb8a73193d23d787b20b721ffd3e15b689218bcec0f855c9b9e9",
+    "app/components/reference-home/try-on.tsx": "7345fbc8b4e16e359520c38c8348a7fd9710b4bcdac6a1d5366e467cb205ec69",
+    "app/components/ui.tsx": "0493219d7dec5abf707a954ecb41006ce2085910a792b61572e7051de08edc3e"
+  },
+  "preview": {
+    "pc": "http://127.0.0.1:18747/",
+    "lan": "http://192.168.1.9:18747/",
+    "writesAllowed": false,
+    "adminWorkerRoutesBlocked": true,
+    "usesProductionBindings": false
+  }
+}

@@ -5,54 +5,54 @@
   "stages": {
     "specify": {
       "status": "done",
-      "note": "Owner requests retry buttons match existing POS theme;keep adjacent QR and preserve all behavior.",
+      "note": "Approved website redesign:ivory/copper,price-first,stable server layout,lazy tools,web-only pawn policy;POS and active automation protected.",
       "evidence": [
         {
           "path": ".project-state\\contract.md",
-          "sha256": "597f70d051bef1c5967869ed67b30819ed3bbe12cfe5ef6cccfd66d540fc1119",
-          "bytes": 10519
+          "sha256": "a3cac40bd029a87c87d2a54457691c388f1a522663a2239206a99ddc4fc081b5",
+          "bytes": 11354
         }
       ],
-      "at": "2026-11-04T00:57:54.991344+00:00"
+      "at": "2026-11-04T02:01:36.756160+00:00"
     },
     "build": {
       "status": "done",
-      "note": "Only retry/stop classes and inline presentation changed;queue byte-identical;13 focused checks pass.",
+      "note": "Cloudflare build and web types pass;382 checks;only web/test files changed;unrelated preexisting Remotion type error retained.",
       "evidence": [
         {
-          "path": "docs\\RETRY_THEME_VERIFICATION_20261104.json",
-          "sha256": "7579aaf4d39922fb87aef3e5f61304713656631c854bb04593ef90555fb4f252",
-          "bytes": 660
+          "path": "docs\\WEBSITE_PREVIEW_VERIFICATION_20261104.json",
+          "sha256": "90db566bf43b41e8a8ddac3202470dd22798ee088f0784668e4a7c24ce473c34",
+          "bytes": 6395
         }
       ],
-      "at": "2026-11-04T00:57:55.094135+00:00"
+      "at": "2026-11-04T02:01:36.882107+00:00"
     },
     "demonstrate": {
       "status": "done",
-      "note": "Browser fixture with actual module/theme verifies all3 tabs same row,disabled/stop/QR;not a native POS capture.",
+      "note": "Browser checks320/360/390/768/1440,SKU/cart/ring/pawn/offline-reconnect;12 local Lighthouse audits all100;physical phone pending.",
       "evidence": [
         {
-          "path": "docs\\CCCD_NUT_DONG_BO_20261104.md",
-          "sha256": "848a16992da2c60cbd85a553d90b14656ef11034226a538fb946b8b5575a4c8a",
-          "bytes": 1891
+          "path": "docs\\WEBSITE_PREVIEW_VERIFICATION_20261104.json",
+          "sha256": "90db566bf43b41e8a8ddac3202470dd22798ee088f0784668e4a7c24ce473c34",
+          "bytes": 6395
         }
       ],
-      "at": "2026-11-04T00:57:55.194244+00:00"
+      "at": "2026-11-04T02:01:37.009392+00:00"
     },
     "integrate": {
-      "status": "done",
-      "note": "Combined retry theme and gold999.9 archive installed while POS closed,reopened;protected files and compact rollback verified.",
+      "status": "pending",
+      "note": "Read-only LAN preview ready;main website unchanged pending owner phone review per approved plan;photo source mismatch held out of featured display.",
       "evidence": [
         {
-          "path": "docs\\RETRY_THEME_VERIFICATION_20261104.json",
-          "sha256": "7579aaf4d39922fb87aef3e5f61304713656631c854bb04593ef90555fb4f252",
-          "bytes": 660
+          "path": "docs\\WEBSITE_REBUILD_PREVIEW_20261104.md",
+          "sha256": "a7aa0762e517df415a28164bd92e75f41122087870f11a07a2fb30e441309152",
+          "bytes": 5936
         }
       ],
-      "at": "2026-11-04T00:57:55.298734+00:00"
+      "at": "2026-11-04T02:01:37.138872+00:00"
     }
   },
-  "next_action": "",
+  "next_action": "Owner reviews http://192.168.1.9:18747/ on phone and authorizes publication;retain jobs/data and existing Cloudflare bindings.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -401,9 +401,33 @@
       "stage": "integrate",
       "status": "done",
       "note": "Combined retry theme and gold999.9 archive installed while POS closed,reopened;protected files and compact rollback verified."
+    },
+    {
+      "at": "2026-11-04T02:01:36.756160+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Approved website redesign:ivory/copper,price-first,stable server layout,lazy tools,web-only pawn policy;POS and active automation protected."
+    },
+    {
+      "at": "2026-11-04T02:01:36.882107+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "Cloudflare build and web types pass;382 checks;only web/test files changed;unrelated preexisting Remotion type error retained."
+    },
+    {
+      "at": "2026-11-04T02:01:37.009392+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Browser checks320/360/390/768/1440,SKU/cart/ring/pawn/offline-reconnect;12 local Lighthouse audits all100;physical phone pending."
+    },
+    {
+      "at": "2026-11-04T02:01:37.138872+00:00",
+      "stage": "integrate",
+      "status": "pending",
+      "note": "Read-only LAN preview ready;main website unchanged pending owner phone review per approved plan;photo source mismatch held out of featured display."
     }
   ],
-  "updated_at": "2026-11-04T00:57:55.298734+00:00",
+  "updated_at": "2026-11-04T02:01:37.138872+00:00",
   "goldSocialFormats": {
     "status": "deployed_and_facebook_verified",
     "policy": "gold-platform-v1",
@@ -500,5 +524,22 @@
     "readQueueUnchanged": true,
     "businessDataWritten": false,
     "browserFixtureVerified": true
+  },
+  "websiteRebuild": {
+    "status": "preview_ready_owner_phone_review_pending",
+    "source": "docs/WEBSITE_REBUILD_PREVIEW_20261104.md",
+    "verification": "docs/WEBSITE_PREVIEW_VERIFICATION_20261104.json",
+    "productionDeployed": false,
+    "protectedCodeUnchanged": true,
+    "physicalPhoneTested": false,
+    "tests": 382,
+    "lighthouseLocalOnly": true,
+    "localPerformanceScore": 100,
+    "phonePreview": "http://192.168.1.9:18747/",
+    "pending": [
+      "Owner reviews on physical phone before publication",
+      "Correct ring photo for SKU KBL-KA96VM;chain photo excluded from featured display",
+      "Public GitHub source push still lacks explicit approval"
+    ]
   }
 }
