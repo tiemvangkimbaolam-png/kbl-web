@@ -1,5 +1,5 @@
 import {processPriceNotifications} from '../lib/kbl/customer-plans';
-import {customerMaintenance} from '../lib/kbl/customer-maintenance';
+import {customerMaintenance,reconcileCustomerTryOn} from '../lib/kbl/customer-maintenance';
 import {capturePriceHistory} from '../lib/kbl/price-history';
 import {deliverFeedback} from '../lib/kbl/feedback';
 import { pollCloudPrice } from '../lib/kbl/cloud-price';
@@ -31,7 +31,8 @@ export default {
                 'trả lời hộp thư':processInboxReplies,
                 'phản hồi cửa hàng':deliverFeedback,
                 'lịch sử giá':()=>capturePriceHistory(at,{housekeeping:false}),
-                'mốc cảnh báo giá':()=>processPriceNotifications({housekeeping:false})
+                'mốc cảnh báo giá':()=>processPriceNotifications({housekeeping:false}),
+                'đối soát ảnh thử bị mất phản hồi':()=>reconcileCustomerTryOn(at)
             },event)]);
             if(quote[0].status==='rejected')await event('cloud-price-error','Chưa cập nhật nguồn BK/ASK; giữ giá có thời điểm.').catch(()=>{});
             if(quote[0].status==='rejected'||other[0].status==='rejected')throw Error('Scheduled work incomplete.');
