@@ -5,71 +5,56 @@
   "stages": {
     "specify": {
       "status": "done",
-      "note": "Owner requests identity QR and OCR recovery only; protect all financial and historical behavior.",
+      "note": "Owner requests compact presentation of retry controls beside QR in POS tabs1,2,4.",
       "evidence": [
         {
           "path": ".project-state\\contract.md",
-          "sha256": "3be99f593088b75bff7195beb8bf57bf569a937324657fe944a584894349e9ef",
-          "bytes": 9468
+          "sha256": "d0f77e702849120992f9c04c1db5b67931b8284e4ab409620daecd5aa73f6cff",
+          "bytes": 9701
         }
       ],
-      "at": "2026-11-03T14:43:02.669010+00:00"
+      "at": "2026-11-04T00:32:35.079431+00:00"
     },
     "build": {
       "status": "done",
-      "note": "381 full tests pass; packaged local QR, bounded longer provider waits and per-side retry/cancel.",
+      "note": "Only render styles and placement changed;read queue unchanged and14 relevant tests pass.",
       "evidence": [
         {
-          "path": "pos-source\\kbl-cccd-ocr.cjs",
-          "sha256": "ee9882a348fd68587564b4eed7c710c1e4ddbe0c55770905fa3743c51b942d5a",
-          "bytes": 9142
-        },
-        {
           "path": "pos-source\\kbl-identity-recovery.cjs",
-          "sha256": "50c91c74ade1394fa9107057ecf5f0c140d61791ecc87288a8a2aff68aa4dbb8",
-          "bytes": 6374
-        },
-        {
-          "path": "tests\\identity-recovery.test.mjs",
-          "sha256": "1498ce0b0bcbbfae7f5bd092c457e423d294128bfa6f7947f35b4c35e17144a7",
-          "bytes": 7270
+          "sha256": "9dfecb0d8b39bfe9c9cbe1e8468ed2c1a2b39e7162fee2295bb753d4f4fee8bc",
+          "bytes": 6765
         }
       ],
-      "at": "2026-11-03T14:43:02.783671+00:00"
+      "at": "2026-11-04T00:32:35.183632+00:00"
     },
     "demonstrate": {
       "status": "done",
-      "note": "Actual handlers in isolated browser fixture pass API failure/retry, stop/retry, three contexts and QR image; not physical iPhone/customer-card proof.",
+      "note": "Synthetic browser preview verifies same-row retry/stop controls and QR retry across all three tabs;not native POS screenshot.",
       "evidence": [
         {
-          "path": "docs\\CCCD_QR_RECOVERY_20261103.md",
-          "sha256": "39808576ff20ea865eab53cb67655457f63e52f6eb2f6d19d3160c95ead25ea6",
-          "bytes": 5563
+          "path": "docs\\CCCD_NUT_GON_20261104.md",
+          "sha256": "c78ed57d0486adec4974ce905227b6115076d9cccb510b740efeb2134fd9246f",
+          "bytes": 1529
         }
       ],
-      "at": "2026-11-03T14:43:02.885755+00:00"
+      "at": "2026-11-04T00:32:35.287768+00:00"
     },
     "integrate": {
       "status": "done",
-      "note": "Identity retry/cancel/local QR installed in actual POS;381 tests pass and Remote assets verified;real phone/customer scan remains owner validation.",
+      "note": "Compact identity retry controls installed beside QR in all three tabs;14 relevant checks and browser fixture pass;business source unchanged.",
       "evidence": [
         {
-          "path": "docs\\CCCD_QR_RECOVERY_20261103.md",
-          "sha256": "39808576ff20ea865eab53cb67655457f63e52f6eb2f6d19d3160c95ead25ea6",
-          "bytes": 5563
+          "path": "docs\\CCCD_NUT_GON_20261104.md",
+          "sha256": "c78ed57d0486adec4974ce905227b6115076d9cccb510b740efeb2134fd9246f",
+          "bytes": 1529
         },
         {
           "path": "pos-source\\kbl-identity-recovery.cjs",
-          "sha256": "50c91c74ade1394fa9107057ecf5f0c140d61791ecc87288a8a2aff68aa4dbb8",
-          "bytes": 6374
-        },
-        {
-          "path": "pos-source\\kbl-qr-decoder.cjs",
-          "sha256": "b1113dba99353bb8c66d730c9e0b1cc5737121d0df8e1b036fb56ffdb75c8f00",
-          "bytes": 4033
+          "sha256": "9dfecb0d8b39bfe9c9cbe1e8468ed2c1a2b39e7162fee2295bb753d4f4fee8bc",
+          "bytes": 6765
         }
       ],
-      "at": "2026-11-03T14:42:16.115490+00:00"
+      "at": "2026-11-04T00:32:04.858932+00:00"
     }
   },
   "next_action": "",
@@ -349,9 +334,33 @@
       "stage": "demonstrate",
       "status": "done",
       "note": "Actual handlers in isolated browser fixture pass API failure/retry, stop/retry, three contexts and QR image; not physical iPhone/customer-card proof."
+    },
+    {
+      "at": "2026-11-04T00:32:04.858932+00:00",
+      "stage": "integrate",
+      "status": "done",
+      "note": "Compact identity retry controls installed beside QR in all three tabs;14 relevant checks and browser fixture pass;business source unchanged."
+    },
+    {
+      "at": "2026-11-04T00:32:35.079431+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requests compact presentation of retry controls beside QR in POS tabs1,2,4."
+    },
+    {
+      "at": "2026-11-04T00:32:35.183632+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "Only render styles and placement changed;read queue unchanged and14 relevant tests pass."
+    },
+    {
+      "at": "2026-11-04T00:32:35.287768+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Synthetic browser preview verifies same-row retry/stop controls and QR retry across all three tabs;not native POS screenshot."
     }
   ],
-  "updated_at": "2026-11-03T14:43:02.885755+00:00",
+  "updated_at": "2026-11-04T00:32:35.287768+00:00",
   "goldSocialFormats": {
     "status": "deployed_and_facebook_verified",
     "policy": "gold-platform-v1",
@@ -417,5 +426,16 @@
     "iPhoneLiveCameraTested": false,
     "realCustomerCardTested": false,
     "installedArchiveSha256": "fbe8cf3b074dd6eafd22bb0e5dec4ecd27eb53f4fff9a0587c3c5ce829040d17"
+  },
+  "identityCompact": {
+    "status": "installed",
+    "date": "2026-11-04",
+    "source": "docs/CCCD_NUT_GON_20261104.md",
+    "tests": 14,
+    "archiveSha256": "50175abd4c5a935cb081cf9cd283c7f6a32991a130f2e38c2603a4cba97e0c67",
+    "onlyPresentation": true,
+    "nativeVisualCheck": "not_tested",
+    "browserFixtureVerified": true,
+    "githubPush": "still awaiting explicit permission"
   }
 }

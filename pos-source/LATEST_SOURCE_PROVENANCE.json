@@ -20,7 +20,7 @@
     "kbl-address-converter.cjs": "b23d20ab529b681735943f852d4c19fb37d99fbfa6790cada71b0a09273b1009",
     "kbl-address-data.cjs": "298b00508c26a74b30c9a516a245492b10c49e9a621f925d596b7e6238547a8f",
     "mobile-price.html": "b25ffbbe52d85d8acdfdc4fa1acd4138233614f4fc5e5da8ea0aa4e294161fc1",
-    "kbl-identity-recovery.cjs": "50c91c74ade1394fa9107057ecf5f0c140d61791ecc87288a8a2aff68aa4dbb8",
+    "kbl-identity-recovery.cjs": "9dfecb0d8b39bfe9c9cbe1e8468ed2c1a2b39e7162fee2295bb753d4f4fee8bc",
     "kbl-qr-decoder.cjs": "b1113dba99353bb8c66d730c9e0b1cc5737121d0df8e1b036fb56ffdb75c8f00",
     "kbl-jsqr.js": "bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859",
     "KBL_JSQR_LICENSE.txt": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
@@ -121,5 +121,10 @@
     "businessDataWritten": false,
     "identityAutoGuess": false,
     "acceptedSourceArchiveSha256": "4b66e4f5fbf8a5bf24a6911b66bddce71c978db05ae1bd8b56744d2708c07e8b"
+  },
+  "identityRecoveryCompact20261104": {
+    "scope": "Presentation only: inline retry/cancel buttons next to QR VNeID in tabs1,2,4",
+    "readQueueChanged": false,
+    "financialChanges": false
   }
 }
