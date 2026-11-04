@@ -1,0 +1,22 @@
+{
+  "scriptsParsedAndCompared": 32,
+  "numericAndInternalCodeTokensUnchanged": true,
+  "fieldValuesAndHandlersUnchanged": true,
+  "synchronousA4RenderingVerified": true,
+  "manualA4DisplayVerified": true,
+  "invoiceSnapshotUnchanged": true,
+  "physicalPrintingTested": false,
+  "fullSuiteTests": 381,
+  "fullSuiteFailures": 0,
+  "installationStatus": "pending_normal_pos_exit",
+  "candidateArchiveSha256": "63699f1961d1e8dae782395d91f8544862cbf8fe586648e3bbdc6a3bf0734afd",
+  "currentInstalledArchiveSha256": "50175abd4c5a935cb081cf9cd283c7f6a32991a130f2e38c2603a4cba97e0c67",
+  "sourceFileNames": [
+    "renderer.js",
+    "index.html",
+    "pawn.html",
+    "main.js",
+    "tv.html",
+    "mobile-price.html"
+  ]
+}

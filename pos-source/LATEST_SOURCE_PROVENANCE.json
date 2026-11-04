@@ -9,21 +9,22 @@
     "kbl-product-photos.cjs": "840d883a54af1305a4d65342caee81cb29c01cdd39e248f24fe90695e0312e85"
   },
   "patched": {
-    "main.js": "4ea128879248a9f3bd4fb5e23e7cfdf04a77516c94f0064248bb09dcf366292d",
-    "renderer.js": "24e0c219fc3fe66c43e8dcd4b7480ae28add96f1dc3280be6947bcc6bed71476",
-    "pawn.html": "2727cc0e90c33eaaed89f55529b38cf5a4c85a4cd3424d09ac2b35761c2f87a1",
-    "index.html": "e52b858de121485efc720830d95d3baa79577f0854e87699b9814fea001d60c2",
+    "main.js": "88834abcfd84515064745595c67e1e60cd7f88100fc2af1690315f6a4560226d",
+    "renderer.js": "8c0741c556dac9d3e40673aa87b80ca0ed29ed63ecefe17fb0df335465d72bb6",
+    "pawn.html": "a161014796f438adde85203ad1965ec4d9e2301be1aa9794f2ec092fc727c304",
+    "index.html": "627edb48849954a47fb08af6577cdecb3ff19f1a19a3d9ea0285ffb1947fe4a8",
     "package.json": "2776d2ab948174b40c2eb9a9b46bb7186b5ee2cdd81fb84d770c0c1f05c9e3e0",
     "kbl-product-photos.cjs": "840d883a54af1305a4d65342caee81cb29c01cdd39e248f24fe90695e0312e85",
     "kbl-jewel-ui.js": "a0aa2a6d527dc226b44e29ea41eb4fcb9883330042acedf829edb5d72c81240a",
     "kbl-cccd-ocr.cjs": "ee9882a348fd68587564b4eed7c710c1e4ddbe0c55770905fa3743c51b942d5a",
     "kbl-address-converter.cjs": "b23d20ab529b681735943f852d4c19fb37d99fbfa6790cada71b0a09273b1009",
     "kbl-address-data.cjs": "298b00508c26a74b30c9a516a245492b10c49e9a621f925d596b7e6238547a8f",
-    "mobile-price.html": "b25ffbbe52d85d8acdfdc4fa1acd4138233614f4fc5e5da8ea0aa4e294161fc1",
+    "mobile-price.html": "ab08f69df44386421a4508ba8eb3d6ee5f15a9eee55046a3858f500bc9f2a08b",
     "kbl-identity-recovery.cjs": "9dfecb0d8b39bfe9c9cbe1e8468ed2c1a2b39e7162fee2295bb753d4f4fee8bc",
     "kbl-qr-decoder.cjs": "b1113dba99353bb8c66d730c9e0b1cc5737121d0df8e1b036fb56ffdb75c8f00",
     "kbl-jsqr.js": "bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859",
-    "KBL_JSQR_LICENSE.txt": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+    "KBL_JSQR_LICENSE.txt": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
+    "tv.html": "06dc53c141dd66fbacb6de29a5fa22b7e7d88a29b4a7677345891733575dea67"
   },
   "connectionOnly": true,
   "verification": "Reversing connection-only changes yields byte-identical latest originals, except removal of embedded legacy relay credential. Optional missing stylesheet/script tags removed from index/pawn, without changing inline POS function bodies.",
@@ -126,5 +127,10 @@
     "scope": "Presentation only: inline retry/cancel buttons next to QR VNeID in tabs1,2,4",
     "readQueueChanged": false,
     "financialChanges": false
+  },
+  "goldDisplay20261104": {
+    "scope": "Display and printed purity labels 9999 to 999.9 only",
+    "internalCodesAndNumericCalculations": "unchanged",
+    "historicalDataWritten": false
   }
 }

@@ -58,7 +58,7 @@ const LAN_PAWN_SESSION_TOKEN = crypto.randomBytes(24).toString('hex');
 
 const GOLD_PRICE_RULES = [
 
-    { code: '9999', title: 'Vàng 9999', effective: 9999 },
+    { code: '9999', title: 'Vàng 999.9', effective: 9999 },
 
     { code: '980', title: 'Vàng 980', effective: 9850 },
 
@@ -839,7 +839,7 @@ async function pollGooglePrice(reason = 'timer') {
 
         if (finalSell9999 < 1000000 || finalSell9999 > 100000000) {
 
-            throw new Error('Giá 9999 sau khi cộng điều chỉnh nằm ngoài vùng an toàn.');
+            throw new Error('Giá 999.9 sau khi cộng điều chỉnh nằm ngoài vùng an toàn.');
 
         }
 
@@ -905,7 +905,7 @@ async function pollGooglePrice(reason = 'timer') {
 
             googlePriceRuntimeStatus.message = priceChanged
 
-                ? `Đã cập nhật 9999 từ Google Sheet và đồng bộ POS / TV / Web (${reason}).`
+                ? `Đã cập nhật 999.9 từ Google Sheet và đồng bộ POS / TV / Web (${reason}).`
 
                 : (webResult && webResult.success
 

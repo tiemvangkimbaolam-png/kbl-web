@@ -3177,8 +3177,8 @@
         <!-- KBL HEADER GOLD PRICES V3: show only current values from existing POS config inputs. -->
         <div class="kbl-header-gold" aria-label="Bảng giá vàng hiện tại của POS, đơn vị đồng mỗi chỉ" title="Giá mua và bán lấy từ Cài đặt & AI; không tự tạo giá mới">
             <div class="kbl-header-gold-track">
-                <section class="kbl-gold-tile" aria-label="Giá vàng 9999" data-gold-code="9999">
-                    <div class="kbl-gold-tile-title">Vàng 9999 <small>đ/chỉ</small></div>
+                <section class="kbl-gold-tile" aria-label="Giá vàng 999.9" data-gold-code="9999">
+                    <div class="kbl-gold-tile-title">Vàng 999.9 <small>đ/chỉ</small></div>
                     <div class="kbl-gold-tile-line"><span>Mua</span><strong id="kbl-header-buy-9999">—</strong></div>
                     <div class="kbl-gold-tile-line"><span>Bán</span><strong id="kbl-header-sell-9999">—</strong></div>
                 </section>
@@ -3630,7 +3630,7 @@
                                             <tr>
                                                 <td>1</td>
                                                 <td>Vàng trang sức cũ</td>
-                                                <td>9999</td>
+                                                <td>999.9</td>
                                                 <td id="nk-weight">1 chỉ (~1.000 chỉ)</td>
                                                 <td>13.100.000đ</td>
                                                 <td id="nk-total">13.100.000đ</td>
@@ -4163,7 +4163,7 @@
                                         <div class="t-row"><span>KLH:</span><span id="t-klh">0.000 Chỉ</span></div>
                                         <div class="t-row"><span>KLV:</span><b id="t-klv">0.000 Chỉ</b></div>
                                         <div class="t-row"><span>Công:</span><b id="t-wage">0 ₫</b></div>
-                                        <div class="t-row t-row-pair"><span>HLV: <b id="t-hl">9999</b></span><span>KH: <b id="t-kh">—</b></span></div>
+                                        <div class="t-row t-row-pair"><span>HLV: <b id="t-hl">999.9</b></span><span>KH: <b id="t-kh">—</b></span></div>
                                         </div>
                                         <div id="t-data-svg"></div>
                                     </div>
@@ -4214,7 +4214,7 @@
                         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 12px 10px 12px;padding:9px 10px;border:1px solid #dbe4ee;border-radius:8px;background:#f8fbff;">
                             <span style="font-size:12px;font-weight:800;color:#0b2240;">🔎 Tìm kiếm trong Kho:</span>
                             <input id="inventory-search" type="text" class="form-control"
-                                   placeholder="Nhập bất kỳ: mã SP, tên món, 610/980/9999, trọng lượng, NCC, giá vốn, công..."
+                                   placeholder="Nhập bất kỳ: mã SP, tên món, 610/980/999.9, trọng lượng, NCC, giá vốn, công..."
                                    oninput="renderInventoryTable()"
                                    onkeydown="if(event.key==='Enter'){renderInventoryTable();}"
                                    style="min-width:360px;max-width:680px;flex:1;">
@@ -4766,13 +4766,13 @@
 
                     <div style="margin:0 0 14px;padding:12px;background:#eefbf8;border:1px solid #99e0d2;border-radius:8px;">
                         <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
-                            <div style="font-weight:800;color:#0f766e;">🔗 GIÁ 9999 TỰ ĐỘNG TỪ GOOGLE SHEET — BK / ASK</div>
+                            <div style="font-weight:800;color:#0f766e;">🔗 GIÁ 999.9 TỰ ĐỘNG TỪ GOOGLE SHEET — BK / ASK</div>
                             <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#334155;cursor:pointer;">
                                 <input type="checkbox" id="cfg-google-price-auto" checked onchange="saveGooglePriceAutoConfig(true)"> Tự động quét mỗi ~12 giây
                             </label>
                         </div>
                         <div style="font-size:11px;color:#475569;line-height:1.5;margin-bottom:8px;">
-                            Nguồn cố định: <b>BK · ASK</b>. Quy tắc: <b>145,054 → 14.505.000đ/chỉ</b> (bỏ 1 số cuối), sau đó cộng mức dưới đây để ra giá bán 9999. Các tuổi vàng khác giữ nguyên công thức POS hiện tại.
+                            Nguồn cố định: <b>BK · ASK</b>. Quy tắc: <b>145,054 → 14.505.000đ/chỉ</b> (bỏ 1 số cuối), sau đó cộng mức dưới đây để ra giá bán 999.9. Các tuổi vàng khác giữ nguyên công thức POS hiện tại.
                         </div>
                         <div class="grid-2" style="margin-bottom:8px;">
                             <div class="form-group" style="margin-bottom:0;">
@@ -4788,7 +4788,7 @@
                         </div>
                         <div class="grid-2" style="align-items:end;">
                             <div class="form-group" style="margin-bottom:6px;">
-                                <label class="form-label">Cộng vào giá 9999 (VNĐ/chỉ):</label>
+                                <label class="form-label">Cộng vào giá 999.9 (VNĐ/chỉ):</label>
                                 <input type="number" id="cfg-google-price-markup" class="form-control" value="100000" min="0" step="1000" onchange="saveGooglePriceAutoConfig(true)">
                             </div>
                             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
@@ -4803,15 +4803,15 @@
 
                     <div style="font-weight: bold; margin-bottom: 6px; color: #b78a00;">Giá bán chuẩn:</div>
                     <div class="form-group">
-                        <label class="form-label">Giá bán ra Vàng 9999 (VNĐ/chỉ) — nguồn Google tự điền khi bật tự động:</label>
+                        <label class="form-label">Giá bán ra Vàng 999.9 (VNĐ/chỉ) — nguồn Google tự điền khi bật tự động:</label>
                         <input type="number" id="cfg-sell-9999" class="form-control" value="14000000" min="0">
-                        <small style="color:#64748b;">9999 giữ đúng mốc 1.000đ (ví dụ 14.605.000đ). Các loại khác tự tính theo tuổi quy đổi: 980→985, 750→765, 610→622, 585→600, 416→430; sau đó làm tròn 10.000đ.</small>
+                        <small style="color:#64748b;">999.9 giữ đúng mốc 1.000đ (ví dụ 14.605.000đ). Các loại khác tự tính theo tuổi quy đổi: 980→985, 750→765, 610→622, 585→600, 416→430; sau đó làm tròn 10.000đ.</small>
                     </div>
 
                     <div style="font-weight: bold; margin: 12px 0 6px; color: #b78a00;">Bảng tự tính và chênh lệch mua vào:</div>
                     <div class="grid-2">
-                        <div class="form-group"><label class="form-label">Vàng 9999 — Giá mua vào</label><input type="number" id="cfg-buy-9999" class="form-control" readonly></div>
-                        <div class="form-group"><label class="form-label">Chênh lệch 9999 (đ/chỉ)</label><input type="number" id="cfg-spread-9999" class="form-control" value="300000" min="0"><small>Nhập 300 = 300.000đ</small></div>
+                        <div class="form-group"><label class="form-label">Vàng 999.9 — Giá mua vào</label><input type="number" id="cfg-buy-9999" class="form-control" readonly></div>
+                        <div class="form-group"><label class="form-label">Chênh lệch 999.9 (đ/chỉ)</label><input type="number" id="cfg-spread-9999" class="form-control" value="300000" min="0"><small>Nhập 300 = 300.000đ</small></div>
                         <div class="form-group"><label class="form-label">Vàng 980 — Giá bán ra</label><input type="number" id="cfg-sell-980" class="form-control" readonly></div>
                         <div class="form-group"><label class="form-label">Chênh lệch 980 (đ/chỉ)</label><input type="number" id="cfg-spread-980" class="form-control" value="300000" min="0"><small>Nhập 300 = 300.000đ</small></div>
                         <div class="form-group"><label class="form-label">Vàng 980 — Giá mua vào</label><input type="number" id="cfg-buy-980" class="form-control" readonly></div>
@@ -4860,7 +4860,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Điều chỉnh 9999 → 610 (VNĐ/chỉ vàng cũ thực):</label>
+                        <label class="form-label">Điều chỉnh 999.9 → 610 (VNĐ/chỉ vàng cũ thực):</label>
                         <input type="number" id="cfg-exchange-refund-9999-610" class="form-control" value="30000">
                     </div>
                 </div>

@@ -5,59 +5,59 @@
   "stages": {
     "specify": {
       "status": "done",
-      "note": "Owner requests compact presentation of retry controls beside QR in POS tabs1,2,4.",
+      "note": "Owner requests every gold purity display/print label 9999 as 999.9; internal identifiers, calculations and historical data preserved.",
       "evidence": [
         {
           "path": ".project-state\\contract.md",
-          "sha256": "d0f77e702849120992f9c04c1db5b67931b8284e4ab409620daecd5aa73f6cff",
-          "bytes": 9701
+          "sha256": "766d0dc609b3fb1896c25fb4d6e9150e1ece09ee378e4673abd06303284ff025",
+          "bytes": 10136
         }
       ],
-      "at": "2026-11-04T00:32:35.079431+00:00"
+      "at": "2026-11-04T00:50:13.961227+00:00"
     },
     "build": {
       "status": "done",
-      "note": "Only render styles and placement changed;read queue unchanged and14 relevant tests pass.",
+      "note": "Six display files patched;32 scripts structurally compared and381 regression checks pass;codes and calculations unchanged.",
       "evidence": [
         {
-          "path": "pos-source\\kbl-identity-recovery.cjs",
-          "sha256": "9dfecb0d8b39bfe9c9cbe1e8468ed2c1a2b39e7162fee2295bb753d4f4fee8bc",
-          "bytes": 6765
+          "path": "pos-source\\renderer.js",
+          "sha256": "8c0741c556dac9d3e40673aa87b80ca0ed29ed63ecefe17fb0df335465d72bb6",
+          "bytes": 640535
+        },
+        {
+          "path": "docs\\GOLD_DISPLAY_VERIFICATION_20261104.json",
+          "sha256": "22431af049aee4c12370de7d3f56fd76d8058eac97e1eab391c54ddf39d49610",
+          "bytes": 736
         }
       ],
-      "at": "2026-11-04T00:32:35.183632+00:00"
+      "at": "2026-11-04T00:50:32.085686+00:00"
     },
     "demonstrate": {
       "status": "done",
-      "note": "Synthetic browser preview verifies same-row retry/stop controls and QR retry across all three tabs;not native POS screenshot.",
+      "note": "Actual rendering functions show999.9 on synthetic A4 and invoice fixture;physical printing not tested.",
       "evidence": [
         {
-          "path": "docs\\CCCD_NUT_GON_20261104.md",
-          "sha256": "c78ed57d0486adec4974ce905227b6115076d9cccb510b740efeb2134fd9246f",
-          "bytes": 1529
+          "path": "docs\\GOLD_DISPLAY_VERIFICATION_20261104.json",
+          "sha256": "22431af049aee4c12370de7d3f56fd76d8058eac97e1eab391c54ddf39d49610",
+          "bytes": 736
         }
       ],
-      "at": "2026-11-04T00:32:35.287768+00:00"
+      "at": "2026-11-04T00:50:32.185653+00:00"
     },
     "integrate": {
-      "status": "done",
-      "note": "Compact identity retry controls installed beside QR in all three tabs;14 relevant checks and browser fixture pass;business source unchanged.",
+      "status": "pending",
+      "note": "Archive prepared and verified;POS still open;waiting for normal owner exit before guarded installation.",
       "evidence": [
         {
-          "path": "docs\\CCCD_NUT_GON_20261104.md",
-          "sha256": "c78ed57d0486adec4974ce905227b6115076d9cccb510b740efeb2134fd9246f",
-          "bytes": 1529
-        },
-        {
-          "path": "pos-source\\kbl-identity-recovery.cjs",
-          "sha256": "9dfecb0d8b39bfe9c9cbe1e8468ed2c1a2b39e7162fee2295bb753d4f4fee8bc",
-          "bytes": 6765
+          "path": "docs\\NHAN_VANG_999_9_20261104.md",
+          "sha256": "0f4e9b449c6a38260d5827cd19831a66c92e112e41e023e59f9aeeddb21fe10c",
+          "bytes": 2561
         }
       ],
-      "at": "2026-11-04T00:32:04.858932+00:00"
+      "at": "2026-11-04T00:50:32.285639+00:00"
     }
   },
-  "next_action": "",
+  "next_action": "Verify zero POS processes then run guarded install-gold-label.py and reopen normally.",
   "history": [
     {
       "at": "2026-10-31T13:56:42.601346+00:00",
@@ -358,9 +358,33 @@
       "stage": "demonstrate",
       "status": "done",
       "note": "Synthetic browser preview verifies same-row retry/stop controls and QR retry across all three tabs;not native POS screenshot."
+    },
+    {
+      "at": "2026-11-04T00:50:13.961227+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requests every gold purity display/print label 9999 as 999.9; internal identifiers, calculations and historical data preserved."
+    },
+    {
+      "at": "2026-11-04T00:50:32.085686+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "Six display files patched;32 scripts structurally compared and381 regression checks pass;codes and calculations unchanged."
+    },
+    {
+      "at": "2026-11-04T00:50:32.185653+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Actual rendering functions show999.9 on synthetic A4 and invoice fixture;physical printing not tested."
+    },
+    {
+      "at": "2026-11-04T00:50:32.285639+00:00",
+      "stage": "integrate",
+      "status": "pending",
+      "note": "Archive prepared and verified;POS still open;waiting for normal owner exit before guarded installation."
     }
   ],
-  "updated_at": "2026-11-04T00:32:35.287768+00:00",
+  "updated_at": "2026-11-04T00:50:32.285639+00:00",
   "goldSocialFormats": {
     "status": "deployed_and_facebook_verified",
     "policy": "gold-platform-v1",
@@ -437,5 +461,15 @@
     "nativeVisualCheck": "not_tested",
     "browserFixtureVerified": true,
     "githubPush": "still awaiting explicit permission"
+  },
+  "goldDisplay": {
+    "status": "verified_installation_pending_normal_pos_exit",
+    "source": "docs/NHAN_VANG_999_9_20261104.md",
+    "tests": 381,
+    "scriptsCompared": 32,
+    "candidateArchiveSha256": "63699f1961d1e8dae782395d91f8544862cbf8fe586648e3bbdc6a3bf0734afd",
+    "businessDataWritten": false,
+    "financialChanges": false,
+    "physicalPrintingTested": false
   }
 }

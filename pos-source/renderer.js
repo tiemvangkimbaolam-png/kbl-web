@@ -1143,7 +1143,7 @@ function renderGooglePriceStatus(status) {
     const relay = s.relayConfigured === false ? '<span style="color:#b42318;font-weight:700;"> · Chưa cấu hình Relay</span>' : '<span style="color:#0f766e;"> · Relay sẵn sàng</span>';
     box.innerHTML =
         `<div style="font-weight:800;color:${enabled ? '#0f766e' : '#64748b'};">${enabled ? '● TỰ ĐỘNG ĐANG BẬT' : '○ TỰ ĐỘNG ĐANG TẮT'}${relay}</div>` +
-        `<div style="margin-top:4px;line-height:1.5;">BK: BID <b>${bid}</b> · ASK <b>${ask}</b> → lấy ASK làm giá nhập chành: <b>${base}</b> → cộng: <b>${markup}</b> → 9999: <b style="color:#b7791f;">${finalPrice}</b></div>` +
+        `<div style="margin-top:4px;line-height:1.5;">BK: BID <b>${bid}</b> · ASK <b>${ask}</b> → lấy ASK làm giá nhập chành: <b>${base}</b> → cộng: <b>${markup}</b> → 999.9: <b style="color:#b7791f;">${finalPrice}</b></div>` +
         `<div style="margin-top:3px;color:#64748b;">${s.busy ? '⏳ Đang quét...' : (s.message || 'Chưa có trạng thái.')} · Lần nhận thành công: ${time}</div>` + error;
 }
 
@@ -2355,6 +2355,10 @@ function purchaseTypesSummary(items) {
     return Array.from(new Set(items.map(item => item.goldType).filter(Boolean))).join(', ');
 }
 
+function displayGoldPurity(value) {
+    return String(value ?? '').replace(/(?<![A-Za-z0-9_.-])9999(?![A-Za-z0-9_-]|\.\d)/g, '999.9');
+}
+
 function goldTypeLabel(value) {
     const labels = {
         '9999': 'Vàng 24K (999.9)',
@@ -2406,7 +2410,7 @@ function renderPurchaseItems() {
         const sellerAddress = a4ManualValue('seller.address', address);
         const sellerCccd = a4ManualValue('seller.cccd', cccd);
         const sellerPhone = a4ManualValue('seller.phone', phone || 'khách không cung cấp');
-        const goodsText = a4ManualValue(`item.${index}.goods`, `${item.goods} (${item.goldType})`);
+        const goodsText = displayGoldPurity(a4ManualValue(`item.${index}.goods`, `${item.goods} (${item.goldType})`));
         const weightText = a4ManualValue(`item.${index}.weight`, item.weightText);
         const priceText = a4ManualValue(`item.${index}.price`, formatVND(item.price));
         const totalText = a4ManualValue(`item.${index}.total`, formatVND(item.totalVND));
@@ -2434,13 +2438,13 @@ function renderPurchaseItems() {
     if (getEl('a4-grand-total')) getEl('a4-grand-total').innerText = formatVND(totalMoney);
     if (getEl('buy-total-money')) getEl('buy-total-money').value = formatVND(totalMoney);
 
-    if (getEl('gd-goods')) getEl('gd-goods').innerText = goodsSummary;
+    if (getEl('gd-goods')) getEl('gd-goods').innerText = displayGoldPurity(goodsSummary);
     if (getEl('gd-weight')) getEl('gd-weight').innerText = totalWeightText;
     if (getEl('gd-total')) getEl('gd-total').innerText = formatVND(totalMoney);
     if (getEl('gd-money-word')) getEl('gd-money-word').innerText = dichSoThanhChu(totalMoney);
 
-    if (getEl('nk-goods')) getEl('nk-goods').innerText = goodsSummary;
-    if (getEl('nk-type')) getEl('nk-type').innerText = typeSummary;
+    if (getEl('nk-goods')) getEl('nk-goods').innerText = displayGoldPurity(goodsSummary);
+    if (getEl('nk-type')) getEl('nk-type').innerText = displayGoldPurity(typeSummary);
     if (getEl('nk-weight')) getEl('nk-weight').innerText = totalWeightText;
     if (getEl('nk-total')) getEl('nk-total').innerText = formatVND(totalMoney);
 
@@ -2451,8 +2455,8 @@ function renderPurchaseItems() {
             return `
                 <tr>
                     <td>${index + 1}</td>
-                    <td${firstRow ? ' id="nk-goods"' : ''}>${escapeHtml(item.goods || 'Vàng trang sức cũ')}</td>
-                    <td${firstRow ? ' id="nk-type"' : ''}>${escapeHtml(item.goldType || '9999')}</td>
+                    <td${firstRow ? ' id="nk-goods"' : ''}>${escapeHtml(displayGoldPurity(item.goods || 'Vàng trang sức cũ'))}</td>
+                    <td${firstRow ? ' id="nk-type"' : ''}>${escapeHtml(displayGoldPurity(item.goldType || '9999'))}</td>
                     <td${firstRow ? ' id="nk-weight"' : ''}>${escapeHtml(item.weightText || weightTextFromLy(item.netLy))}</td>
                     <td${firstRow ? ' id="nk-price"' : ''}>${escapeHtml(formatVND(item.price || 0))}</td>
                     <td${firstRow ? ' id="nk-total"' : ''} style="color: #d00;">${escapeHtml(formatVND(item.totalVND || 0))}</td>
@@ -2685,14 +2689,14 @@ function syncBuyUI() {
     if (getEl('a4-cccd')) getEl('a4-cccd').innerText = cccd;
     if (getEl('a4-phone')) getEl('a4-phone').innerText = phone;
     if (getEl('a4-address')) getEl('a4-address').innerText = address;
-    if (getEl('a4-goods')) getEl('a4-goods').innerText = `${goods} (${t})`;
+    if (getEl('a4-goods')) getEl('a4-goods').innerText = displayGoldPurity(`${goods} (${t})`);
 
     // 2. Đồng bộ vào Giấy Đề Nghị Bán Vàng (Phần 2)
     if (getEl('gd-name')) getEl('gd-name').innerText = upperName;
     if (getEl('gd-address')) getEl('gd-address').innerText = address;
     if (getEl('gd-cccd')) getEl('gd-cccd').innerText = cccd;
     if (getEl('gd-phone')) getEl('gd-phone').innerText = phone ? phone : "khách không cung cấp";
-    if (getEl('gd-goods')) getEl('gd-goods').innerText = goods;
+    if (getEl('gd-goods')) getEl('gd-goods').innerText = displayGoldPurity(goods);
 
     if (getEl('gd-pay-method-display')) {
         if (payMethod === 'chuyen_khoan') {
@@ -2708,8 +2712,8 @@ function syncBuyUI() {
 
     // 3. Đồng bộ vào Phiếu Nhập Kho Nội Bộ (Phần 3)
     if (getEl('nk-name')) getEl('nk-name').innerText = upperName;
-    if (getEl('nk-goods')) getEl('nk-goods').innerText = goods;
-    if (getEl('nk-type')) getEl('nk-type').innerText = t;
+    if (getEl('nk-goods')) getEl('nk-goods').innerText = displayGoldPurity(goods);
+    if (getEl('nk-type')) getEl('nk-type').innerText = displayGoldPurity(t);
     setDraftNKCode(false);
 
     calcBuyMath();
@@ -3003,7 +3007,7 @@ function compileBuyTable(filterQuery = '') {
             <td style="font-weight: bold; text-transform: uppercase;">${item.name}</td>
             <td>${item.cccd || '---'}</td>
             <td>${item.goods || ''}</td>
-            <td>${item.goldType || ''}</td>
+            <td>${displayGoldPurity(item.goldType || '')}</td>
             <td style="font-weight: bold; color: #b78a00;">${item.weightText || (item.netLy + ' ly')}</td>
             <td>${Array.isArray(item.items) && item.items.length > 1 ? 'Nhiều mức' : formatVND(item.price || 0)}</td>
             <td style="font-weight: bold; color: #dc3545;">${formatVND(item.money || 0)}</td>
@@ -3055,7 +3059,7 @@ function queuePurchaseForChanh(recordId) {
     const items = normalizeStoredPurchaseItems(record);
     let itemIndex = 0;
     if (items.length > 1) {
-        const menu = items.map((item, idx) => `${idx + 1}. ${item.goods} · ${item.goldType} · ${(numberValue(item.netLy) / 100).toFixed(3)} chỉ · ${formatVND(item.totalVND)}`).join('\n');
+        const menu = items.map((item, idx) => `${idx + 1}. ${item.goods} · ${displayGoldPurity(item.goldType)} · ${(numberValue(item.netLy) / 100).toFixed(3)} chỉ · ${formatVND(item.totalVND)}`).join('\n');
         const choice = prompt(`Phiếu ${record.id} có ${items.length} món. Chọn số dòng muốn đưa lên chành:\n\n${menu}`, '1');
         if (choice === null) return;
         itemIndex = Math.max(0, Math.min(items.length - 1, Math.floor(numberValue(choice)) - 1));
@@ -3094,7 +3098,7 @@ function renderChanhDraftLots() {
     tbody.innerHTML = chanhDraftLots.length ? chanhDraftLots.map((lot, idx) => `<tr>
         <td><b>${escapeHtml(lot.recordId || '')}</b><br><small>${escapeHtml(lot.nkCode || '')}</small></td>
         <td>${Number(lot.itemIndex) + 1}</td>
-        <td>${escapeHtml(lot.goldType || '')}</td>
+        <td>${escapeHtml(displayGoldPurity(lot.goldType || ''))}</td>
         <td>${numberValue(lot.weightLy)} ly<br><small>${(numberValue(lot.weightLy) / 100).toFixed(3)} chỉ</small></td>
         <td class="num">${formatVND(lot.originalPrice || 0)}</td>
         <td class="num"><b>${formatVND(lot.costAmount || 0)}</b></td>
@@ -3205,7 +3209,7 @@ function addChanhOutputRow(data = {}) {
     const axis = String(data.axis || chanhDefaultAxis(type, purity));
     tr.innerHTML = `
         <td><input data-cf="name" class="form-control" value="${escapeHtml(data.name || data.goods || 'Sản phẩm mới')}" style="min-width:150px"></td>
-        <td><select data-cf="type" class="form-control" style="min-width:80px"><option>610</option><option>980</option><option>9999</option><option>750</option><option>585</option><option>416</option></select></td>
+        <td><select data-cf="type" class="form-control" style="min-width:80px"><option>610</option><option>980</option><option value="9999">999.9</option><option>750</option><option>585</option><option>416</option></select></td>
         <td><input data-cf="purity" type="number" step="0.01" class="form-control" value="${purity}" style="width:82px"></td>
         <td><input data-cf="netLy" type="number" step="0.1" min="0" class="form-control" value="${formatWeightLy(data.netLy || data.weightLy)}" style="width:88px"></td>
         <td><select data-cf="axis" class="form-control" style="width:76px"><option value="622">622</option><option value="985">985</option></select></td>
@@ -5555,7 +5559,7 @@ function renderInventoryTable() {
                 </label>
             </td>
             <td style="font-weight:bold;">${escapeHtml(item.name || '')}${statusBadge}</td>
-            <td>${escapeHtml(item.type || '')}</td>
+            <td>${escapeHtml(displayGoldPurity(item.type || ''))}</td>
             <td style="color:#b78a00;font-weight:bold;">${numberValue(item.weightLy)} Ly<br><small style="color:#64748b;">${(numberValue(item.weightLy) / 100).toFixed(3)} chỉ</small></td>
             <td>${item.webSyncReady === false ? '<b style="color:#b7791f;">Chưa nhập công bán</b>' : formatVND(numberValue(item.sellWage))}</td>
             <td style="color:#dc3545;font-size:11px;font-weight:bold;">${formatVND(inventoryEffectiveBookCost(item))}</td>
@@ -6455,13 +6459,13 @@ function exchangeRuleText(oldType, newType) {
     const labels = {
         '980>980': 'Đổi ngang 980 → 980',
         '980>610': 'Giá mua 980 cũ → giá bán 610 mới',
-        '980>9999': 'Giá mua 980 cũ → giá bán 9999 mới',
-        '9999>980': 'Đổi ngang 9999 → 980, chỉ tính công 980',
-        '9999>9999': '9999 → 9999, không thu gì khi đổi ngang',
-        '9999>610': 'Giá mua 9999 cũ → giá bán 610 mới, điều chỉnh trả 30.000đ/chỉ',
+        '980>9999': 'Giá mua 980 cũ → giá bán 999.9 mới',
+        '9999>980': 'Đổi ngang 999.9 → 980, chỉ tính công 980',
+        '9999>9999': '999.9 → 999.9, không thu gì khi đổi ngang',
+        '9999>610': 'Giá mua 999.9 cũ → giá bán 610 mới, điều chỉnh trả 30.000đ/chỉ',
         '610>610': 'Đổi bù 610 → 610 theo bảng giá POS + công tem',
         '610>980': 'Giá mua 610 cũ → giá bán 980 mới',
-        '610>9999': 'Giá mua 610 cũ → giá bán 9999 mới'
+        '610>9999': 'Giá mua 610 cũ → giá bán 999.9 mới'
     };
     return labels[key] || `Giá mua ${oldType} cũ → giá bán ${newType} mới`;
 }
@@ -6860,7 +6864,7 @@ function renderExchangeOldCart() {
     body.innerHTML = items.map((item, index) => `
         <tr>
             <td>${escapeHtml(item.code || '---')}</td>
-            <td>${escapeHtml(item.type || '')}</td>
+            <td>${escapeHtml(displayGoldPurity(item.type || ''))}</td>
             <td>${numberValue(item.weightLy)} ly</td>
             <td>${formatVND(numberValue(item.priceBuy))}/chỉ</td>
             <td>${exchangeOldCart.length ? `<button type="button" class="btn btn-danger sales-cart-remove" onclick="removeOldGoldFromExchangeCart(${index})">×</button>` : '<span style="color:#64748b;">Đang nhập</span>'}</td>
@@ -8039,8 +8043,8 @@ function invoiceSalesTable(lines) {
         <th>STT</th><th>Tên hàng / Mã SP</th><th>HLV</th><th>KLV</th><th>Giá vàng</th><th>Công</th><th>Thành tiền</th>
     </tr></thead><tbody>${lines.map((item, index) => `<tr>
         <td style="text-align:center;">${index + 1}</td>
-        <td><b>${escapeHtml(item.itemName || '')}</b><br><small>${escapeHtml(item.originalInvCode || item.invCode || '')}</small>${item.inventoryDeleted ? '<br><small style="color:#b42318;font-weight:700;">Đã xóa khỏi Kho</small>' : ''}</td>
-        <td style="text-align:center;">${escapeHtml(item.type || '')}</td>
+        <td><b>${escapeHtml(displayGoldPurity(item.itemName || ''))}</b><br><small>${escapeHtml(item.originalInvCode || item.invCode || '')}</small>${item.inventoryDeleted ? '<br><small style="color:#b42318;font-weight:700;">Đã xóa khỏi Kho</small>' : ''}</td>
+        <td style="text-align:center;">${escapeHtml(displayGoldPurity(item.type || ''))}</td>
         <td style="text-align:right;white-space:nowrap;">${(numberValue(item.weightLy) / 100).toFixed(3)} chỉ</td>
         <td class="num">${formatVND(item.priceSell)}</td>
         <td class="num">${formatVND(item.wage)}</td>
@@ -8053,7 +8057,7 @@ function invoiceOldTable(items) {
         <th>STT</th><th>Vàng cũ nhận lại</th><th>TL cân</th><th>Hột/đá</th><th>Dơ đất</th><th>KLV thực</th><th>Giá mua</th><th>Giá trị</th>
     </tr></thead><tbody>${items.map((item, index) => `<tr>
         <td style="text-align:center;">${index + 1}</td>
-        <td><b>${escapeHtml(item.name || 'Vàng cũ của khách')}</b><br><small>HLV: ${escapeHtml(item.type || '')}</small></td>
+        <td><b>${escapeHtml(displayGoldPurity(item.name || 'Vàng cũ của khách'))}</b><br><small>HLV: ${escapeHtml(displayGoldPurity(item.type || ''))}</small></td>
         <td class="num">${(numberValue(item.grossLy || item.weightLy) / 100).toFixed(3)}</td>
         <td class="num">${(numberValue(item.gemLy) / 100).toFixed(3)}</td>
         <td class="num">${(numberValue(item.dirtLy) / 100).toFixed(3)}</td>
@@ -10496,7 +10500,7 @@ function renderOffsetPurchaseLines(dossier) {
     }
     tbody.innerHTML = rows.map(line => `<tr>
         <td>${escapeHtml(line.name || 'Vàng trang sức cũ')}</td>
-        <td>${escapeHtml(line.type || '')}</td>
+        <td>${escapeHtml(displayGoldPurity(line.type || ''))}</td>
         <td>${(numberValue(line.weightLy) / 100).toFixed(3)} chỉ</td>
         <td>${formatVND(numberValue(line.unitPrice))}/chỉ</td>
         <td><b>${formatVND(numberValue(line.total))}</b></td>
@@ -10528,7 +10532,7 @@ function renderOffsetSaleLines(dossier) {
         ? `<tr><td colspan="5" style="text-align:right;">Điều chỉnh quy tắc/đối chiếu để khớp phiếu nguồn:</td><td><b>${kblSignedVnd(dossier.reconciliationAdjustment)}</b></td></tr>` : '';
     tbody.innerHTML = rows.map(line => `<tr>
         <td>${escapeHtml(line.itemName || 'Sản phẩm vàng')}</td>
-        <td>${escapeHtml(line.type || '')}</td>
+        <td>${escapeHtml(displayGoldPurity(line.type || ''))}</td>
         <td>${(numberValue(line.weightLy) / 100).toFixed(3)} chỉ</td>
         <td>${formatVND(numberValue(line.priceSell))}/chỉ</td>
         <td>${formatVND(numberValue(line.wage))}</td>
@@ -10544,8 +10548,8 @@ function offsetExchangeSlipHtml(sale, dossier) {
     const p = kblOffsetDateParts(sale.dateRaw);
     const c = dossier.customer || {};
     const net = kblOffsetNetSettlement(sale, dossier);
-    const oldRows = (Array.isArray(dossier.purchaseLines) ? dossier.purchaseLines : []).map((line, index) => `<tr><td>${index+1}</td><td>${escapeHtml(line.name || '')}</td><td>${escapeHtml(line.type || '')}</td><td>${(numberValue(line.weightLy)/100).toFixed(3)} chỉ</td><td>${formatVND(line.unitPrice)}</td><td>${formatVND(line.total)}</td></tr>`).join('');
-    const newRows = (Array.isArray(dossier.saleLines) ? dossier.saleLines : []).map((line, index) => `<tr><td>${index+1}</td><td>${escapeHtml(line.itemName || '')}</td><td>${escapeHtml(line.type || '')}</td><td>${(numberValue(line.weightLy)/100).toFixed(3)} chỉ</td><td>${formatVND(line.priceSell)}</td><td>${formatVND(line.wage)}</td><td>${formatVND(numberValue(line.goldValue)+numberValue(line.wage)-numberValue(line.discount))}</td></tr>`).join('');
+    const oldRows = (Array.isArray(dossier.purchaseLines) ? dossier.purchaseLines : []).map((line, index) => `<tr><td>${index+1}</td><td>${escapeHtml(displayGoldPurity(line.name || ''))}</td><td>${escapeHtml(displayGoldPurity(line.type || ''))}</td><td>${(numberValue(line.weightLy)/100).toFixed(3)} chỉ</td><td>${formatVND(line.unitPrice)}</td><td>${formatVND(line.total)}</td></tr>`).join('');
+    const newRows = (Array.isArray(dossier.saleLines) ? dossier.saleLines : []).map((line, index) => `<tr><td>${index+1}</td><td>${escapeHtml(displayGoldPurity(line.itemName || ''))}</td><td>${escapeHtml(displayGoldPurity(line.type || ''))}</td><td>${(numberValue(line.weightLy)/100).toFixed(3)} chỉ</td><td>${formatVND(line.priceSell)}</td><td>${formatVND(line.wage)}</td><td>${formatVND(numberValue(line.goldValue)+numberValue(line.wage)-numberValue(line.discount))}</td></tr>`).join('');
     return `<div style="text-align:center;font-weight:bold;">CÔNG TY TNHH MTV VÀNG BẠC ĐÁ QUÝ KIM BẢO LÂM</div>
         <h1>PHIẾU ĐỔI BÙ VÀNG</h1>
         <div style="text-align:center;font-size:10.5px;">${escapeHtml(kblOffsetDossierModeText(sale,dossier))} · Ngày ${escapeHtml(p.display)} · Mã ${escapeHtml(dossier.transactionGroupId)}</div>
@@ -10680,7 +10684,7 @@ function offsetPurchaseA4Html(sale, dossier) {
         <td style="text-align:left">${escapeHtml(c.address || sale.cusAddress || '')}</td>
         <td>${escapeHtml(c.cccd || sale.cusCccd || '')}</td>
         <td>${escapeHtml(c.phone || sale.cusPhone || '')}</td>
-        <td>${escapeHtml(`${line.name || 'Vàng trang sức cũ'}${line.type ? ` ${line.type}` : ''}`)}</td>
+        <td>${escapeHtml(`${line.name || 'Vàng trang sức cũ'}${line.type ? ` ${displayGoldPurity(line.type)}` : ''}`)}</td>
         <td>${(numberValue(line.weightLy) / 100).toFixed(3)} chỉ</td>
         <td>${formatVND(line.unitPrice)}</td>
         <td>${formatVND(line.total)}</td>
