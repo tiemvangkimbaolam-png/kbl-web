@@ -193,3 +193,13 @@ test('anonymous sale void uses a durable Cloudflare receipt, never changes POS b
     a.throws(()=>V.fromPOS(input,[tx],{synced:{[tx.id]:{pointsAdded:10}}}),/đối soát/);
     a.throws(()=>V.fromPOS({...input,skus:['OTHER']},[tx]),/SKU/);
 });
+test('explicit delete event cancels a customer invoice warranty without claiming a loyalty reversal',async()=>{
+    const sku='DELETE-CUSTOMER', invoiceId='HD-CUSTOMER-DELETE', subscription=warranty(invoiceId,[{...warranty().items[0],productSku:sku}]);
+    await call('worker/pos-snapshot',{complete:true,products:C.inventory({mode:'snapshot',inventory:[product(sku)]},price),revision:nextStockRevision()});
+    a.equal((await call('worker/pos-warranty',subscription)).status,200);
+    const event={eventType:'delete',invoiceId,originalTransactionId:'',skus:[sku],revision:nextStockRevision()};
+    a.deepEqual(C.transaction(event),{invoiceId,originalTransactionId:'',eventType:'delete',soldAt:'',skus:[sku]});
+    const r=await call('worker/pos-transaction',event);a.equal(r.status,200,JSON.stringify(r.body));
+    a.equal(JSON.parse(db.prepare("SELECT data FROM records WHERE kind='pos-warranty' AND json_extract(data,'$.invoiceId')=?").get(invoiceId).data).posStatus,'canceled');
+    a.equal((await call('admin/state',undefined,owner)).body.products.find(p=>p.sku===sku).available,false);
+});
