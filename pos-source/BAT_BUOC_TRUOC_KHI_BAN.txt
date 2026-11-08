@@ -1,0 +1,13 @@
+KBL SOFTWARE — BẢN NÂNG CẤP SOURCE, CHƯA PHẢI EXE PHÁT HÀNH
+
+1. BẢO TOÀN: Không cài source/bản thử lên máy POS gốc đang bán hàng. Thử trên Windows sạch và dữ liệu giả lập trước.
+2. DỮ LIỆU: Không sao chép tự động dữ liệu GoldShopPOS, KimBaoLam_POS_TichHop, dữ liệu khách, ảnh CCCD, token hay API key.
+3. ĐĂNG NHẬP: Mở ứng dụng lần đầu để tạo tài khoản OWNER và mật khẩu >=10 ký tự. Chủ tiệm có toàn quyền Windows. Nhân viên được chủ tạo bằng Ctrl+Shift+M và đăng nhập ngay từ màn hình chung của EXE, trong cửa sổ Remote hạn chế quyền. Không có toàn quyền 9 tab POS.
+4. LAN: Remote qua http://IP-LAN:PORT/remote, TV tại /tv. Chức năng camera live trên iPhone có thể đòi HTTPS hoặc dùng chụp ảnh QR dự phòng. Cần ghép nối mạng đáng tin.
+5. TV: Mặc định đỏ chữ vàng chữ lớn, có mẫu sáng. Ctrl+Shift+M > cấu hình TV.
+6. QUAN TRỌNG: Main.js/TV/Remote đã thay đổi nên integrity-manifest.json gốc KHÔNG còn chữ ký hợp lệ. Chạy công cụ sign-release.js trong gói ADMIN cấp khóa tương ứng bằng mật khẩu private key của chủ phần mềm; sau đó npm run check. TUYỆT ĐỐI không tắt bước kiểm chữ ký để chạy.
+7. TIẾP: npm install (trên Windows có Internet) > npm run check > npm run dist > cài máy test trắng > thử cân COM, in, QR, khôi phục, chốt đơn, nghiệp vụ công/nợ.
+8. Phân quyền Remote đã thêm, khóa OWNER để truy cập Windows đã thêm. Đã có đăng nhập nhân viên trên Windows (cửa sổ Remote sandbox). Chưa phân quyền sâu toàn bộ 9 tab POS để nhân viên bán hàng, thu mua, nhập kho trên renderer Windows; chủ tiệm mới có giao diện đầy đủ.
+9. Không quảng cáo phần mềm đáp ứng pháp luật hoặc bảo mật tuyệt đối nếu chưa kiểm định và nghiệm thu thực tế.
+
+GIỮ RIÊNG ADMIN CAP KHOA, KHÔNG ĐƯA FILE PRIVATE PEM VÀO BỘ CÀI KHÁCH.

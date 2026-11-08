@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "Tiệm Vàng Kim Bảo Lâm",
+  "short_name": "Kim Bảo Lâm",
+  "lang": "vi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fffdfb",
+  "theme_color": "#9b4d2d",
+  "icons": [
+    {
+      "src": "/kbl-app-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/kbl-app-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+/* Adapter for existing 2.4.1 kbl-ux.css !important rules. UI only. */
+@media screen {
+ body {background:var(--kbl-canvas)!important;color:var(--kbl-ink)!important;}
+ body > .app-header {background:var(--kbl-spark) left center / 270px 110px no-repeat,linear-gradient(115deg,var(--kbl-navy),var(--kbl-blue) 52%,var(--kbl-navy))!important;border-bottom:3px solid var(--kbl-gold)!important;box-shadow:0 2px 0 var(--kbl-gold-light),0 5px 16px #061d3724!important;}
+ .app-header .brand-title {color:#fffbe9!important;}
+ .app-header .tab-btn {color:#fff!important;background:var(--kbl-gloss),linear-gradient(180deg,var(--kbl-blue),var(--kbl-navy))!important;border:1px solid var(--kbl-gold)!important;border-radius:8px!important;box-shadow:var(--kbl-button-shadow)!important;}
+ .app-header .tab-btn.active {background:var(--kbl-gold-surface)!important;color:var(--kbl-navy)!important;border-color:var(--kbl-gold-light)!important;box-shadow:0 0 12px #e7bc4a55,inset 0 0 0 1px var(--kbl-gold-light)!important;}
+ .app-header .tab-btn:hover:not(:disabled) {filter:brightness(1.06)!important;}
+ .card,.panel,.calculator-box {background:var(--kbl-paper)!important;border:1px solid var(--kbl-gold)!important;border-radius:10px!important;box-shadow:var(--kbl-card-shadow)!important;}
+ .card-header {color:var(--kbl-ink)!important;border-bottom:1px solid var(--kbl-gold)!important;}
+ input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea,.form-control{border:1px solid var(--kbl-field)!important;border-radius:6px!important;background:#fff!important;}
+ input[readonly],.form-control[readonly]{background:#fff7df!important;color:var(--kbl-ink)!important;}
+ .btn-primary,.btn-blue{background:linear-gradient(135deg,#0798dc,#006fb3)!important;color:#fff!important;border-color:var(--kbl-gold)!important;}
+ .btn-gray,.btn-outline{background:#fffefa!important;color:var(--kbl-ink)!important;border-color:var(--kbl-gold)!important;}
+ thead th {background:linear-gradient(180deg,var(--kbl-blue),var(--kbl-navy))!important;color:#fff!important;border-bottom:1px solid var(--kbl-gold)!important;}
+}

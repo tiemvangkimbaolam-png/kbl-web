@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KBL · Đội AI</title>
+<link rel="stylesheet" href="settings.css">
+</head>
+<body>
+<header class="top">
+ <div class="brand"><span class="mark">K</span><div><h1>KBL · Đội AI</h1><p class="sub">Hồ sơ Chrome nhận việc</p></div></div>
+ <span class="pill" id="window-status" role="status">Cửa sổ: chưa rõ</span>
+</header>
+<p class="identity" id="identity" role="status">Đang kiểm tra hồ sơ đã ghép…</p>
+<nav class="steps" aria-label="Các bước">
+ <span class="step done">01 Ghép</span><span class="step">02 Chọn vùng</span><span class="step">03 Nhận việc</span>
+</nav>
+<main class="board">
+ <section class="card">
+  <div class="card-head"><h2>Phiên Chrome</h2><button id="check" type="button" class="ghost">Kiểm tra kết nối</button></div>
+  <p class="small" id="status" role="status"></p>
+  <div class="row wrap"><button id="open-held" type="button" class="ghost">Mở phiên đang giữ</button><button id="quiet" type="button" class="ghost">Ẩn cửa sổ AI</button></div>
+  <p class="hint">Windows ẩn cửa sổ khi cầu nối hỗ trợ. Chrome vẫn chạy; nút đăng nhập ở Admin mở lại trong 5 phút. Không đóng Chrome bằng dấu X.</p>
+ </section>
+ <section class="card">
+  <div class="card-head"><h2>Kết nối hồ sơ</h2><span class="tag">Một lần</span></div>
+  <label>Mã ghép mới hoặc mã đã lưu<input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="KBL42-…"></label>
+  <label class="check"><input id="enabled" type="checkbox"> Bật nhận việc trong hồ sơ này</label>
+  <button id="save" class="primary">Lưu kết nối</button>
+  <p class="hint">Mã KBL42 dùng một lần trong 10 phút. Sau khi ghép, tiện ích giữ mã kết nối riêng; không chia sẻ mã.</p>
+ </section>
+ <section class="card">
+  <div class="card-head"><h2>Chọn vùng chatbox</h2><span class="tag">Khi giao diện đổi</span></div>
+  <div class="row wrap"><button id="pick-composer" type="button" class="ghost">Chọn ô chat</button><button id="pick-send" type="button" class="ghost">Chọn nút gửi</button><button id="pick-result" type="button" class="ghost">Chọn câu trả lời</button></div>
+  <p class="small" id="pick-feedback" role="status"></p>
+  <p class="hint">Bấm nút rồi bấm đúng vùng trên trang AI. Esc để hủy; không gửi prompt.</p>
+ </section>
+ <section class="card">
+  <div class="card-head"><h2>Đối chiếu lượt</h2><button id="check-recovery" type="button" class="ghost">Kiểm tra</button></div>
+  <p class="small" id="recovery-feedback" role="status"></p>
+  <p class="tiny" id="recovery-updated"></p>
+ </section>
+ <details class="advanced">
+  <summary>Selector theo nhà cung cấp — chỉ chỉnh nếu giao diện đổi</summary>
+  <label>Ô nhập<input id="composer" value=""></label>
+  <label>Nút gửi<input id="send" value=""></label>
+  <label>Câu trả lời<input id="responses" value=""></label>
+  <label>Ảnh được tạo<input id="generated" value=""></label>
+ </details>
+</main>
+<footer class="foot">Nhận diện v2.0.0 · Một hồ sơ Chrome gắn một tài khoản AI do ông sở hữu. Chỉ chạy khi có quyền sử dụng và còn lượt miễn phí.</footer>
+<script src="settings.js"></script>
+</body>
+</html>

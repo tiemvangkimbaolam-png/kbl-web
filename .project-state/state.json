@@ -1,0 +1,551 @@
+{
+  "schema": 1,
+  "goal": "Mẫu ảnh/video local worker sản phẩm và giá vàng; giao diện POS đồng bộ website; nối Cloudflare và phân vai đội AI, tuyệt đối giữ công thức và dữ liệu POS.",
+  "created_at": "2026-10-31T13:54:50.812082+00:00",
+  "stages": {
+    "specify": {
+      "status": "done",
+      "note": "Approved website redesign:ivory/copper,price-first,stable server layout,lazy tools,web-only pawn policy;POS and active automation protected.",
+      "evidence": [
+        {
+          "path": ".project-state\\contract.md",
+          "sha256": "a3cac40bd029a87c87d2a54457691c388f1a522663a2239206a99ddc4fc081b5",
+          "bytes": 11354
+        }
+      ],
+      "at": "2026-11-04T02:01:36.756160+00:00"
+    },
+    "build": {
+      "status": "done",
+      "note": "Cloudflare build and web types pass;382 checks;only web/test files changed;unrelated preexisting Remotion type error retained.",
+      "evidence": [
+        {
+          "path": "docs\\WEBSITE_PREVIEW_VERIFICATION_20261104.json",
+          "sha256": "90db566bf43b41e8a8ddac3202470dd22798ee088f0784668e4a7c24ce473c34",
+          "bytes": 6395
+        }
+      ],
+      "at": "2026-11-04T02:01:36.882107+00:00"
+    },
+    "demonstrate": {
+      "status": "done",
+      "note": "Browser checks320/360/390/768/1440,SKU/cart/ring/pawn/offline-reconnect;12 local Lighthouse audits all100;physical phone pending.",
+      "evidence": [
+        {
+          "path": "docs\\WEBSITE_PREVIEW_VERIFICATION_20261104.json",
+          "sha256": "90db566bf43b41e8a8ddac3202470dd22798ee088f0784668e4a7c24ce473c34",
+          "bytes": 6395
+        }
+      ],
+      "at": "2026-11-04T02:01:37.009392+00:00"
+    },
+    "integrate": {
+      "status": "pending",
+      "note": "Read-only preview and complete source package ready;owner phone review before main release;capture filenames match actual JPEG format.",
+      "evidence": [
+        {
+          "path": "docs\\WEBSITE_REBUILD_PREVIEW_20261104.md",
+          "sha256": "02551fcc182e3cd2de48ea1ec255adfd987a285b038ff8e21d5ba783099895d0",
+          "bytes": 5936
+        }
+      ],
+      "at": "2026-11-04T02:04:33.906558+00:00"
+    }
+  },
+  "next_action": "Owner reviews http://192.168.1.9:18747/ and authorizes release;retain existing jobs,data,Cloudflare bindings.",
+  "history": [
+    {
+      "at": "2026-10-31T13:56:42.601346+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": ""
+    },
+    {
+      "at": "2026-10-31T14:09:54.435386+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "60 checks passed; Cloudflare build passed; static browser layout/control checks; real iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T14:09:54.497716+00:00",
+      "stage": "demonstrate",
+      "status": "not_tested",
+      "note": "Web preview verified; actual native iPhone display/import unavailable."
+    },
+    {
+      "at": "2026-10-31T14:09:54.557971+00:00",
+      "stage": "integrate",
+      "status": "blocked",
+      "note": "Wrangler is not authenticated; no DNS or database changes."
+    },
+    {
+      "at": "2026-10-31T18:19:32.658095+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "69 checks passed; Cloudflare build passed; five browser widths balanced; clipboard success/fallback VM verified; native iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T18:23:55.252147+00:00",
+      "stage": "integrate",
+      "status": "blocked",
+      "note": "PR #12 merged into kbl-web-moi at c3bc65b53e0fdb8bde34e2c4017519f5b4e0bd64; Cloudflare production still requires authenticated session. Patch ZIP apply/idempotency/conflict checks passed."
+    },
+    {
+      "at": "2026-10-31T18:54:29.708673+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Customer authorized private holdings ledger, gain/percent arrows and real-point chart; separate Scriptable widget, preserve POS/theme/auth."
+    },
+    {
+      "at": "2026-10-31T18:54:29.741564+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "API/SQLite and native widget VM tests pass; browser fixture form/privacy/chart flows pass; Cloudflare build passes. Native iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T18:55:32.283786+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "88 targeted tests pass; Cloudflare build passes. Browser fixture chart/privacy/add/edit/sale flows checked at four widths. No new typecheck errors; existing social-connections/remotion errors remain. Native iPhone not_tested."
+    },
+    {
+      "at": "2026-10-31T18:56:40.929105+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "88 targeted tests passed; final API/native 19 tests rerun after type narrowing fix. Final Cloudflare build passed. Browser fixture chart/privacy/add/edit/sale checked; native iPhone not_tested. Existing unrelated typecheck errors remain."
+    },
+    {
+      "at": "2026-11-02T03:44:16.666380+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Ưu tiên mẫu ảnh/video; khóa công thức POS; nguồn GitHub e3081b4 và màu bảng TV live đã đọc."
+    },
+    {
+      "at": "2026-11-02T04:17:37.941932+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "308/308 tests passed; Cloudflare build passed; full tsc existing errors documented."
+    },
+    {
+      "at": "2026-11-02T04:17:38.046121+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Actual 20s HoaiMy/word-boundaries video and desktop POS preview inspected; previews retained in local outputs."
+    },
+    {
+      "at": "2026-11-02T04:17:38.149472+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Awaiting deployed API and local link cutover; AI pairing/product photos not ready."
+    },
+    {
+      "at": "2026-11-02T04:29:51.403268+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Local loopback cutover and deployed anonymous-void API verified. Protected POS code hashes match. Owner sign-in and real account pairing still required; product photo mismatch/insufficient three-product set remains open."
+    },
+    {
+      "at": "2026-11-02T04:40:29.439429+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Owner authenticated. Specialist routing saved; five enabled profiles assigned to current live Windows worker, zero Chrome connections. db46f54 deployment success; six POS source hashes unchanged. Product photos/API providers/publishing still open."
+    },
+    {
+      "at": "2026-11-02T04:55:09.952553+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Report contrast follow-up installed CSS only. Seven POS/visualizer hashes unchanged; original gradients/white labels overridden. 136 DOM contrast samples >=5.428:1, desktop and 1366 layout inspected. Existing AI/social blockers preserved."
+    },
+    {
+      "at": "2026-11-02T08:23:22.773645+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Completed compact UI request and A4 signature gap +8mm. Original presentation prefix preserved; eight other source/style hashes unchanged. Fixture browser preserved209 controls/111 handlers after summary refresh; no duplicate IDs; help and top button checked. Actual printing not tested."
+    },
+    {
+      "at": "2026-11-02T09:10:01.123975+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Read-only financial and automation audit completed. Protected POS formula hashes unchanged. Private findings retained only in local outputs, outside source and Git. No production changes or real transactions. Actual AI Chrome pairing and publication remain unverified; source freshness and financial consistency findings remain open."
+    },
+    {
+      "at": "2026-11-02T10:10:43.196285+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Installed owner-authorized pawn tier policy only; seven other POS files unchanged, no data migration or forced reload. Actual source tests pass and offline two-copy print labels checked. 324 tests and final Cloudflare build pass. Nine AI accounts observed paired with real work accepted; flexible routing saved. Receipt-gated followups and scheduled outlook backlog fix ready for deployment."
+    },
+    {
+      "at": "2026-11-02T10:25:22.300087+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "325/325 tests and Cloudflare build pass; compact worker queue aligns with FIFO and keeps held/consult jobs. Pawn installed source passed 6 tests, other POS files unchanged."
+    },
+    {
+      "at": "2026-11-02T10:29:59.900794+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Cloudflare 0120ce2 production success 2026-11-02T10:27:22Z. Two owner-confirmed held consults requeued in Admin; old runs expired with evidence retained. New research claim observed on Gemini. Actual Chrome send/response and complete publication receipts still unverified; owner asked to inspect three profiles."
+    },
+    {
+      "at": "2026-11-02T10:30:47.749289+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner explicit exception permits only principal-tier pawn rates; all unrelated formulas and finalized records protected. AI flexible FIFO with publication receipts and frozen snapshots."
+    },
+    {
+      "at": "2026-11-02T10:30:47.886369+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "325/325 system tests, 6 installed POS source tests, Cloudflare build passed; deployed 0120ce2."
+    },
+    {
+      "at": "2026-11-02T10:30:48.016529+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Offline POS fixture visually checked both liens and inclusive-date examples; actual Admin flexible setting and nine paired accounts inspected. No physical print or completed publication claimed."
+    },
+    {
+      "at": "2026-11-02T10:45:11.611143+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "TV cells independent; 331/331 tests and Cloudflare build passed. Real browser local fixture drag, resize and per-cell typography checked."
+    },
+    {
+      "at": "2026-11-02T10:50:59.259424+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requested larger TV prices and independent draggable cells; protect all POS/price/AI behavior and preserve saved branding."
+    },
+    {
+      "at": "2026-11-02T10:50:59.373559+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Actual pointer drag and resize on local fixture, per-cell styling and save/reload passed. Live /tv visually inspected with actual quotes after production save v4."
+    },
+    {
+      "at": "2026-11-02T10:50:59.502967+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "TV scope achieved: Cloudflare 28d98ca success, actual Admin saved readable design v4, public API and live TV screenshot confirmed. Physical TV needs normal reload. Broader prior AI end-to-end publishing verification remains open; no running AI jobs altered by TV change."
+    },
+    {
+      "at": "2026-11-02T14:16:58.126472+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requested lien2 display and exchange layout fixes; owner confirmed review and second image were not sent."
+    },
+    {
+      "at": "2026-11-02T14:16:58.230695+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "335 tests and Cloudflare build pass; five-file worker patch installed, first image and run retained."
+    },
+    {
+      "at": "2026-11-02T14:16:58.342871+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Offline browser fixture verified two old-blueprint liens at100m/120m and exchange modes back to sale, preserved controls/handlers. Not physical POS or print."
+    },
+    {
+      "at": "2026-11-02T14:16:58.449419+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "API deployed; worker installed. POS package locked by open app; original archive/source unchanged. One real image accepted, no publication receipt."
+    },
+    {
+      "at": "2026-11-02T14:53:37.223576+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner clarified gold cards are generated locally; separate gold queue while preserving sequential receipts and frozen quotes within each lane."
+    },
+    {
+      "at": "2026-11-02T14:53:37.375257+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "342 tests and Cloudflare build pass. Source separates gold/editorial FIFO heads and identifies local gold card stages."
+    },
+    {
+      "at": "2026-11-02T14:53:37.516675+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Actual Admin and source inspected. Chrome2.1.4 installed and verified; no scene2 receipt. No real gold publication receipt yet."
+    },
+    {
+      "at": "2026-11-03T00:48:01.278487+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner explicitly assigns only market news to Chrome AI; gold/products deterministic local, phone added to existing templates."
+    },
+    {
+      "at": "2026-11-03T00:48:01.392076+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "344 tests and Cloudflare build pass; phone card rendered/inspected, actual worker cards installed. No POS financial changes."
+    },
+    {
+      "at": "2026-11-03T00:48:01.496501+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Actual phone saved, worker template updated. No real publication claim until receipt."
+    },
+    {
+      "at": "2026-11-03T01:06:26.853653+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Five actual gold receipts, Cloudflare385 success and protected POS presentation installed. API probe unanswered; product photos and Chrome connectivity remain external dependencies."
+    },
+    {
+      "at": "2026-11-03T01:17:53.854080+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Production802d3e6 success; same saved question answered via Gemini200 after manual redirect fix, Groq401. Five real gold receipts; POS presentation installed with business files protected."
+    },
+    {
+      "at": "2026-11-03T01:39:42.139135+00:00",
+      "stage": "integrate",
+      "status": "in_progress",
+      "note": "Actual Windows POS inspection confirms prior install now loaded; source-package layout regression fixed,11 tests pass, no financial/data writes."
+    },
+    {
+      "at": "2026-11-03T14:42:16.115490+00:00",
+      "stage": "integrate",
+      "status": "done",
+      "note": "Identity retry/cancel/local QR installed in actual POS;381 tests pass and Remote assets verified;real phone/customer scan remains owner validation."
+    },
+    {
+      "at": "2026-11-03T14:43:02.669010+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requests identity QR and OCR recovery only; protect all financial and historical behavior."
+    },
+    {
+      "at": "2026-11-03T14:43:02.783671+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "381 full tests pass; packaged local QR, bounded longer provider waits and per-side retry/cancel."
+    },
+    {
+      "at": "2026-11-03T14:43:02.885755+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Actual handlers in isolated browser fixture pass API failure/retry, stop/retry, three contexts and QR image; not physical iPhone/customer-card proof."
+    },
+    {
+      "at": "2026-11-04T00:32:04.858932+00:00",
+      "stage": "integrate",
+      "status": "done",
+      "note": "Compact identity retry controls installed beside QR in all three tabs;14 relevant checks and browser fixture pass;business source unchanged."
+    },
+    {
+      "at": "2026-11-04T00:32:35.079431+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requests compact presentation of retry controls beside QR in POS tabs1,2,4."
+    },
+    {
+      "at": "2026-11-04T00:32:35.183632+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "Only render styles and placement changed;read queue unchanged and14 relevant tests pass."
+    },
+    {
+      "at": "2026-11-04T00:32:35.287768+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Synthetic browser preview verifies same-row retry/stop controls and QR retry across all three tabs;not native POS screenshot."
+    },
+    {
+      "at": "2026-11-04T00:50:13.961227+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requests every gold purity display/print label 9999 as 999.9; internal identifiers, calculations and historical data preserved."
+    },
+    {
+      "at": "2026-11-04T00:50:32.085686+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "Six display files patched;32 scripts structurally compared and381 regression checks pass;codes and calculations unchanged."
+    },
+    {
+      "at": "2026-11-04T00:50:32.185653+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Actual rendering functions show999.9 on synthetic A4 and invoice fixture;physical printing not tested."
+    },
+    {
+      "at": "2026-11-04T00:50:32.285639+00:00",
+      "stage": "integrate",
+      "status": "pending",
+      "note": "Archive prepared and verified;POS still open;waiting for normal owner exit before guarded installation."
+    },
+    {
+      "at": "2026-11-04T00:57:54.991344+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Owner requests retry buttons match existing POS theme;keep adjacent QR and preserve all behavior."
+    },
+    {
+      "at": "2026-11-04T00:57:55.094135+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "Only retry/stop classes and inline presentation changed;queue byte-identical;13 focused checks pass."
+    },
+    {
+      "at": "2026-11-04T00:57:55.194244+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Browser fixture with actual module/theme verifies all3 tabs same row,disabled/stop/QR;not a native POS capture."
+    },
+    {
+      "at": "2026-11-04T00:57:55.298734+00:00",
+      "stage": "integrate",
+      "status": "done",
+      "note": "Combined retry theme and gold999.9 archive installed while POS closed,reopened;protected files and compact rollback verified."
+    },
+    {
+      "at": "2026-11-04T02:01:36.756160+00:00",
+      "stage": "specify",
+      "status": "done",
+      "note": "Approved website redesign:ivory/copper,price-first,stable server layout,lazy tools,web-only pawn policy;POS and active automation protected."
+    },
+    {
+      "at": "2026-11-04T02:01:36.882107+00:00",
+      "stage": "build",
+      "status": "done",
+      "note": "Cloudflare build and web types pass;382 checks;only web/test files changed;unrelated preexisting Remotion type error retained."
+    },
+    {
+      "at": "2026-11-04T02:01:37.009392+00:00",
+      "stage": "demonstrate",
+      "status": "done",
+      "note": "Browser checks320/360/390/768/1440,SKU/cart/ring/pawn/offline-reconnect;12 local Lighthouse audits all100;physical phone pending."
+    },
+    {
+      "at": "2026-11-04T02:01:37.138872+00:00",
+      "stage": "integrate",
+      "status": "pending",
+      "note": "Read-only LAN preview ready;main website unchanged pending owner phone review per approved plan;photo source mismatch held out of featured display."
+    },
+    {
+      "at": "2026-11-04T02:04:33.906558+00:00",
+      "stage": "integrate",
+      "status": "pending",
+      "note": "Read-only preview and complete source package ready;owner phone review before main release;capture filenames match actual JPEG format."
+    }
+  ],
+  "updated_at": "2026-11-04T02:04:33.906558+00:00",
+  "goldSocialFormats": {
+    "status": "deployed_and_facebook_verified",
+    "policy": "gold-platform-v1",
+    "source": "docs/GOLD_PLATFORM_MEDIA_20261103.md",
+    "actualGoldWebsiteReceipt": "a7eff122222aa711d4fc6dbea81d0ede",
+    "pending": [
+      "YouTube/TikTok application configuration and OAuth",
+      "other social channels owner OAuth/selection"
+    ],
+    "at": "2026-11-03T08:44:34.257046+00:00",
+    "facebook": "OAuth connected, Tiệm Vàng Kim Bảo Lâm selected, receive new posts enabled",
+    "tests": 352,
+    "receipt": "docs/GOLD_PUBLISH_RECEIPT_20261103.json",
+    "facebookPostUrl": "https://www.facebook.com/122116788465441128/posts/122125776561441128",
+    "codeDeployment": {
+      "revision": "63ab93e2fd93964776e4ff4e3f846b1455e18254",
+      "status": "success",
+      "completedAt": "2026-11-03T08:42:34Z"
+    }
+  },
+  "identityOcr": {
+    "status": "installed_owner_card_confirmation_pending",
+    "scope": "CCCD transport only; business functions and data preserved",
+    "source": "docs/CCCD_QR_RECOVERY_20261103.md",
+    "installedArchiveSha256": "fbe8cf3b074dd6eafd22bb0e5dec4ecd27eb53f4fff9a0587c3c5ce829040d17",
+    "focusedTests": 9,
+    "nonpersonalImageProbeMs": 3420,
+    "totalDeadlineMs": 150000,
+    "normalPosRestartAt": "2026-11-03T21:39:13+07:00",
+    "customerCardTested": false,
+    "fullSuiteTests": 381,
+    "previousInstalledArchiveSha256": "be89f170bb585a8f1c86dbcb218a67dd44073e560ed537743d38da1333fa2974",
+    "requestDeadlineMs": 60000,
+    "nonpersonalProbeNote": "3420ms belongs to the earlier transport version; not a new real-card benchmark"
+  },
+  "identityAddress": {
+    "status": "installed_owner_card_confirmation_pending",
+    "catalogAsOf": "2026-11-03",
+    "source": "docs/CCCD_ADDRESS_CONVERSION_20261103.md",
+    "tests": 371,
+    "pureAddressFixtureMs": 3.2,
+    "browserFixtureVerified": true,
+    "realCustomerCardTested": false,
+    "financialFunctionsUnchanged": true,
+    "historicalRecordsWritten": false,
+    "autoLookupNetworkRequests": 0,
+    "installedArchiveSha256": "4b66e4f5fbf8a5bf24a6911b66bddce71c978db05ae1bd8b56744d2708c07e8b",
+    "normalPosRestartAt": "2026-11-03T20:14:17+07:00"
+  },
+  "identityRecovery": {
+    "status": "installed_owner_phone_confirmation_pending",
+    "source": "docs/CCCD_QR_RECOVERY_20261103.md",
+    "fullSuiteTests": 381,
+    "focusedCandidateTests": 11,
+    "browserFixture": "failure/retry,stop/retry,buy/sale/pawn,small QR in large image verified",
+    "actualRemoteAssets": {
+      "jsqr": 200,
+      "decoder": 200,
+      "disallowedConfig": 404
+    },
+    "financialChanges": false,
+    "privateCustomerDataSentByAgent": false,
+    "iPhoneLiveCameraTested": false,
+    "realCustomerCardTested": false,
+    "installedArchiveSha256": "fbe8cf3b074dd6eafd22bb0e5dec4ecd27eb53f4fff9a0587c3c5ce829040d17"
+  },
+  "identityCompact": {
+    "status": "installed",
+    "date": "2026-11-04",
+    "source": "docs/CCCD_NUT_GON_20261104.md",
+    "tests": 14,
+    "archiveSha256": "50175abd4c5a935cb081cf9cd283c7f6a32991a130f2e38c2603a4cba97e0c67",
+    "onlyPresentation": true,
+    "nativeVisualCheck": "not_tested",
+    "browserFixtureVerified": true,
+    "githubPush": "still awaiting explicit permission"
+  },
+  "goldDisplay": {
+    "status": "installed_physical_print_confirmation_pending",
+    "source": "docs/NHAN_VANG_999_9_20261104.md",
+    "tests": 381,
+    "scriptsCompared": 32,
+    "businessDataWritten": false,
+    "financialChanges": false,
+    "physicalPrintingTested": false,
+    "installedArchiveSha256": "cbe47b71b2fa0641f6caa8cac0ef3c7d6839a7bf30cc806434d2486df970497b"
+  },
+  "identityRetryTheme": {
+    "status": "installed",
+    "source": "docs/CCCD_NUT_DONG_BO_20261104.md",
+    "focusedTests": 13,
+    "installedArchiveSha256": "cbe47b71b2fa0641f6caa8cac0ef3c7d6839a7bf30cc806434d2486df970497b",
+    "normalReopenProcessId": 7672,
+    "readQueueUnchanged": true,
+    "businessDataWritten": false,
+    "browserFixtureVerified": true
+  },
+  "websiteRebuild": {
+    "status": "preview_ready_owner_phone_review_pending",
+    "source": "docs/WEBSITE_REBUILD_PREVIEW_20261104.md",
+    "verification": "docs/WEBSITE_PREVIEW_VERIFICATION_20261104.json",
+    "productionDeployed": false,
+    "protectedCodeUnchanged": true,
+    "physicalPhoneTested": false,
+    "tests": 382,
+    "lighthouseLocalOnly": true,
+    "localPerformanceScore": 100,
+    "phonePreview": "http://192.168.1.9:18747/",
+    "pending": [
+      "Owner reviews on physical phone before publication",
+      "Correct ring photo for SKU KBL-KA96VM;chain photo excluded from featured display",
+      "Public GitHub source push still lacks explicit approval"
+    ]
+  }
+}

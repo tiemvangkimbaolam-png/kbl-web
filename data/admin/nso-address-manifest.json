@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "schema": 1,
+    "mappingEffectiveDate": "2025-07-01",
+    "catalogAsOf": "2026-11-03",
+    "retrievedAt": "2026-11-03",
+    "sources": [
+      {
+        "url": "https://danhmuchanhchinh.nso.gov.vn/TAPTIN/BangChuyendoi%C4%90VHCmoi_cu_final.xlsx",
+        "sha256": "213966723785859dedd7c88965d6f12f8c3c508c91796e003804cf60a1054fc2",
+        "sheet": "Tổng hợp_không merge ",
+        "rows": 10571
+      },
+      {
+        "url": "https://danhmuchanhchinh.nso.gov.vn/Doi_Chieu_Moi.aspx",
+        "export": "ctl00$PlaceHolderMain$cmdExcel",
+        "from": "03/11/2026",
+        "compare": "30/11/2025",
+        "sha256": "976f0aa4f40c97189dec7adc1bde0d6fa0058496b8912df9dba1ab94c9417f61",
+        "rows": 3321
+      }
+    ],
+    "counts": {
+      "oldProvince": 63,
+      "newProvince": 34,
+      "oldWardCodes": 10033,
+      "oldWardEntries": 10036,
+      "newWard": 3321,
+      "sourceRelations": 10571
+    },
+    "conflictingOldCodes": [
+      "00553",
+      "01615",
+      "02485"
+    ],
+    "conflictingDistrictCodes": {
+      "794": [
+        {
+          "id": "794|thanh pho tan an|80",
+          "c": "794",
+          "n": "Thành phố Tân An",
+          "p": "80"
+        },
+        {
+          "id": "794|thanh pho tan an|82",
+          "c": "794",
+          "n": "Thành phố Tân An",
+          "p": "82"
+        }
+      ],
+      "900": [
+        {
+          "id": "900|thanh pho ha tien|89",
+          "c": "900",
+          "n": "Thành phố Hà Tiên",
+          "p": "89"
+        },
+        {
+          "id": "900|thanh pho ha tien|91",
+          "c": "900",
+          "n": "Thành phố Hà Tiên",
+          "p": "91"
+        }
+      ]
+    },
+    "policy": "Only exact full old hierarchy and an entire-unit unique verified destination may convert automatically. Partial, conflicting, missing or stale records require confirmation. No fuzzy auto conversion."
+  },
+  "outputBytes": 1372615,
+  "sha256": "298b00508c26a74b30c9a516a245492b10c49e9a621f925d596b7e6238547a8f"
+}

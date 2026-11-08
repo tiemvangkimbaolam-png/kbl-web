@@ -1,0 +1,8 @@
+KBL WINDOWS 2.2.1 — GIỮ KẾT NỐI VÀ GIẢM ĐỌC D1
+
+1. Đóng cửa sổ BAT_DAU.cmd nếu đang mở. Giải nén bộ mới đè vào đúng thư mục KBL_WINDOWS_MOI đang có kbl-config.json. Không xóa config, hồ sơ Chrome, SQLite ledger hay dữ liệu POS.
+2. Chạy CAP_NHAT_AUTODANG.cmd một lần. Script chỉ thay tiến trình KBL của chính thư mục đó, bật tự khởi động trong tài khoản Windows hiện tại và kiểm tra health 2.2.1.
+3. Thư mục POS đã chọn được dùng lại. Nếu chưa chọn bao giờ: mở MO_CAU_HINH.cmd, chọn đúng thư mục data một lần. Không phải bấm ghép/kết nối lại mỗi ngày. Máy phải bật, Windows đăng nhập và có mạng để đọc file POS hoặc làm AI bằng Chrome; nguồn giá cloud đã cấu hình vẫn có thể chạy khi máy tắt.
+4. Giữ nguyên thư mục cài. BO_TU_KHOI_DONG.cmd tắt tự chạy nếu cần.
+
+Giá kiểm tra mỗi phút; kho và cấu hình không đổi đã được xác nhận không gửi lại. Mất mạng giữ hàng đợi và tự thử lại. Bản cập nhật không thay công thức POS, giá cộng, dữ liệu khách hay phiên đăng nhập AI. Source/mocks đã kiểm tra; đây không phải xác nhận đã chạy thật trên máy của bạn.

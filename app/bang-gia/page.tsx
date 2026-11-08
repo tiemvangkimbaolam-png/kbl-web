@@ -1,0 +1,2 @@
+import PublicData from '@/app/components/public-data';import {publicPrices} from '@/lib/kbl/public-prices';import {pageSEO} from '@/lib/kbl/seo';
+export const dynamic='force-dynamic';export const metadata=pageSEO('Bảng giá vàng tại Kim Bảo Lâm','Giá mua vào, bán ra và thời điểm cập nhật từ cửa hàng. Xác nhận giá giao dịch trực tiếp tại tiệm.','/bang-gia');export default async function Page(){return <PublicData kind="prices" initialData={await publicPrices()}/>;}

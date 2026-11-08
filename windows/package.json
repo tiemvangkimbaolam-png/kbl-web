@@ -1,0 +1,6 @@
+{
+  "name": "kbl-windows-worker",
+  "private": true,
+  "version": "2.1.1",
+  "type": "commonjs"
+}

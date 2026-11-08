@@ -1,0 +1,47 @@
+{
+  "name": "kim-bao-lam-pos-suite",
+  "productName": "TIỆM VÀNG KIM BẢO LÂM - POS & CẦM ĐỒ",
+  "version": "1.0.0",
+  "description": "Phần mềm quản lý thu mua, kho, bán hàng, phôi A4 và cầm đồ Kim Bảo Lâm",
+  "main": "main.js",
+  "author": "Kim Bảo Lâm",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check main.js && node --check renderer.js && node --check shared-scale.js",
+    "dist": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.kimbaolam.possuite",
+    "productName": "TIỆM VÀNG KIM BẢO LÂM - POS & CẦM ĐỒ",
+    "artifactName": "KBL-POS-${version}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!data_backup/**",
+      "!dist/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false,
+      "legalTrademarks": "Kim Bảo Lâm Co., Ltd"
+    }
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  }
+}

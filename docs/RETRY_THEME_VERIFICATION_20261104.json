@@ -1,0 +1,16 @@
+{
+  "onlyRetryThemeClassesAndInlinePresentationChanged": true,
+  "readQueueByteIdentical": true,
+  "callbacksAndDisabledLogicUnchanged": true,
+  "goldDisplayCandidateUnchanged": true,
+  "focusedTests": 13,
+  "focusedFailures": 0,
+  "browserFixtureVerified": true,
+  "allThreeTabsButtonsSameRow": true,
+  "actualPhoneTested": false,
+  "installedArchiveSha256": "cbe47b71b2fa0641f6caa8cac0ef3c7d6839a7bf30cc806434d2486df970497b",
+  "previousInstalledArchiveSha256": "50175abd4c5a935cb081cf9cd283c7f6a32991a130f2e38c2603a4cba97e0c67",
+  "installationVerified": true,
+  "rollbackReconstructionVerified": true,
+  "nativeScreenshotVerified": false
+}

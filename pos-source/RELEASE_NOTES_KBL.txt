@@ -1,0 +1,19 @@
+KBL POS THUONG MAI 2.4.2 / UI XANH BIEN v5
+============================================================
+- CO KHOA: nhap gia vang bang tay, kich hoat Machine ID GSP-REQ/GSP-ACT.
+- KHONG KHOA: day du POS, ho tro Google Sheet relay nhu 2.4.1.
+- Giu nguyen cong thuc thu mua/ban/doi/chanh/cam do tu source 2.4.1.
+- Renderer.js: 2 chinh chu tem, 1 chan doc/ghi du lieu legacy; KHONG sua cong thuc.
+- GUI UI Xanh Bien v5, logo cua ong, icon Windows, in tem A4 theo UI.
+- Du lieu moi co thu muc rieng tung phien ban. Khong tu lay/mirror du lieu may khac.
+- Khong kem du lieu nguoi khac, so CCCD hay tai khoan trong HTML demo.
+- Ban CO KHOA dung bo khoa Ed25519 MOI; ma kich hoat cu khong dung duoc.
+- Chi tool admin moi co khoa bi mat, KHONG bao gio giao tool admin cho khach.
+- Chua co module phat hanh hoa don dien tu boi co quan thue; phieu in la chung tu noi bo.
+- Chu cua hang phai tu xac nhan dieu kien nganh nghe, xac thuc khach, PII,
+  lãi va phi cam do, thanh toan qua ngan hang tu 20 trieu/ngay/khach.
+- Chua chung nhan tuan thu phap ly cho moi cua hang, chưa kiem thu phan cung Windows.
+
+KIEM TRA: can Node.js tren Windows; chay npm install, npm run check.
+DONG GOI: chay BUILD_WINDOWS.cmd hoac npm run dist.
+KHONG CHEP PHIEN BAN NAY DE LEN FOLDER APP KBL DANG CHAY NEU CHUA BACKUP.

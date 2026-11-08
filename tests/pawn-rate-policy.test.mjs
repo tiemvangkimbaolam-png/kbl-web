@@ -1,0 +1,39 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url),ts=require('typescript');
+const file=process.env.KBL_PAWN_SOURCE||new URL('../pos-source/pawn.html',import.meta.url);
+const html=fs.readFileSync(file,'utf8'),functions=new Map();
+for(const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)){
+ const source=ts.createSourceFile('pawn.js',m[1],ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
+ assert.equal(source.parseDiagnostics.length,0,'Pawn scripts must parse');
+ function walk(n){if(ts.isFunctionDeclaration(n)&&n.name)functions.set(n.name.text,n.getText(source));ts.forEachChild(n,walk);}walk(source);
+}
+const names=['getPawnStoredValue','pawnDateInput','pawnDateDisplay','pawnTodayInput','countPawnDaysInclusive','normalizePawnContract','pawnAddDays','pawnAccrualStart','pawnIsClosed','pawnRatesForMoney','pawnRatesForRecord','pawnCurrentFormRates','pawnUpdateRateLabels','pawnCalculateDue','tinhLaiCamDo','pawnLanView','pawnSyncSafeRecord','pawnApplyInterestPayment','pawnApplyRedeem','pawnApplyTopUp'];
+function fixture(){const fields={},labels=[{},{}],persisted=[];const ctx=vm.createContext({window:{},document:{getElementById:id=>fields[id]||(fields[id]={value:''}),querySelectorAll:selector=>selector==='.label-pawn-rates'?labels:[]},formatVND:v=>String(v),syncAllData:()=>{},pawnBackupBeforeLanAction:()=>{},pawnNextIdForContracts:()=> 'FIXTURE-NEW',pawnTransactionId:()=> 'FIXTURE-TXN',createPawnPublicToken:()=> 'FIXTURE-NOT-A-TOKEN',pawnPersistContracts:rows=>{persisted.push(structuredClone(rows));return true;},pawnSendSavedToParent:()=>{}});
+ vm.runInContext(names.map(n=>{assert.ok(functions.has(n),n);return functions.get(n);}).join('\n'),ctx);
+ vm.runInContext("pawnTodayInput=()=> '2026-11-02'",ctx);
+ return{ctx,fields,labels,persisted};}
+const record=(money,extra={})=>({id:'FIXTURE-OLD',money,dateStartRaw:'2026-10-04',accrualStartRaw:'2026-10-04',status:'Đang cầm',interestRate:1.5,feeRate:1.5,...extra});
+test('strict principal threshold and fee breakdown keep LS fixed and components sum to monthly total',()=>{const{ctx}=fixture();for(const [money,total,fee,parts]of[[99999999,3,1.5,[.5,.5,.5]],[100000000,3,1.5,[.5,.5,.5]],[100000001,2.5,1,[.4,.3,.3]],[120000000,2.5,1,[.4,.3,.3]]]){const r=ctx.pawnRatesForMoney(money);assert.equal(r.interestRate,1.5);assert.equal(r.feeRate,fee);assert.equal(r.totalRate,total);assert.deepEqual([r.appraisalRate,r.valuationRate,r.storageRate],parts);assert.equal(Math.round((r.interestRate+r.appraisalRate+r.valuationRate+r.storageRate)*100),total*100);}});
+test('form, LAN projection and website projection agree for existing active loans on both sides of 100 million',()=>{for(const money of[99999999,100000000,100000001,120000000]){const{ctx,fields,labels}=fixture(),r=record(money),due=ctx.pawnCalculateDue(r,'2026-11-02');fields['inp-money']={value:String(money)};fields['inp-date-start']={value:r.dateStartRaw};fields['inp-date-end']={value:'2026-11-02'};ctx.tinhLaiCamDo();assert.equal(Number(fields['out-lai'].value),due.interest);assert.equal(Number(fields['out-phi'].value),due.fee);assert.equal(Number(fields['out-tong-tra'].value),due.totalDue);const lan=ctx.pawnLanView(r),web=ctx.pawnSyncSafeRecord(r);assert.equal(lan.totalDue,due.totalDue);assert.equal(web.totalDue,due.totalDue);assert.equal(lan.feeRate,due.feeRate);assert.equal(web.feeRate,due.feeRate);assert.equal(labels[0].textContent,labels[1].textContent);assert.ok(labels[0].textContent.includes('LS: 1,5%'));assert.ok(labels[0].textContent.includes(money>100000000?'PTĐ: 0,4% | PĐQ: 0,3% | CPBG: 0,3%':'PTĐ: 0,5% | PĐQ: 0,5% | CPBG: 0,5%'));}});
+test('same day counts as one, thirty calendar days count as thirty, leap day and paid-through dates remain inclusive',()=>{const{ctx}=fixture();assert.equal(ctx.countPawnDaysInclusive('2026-11-02','2026-11-02'),1);assert.equal(ctx.countPawnDaysInclusive('2026-10-04','2026-11-02'),30);assert.equal(ctx.countPawnDaysInclusive('2024-02-28','2024-03-01'),3);const same=ctx.pawnCalculateDue(record(120000000,{dateStartRaw:'2026-11-02',accrualStartRaw:'2026-11-02'}),'2026-11-02');assert.equal(same.interest,60000);assert.equal(same.fee,40000);assert.equal(same.totalDue,120100000);const full=ctx.pawnCalculateDue(record(120000000),'2026-11-02');assert.equal(full.interest,1800000);assert.equal(full.fee,1200000);assert.equal(full.totalDue,123000000);assert.equal(ctx.pawnCalculateDue(record(120000000,{accrualStartRaw:'2026-11-03'}),'2026-11-02').interestFee,0);});
+test('historical closed loans keep saved rates, projections stay closed and reading does not mutate source object',()=>{const{ctx,fields}=fixture(),closed=record(120000000,{status:'Đã chuộc',tienLai:1800000,tienPhi:1800000}),before=JSON.stringify(closed);assert.equal(ctx.pawnCalculateDue(closed,'2026-11-02').fee,1800000);assert.equal(ctx.pawnSyncSafeRecord(closed).totalDue,0);assert.equal(ctx.pawnLanView(closed).totalDue,0);fields['inp-id']={value:closed.id};ctx.window.__kblPawnClosedRateSnapshot=closed;assert.equal(ctx.pawnCurrentFormRates(120000000).feeRate,1.5);fields['inp-id'].value='NEW-FIXTURE';assert.equal(ctx.pawnCurrentFormRates(120000000).feeRate,1);assert.equal(JSON.stringify(closed),before);});
+test('confirmed interest payment and redemption store the rate actually charged; no duplicate charge',()=>{for(const action of['pawnApplyInterestPayment','pawnApplyRedeem']){const{ctx,persisted}=fixture(),r=record(120000000),rows=[r],result=ctx[action](r,rows);assert.equal(result.success,true);assert.equal(result.transaction.interest,1800000);assert.equal(result.transaction.fee,1200000);assert.equal(r.interestRate,1.5);assert.equal(r.feeRate,1);assert.equal(persisted.length,1);assert.equal(ctx[action](r,rows).success,false);assert.equal(persisted.length,1);}});
+test('top-up crossing the threshold records new principal and the new tier without changing paid history on the old loan',()=>{const{ctx,persisted}=fixture(),r=record(100000000),result=ctx.pawnApplyTopUp(r,[r],20000000);assert.equal(result.success,true);assert.equal(result.due.interestFee,3000000);assert.equal(result.oldRecord.feeRate,1.5);assert.equal(result.newRecord.money,120000000);assert.equal(result.newRecord.interestRate,1.5);assert.equal(result.newRecord.feeRate,1);assert.equal(result.newRecord.paidInterestTotal,0);assert.equal(result.newRecord.paidFeeTotal,0);assert.equal(persisted.length,1);});
+test('loading a legacy saved print blueprint rebinds both unlabeled rate lines without rewriting storage or other print content',()=>{
+ const {ctx,fields}=fixture(),labels=[],ids=[];
+ for(let i=0;i<2;i++){
+  const classes=new Set(),label={textContent:i?'LS: 1,66% | PTĐ:0.34%, PĐQ:0.4%, CPBG:0.4%':'LS: 1,5% | Phí:1.5%',classList:{add:name=>classes.add(name)},querySelector:()=>null,classes};
+  const id={parentElement:null},row={textContent:'Mã số: FIXTURE',querySelector:()=>id},group={children:[row,label]};row.parentElement=group;id.parentElement=row;ids.push(id);labels.push(label);
+ }
+ ctx.document.querySelectorAll=selector=>selector.includes('#lien-1 .label-id')?ids:selector==='.label-pawn-rates'?labels.filter(l=>l.classes.has('label-pawn-rates')):[];
+ fields['inp-money']={value:'120000000'};
+ const savedBlueprint='<div>FIXTURE saved custom layout, signatures and metadata</div>';
+ ctx.localStorage={getItem:key=>key==='kbl_pawn_full_blueprint'?savedBlueprint:null,setItem:()=>assert.fail('Must not rewrite the saved blueprint')};
+ ctx.ensurePawnDisbursementPrintBlock=()=>{};vm.runInContext(functions.get('loadSavedTemplates'),ctx);ctx.loadSavedTemplates();
+ assert.equal(fields['print-wrapper-blueprint'].innerHTML,savedBlueprint);
+ assert.equal(labels[0].textContent,labels[1].textContent);assert.match(labels[1].textContent,/LS: 1,5%.*PTĐ: 0,4%.*PĐQ: 0,3%.*CPBG: 0,3%/);
+});

@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kbl-web-moi",
+  "main": "worker/cloudflare.ts",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "preview_urls": false,
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kbl-web-moi-db",
+      "database_id": "642e732e-5bc1-42cd-b155-ba6e3eac32dd",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "kbl-web-moi-media"
+    }
+  ],
+  "vars": {
+    "KBL_AUTH_MODE": "cloudflare-access",
+    "KBL_ADMIN_ORIGIN": "https://kbl-web-moi.tiemvangkimbaolam.workers.dev",
+    "OWNER_EMAIL": "vlam1881997@gmail.com",
+    "CF_ACCESS_TEAM_DOMAIN": "https://billowing-sunset-1714.cloudflareaccess.com",
+    "CF_ACCESS_AUD": "53265596f9dce4f0fb6d25cc5e76e512b59b5865365bf34c58082efeaad77c3a"
+  }
+}

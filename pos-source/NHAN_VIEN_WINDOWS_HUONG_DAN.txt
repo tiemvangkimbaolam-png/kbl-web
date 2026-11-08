@@ -1,0 +1,13 @@
+HƯỚNG DẪN ĐĂNG NHẬP NHÂN VIÊN - BẢN THƯƠNG MẠI THỬ NGHIỆM
+1) CHỦ TIỆM: khởi tạo tài khoản OWNER trên POS mới sạch. Đăng nhập đầy đủ.
+2) Nhấn Ctrl+Shift+M → đăng nhập quản trị → tạo nv01 / nv02 / ...; cấp vai trò và chọn quyền. Không giao tài khoản OWNER cho nhân viên.
+3) Chủ tiệm lưu các phiếu đang nhập, nhấn 'Đổi tài khoản' (hoặc tắt/mở ứng dụng).
+4) Nhân viên đăng nhập bằng tài khoản và mật khẩu đã được cấp; cùng EXE, nhưng vào cửa sổ LAN sandbox không có Node.js.
+5) Trên cửa sổ nhân viên: xem/đổi giá nếu được cấp, tra phiếu cầm và thu/chuộc nếu được cấp, quét CCCD/QR nếu được cấp. Dữ liệu vẫn trên Windows.
+6) Đăng xuất để trở lại màn hình đăng nhập; mật khẩu có thể tự đổi.
+7) Bản này KHÔNG cấp nhân viên truy cập 9 tab POS Windows. Do dữ liệu 9 tab hiện đọc/ghi bằng Node.js trực tiếp, cấp quyền bằng cách ẩn nút sẽ KHÔNG AN TOÀN. Muốn nhân viên thao tác bán/thu mua/kho trong Windows phải chuyển từng nghiệp vụ sang các API có kiểm tra quyền và audit; việc này CHƯA HOÀN THÀNH.
+8) Remote vẫn dùng renderer POS chạy ẩn tại Windows để nhận CCCD và xử lý phiếu cầm; nhân viên chỉ thấy cửa sổ sandbox. Việc sử dụng trên Windows cần nghiệm thu camera, phiếu cầm, in ấn và tình huống tab chưa mở trước khi coi là sẵn sàng bán.
+9) Bản ký khóa PHẢI ký lại bằng bộ Admin khóa riêng. Không giao private key cho khách. Các source hiện sửa nên chữ ký manifest cũ không còn hợp lệ.
+10) Không cài đè POS cửa hàng đang sử dụng. Test trên máy/Windows sạch, với dữ liệu giả và thiết bị thử.
+
+CHÚ Ý: Thử nghiệm tài khoản VIEWER/CASHIER/MANAGER ở Windows qua LAN nội bộ; phân quyền Remote không đồng nghĩa phân quyền đầy đủ 9 tab POS. Không cấp quyền POS renderer qua CSS hoặc JavaScript phía nhân viên.

@@ -1,0 +1,30 @@
+{
+  "checkedAt": "2026-11-03T08:40:49.010395+00:00",
+  "storyId": "25056906344d5b86d22e53bb14c8498d",
+  "platform": "facebook",
+  "variant": "images",
+  "pageLabel": "Tiệm Vàng Kim Bảo Lâm",
+  "externalId": "122116788465441128_122125776561441128",
+  "url": "https://www.facebook.com/122116788465441128/posts/122125776561441128",
+  "status": "published",
+  "visibility": "public, observed in Facebook UI",
+  "snapshotAt": 1793694934325,
+  "phoneOnImage": "0899 979 797",
+  "visualChecks": [
+    "correct Page",
+    "one gold-price image",
+    "frozen quote and timestamp match",
+    "platform caption",
+    "seven hashtags",
+    "public audience indicator"
+  ],
+  "video": {
+    "availableOnLocalWorker": true,
+    "width": 1080,
+    "height": 1920,
+    "seconds": 42,
+    "voice": "vi-VN-HoaiMyNeural"
+  },
+  "youtubeTikTok": "not connected: application credentials and OAuth missing",
+  "otherSocialChannels": "not selected; no publication claimed"
+}
