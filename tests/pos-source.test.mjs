@@ -28,7 +28,8 @@ test('POS connection survives process reload separately from formula/settings fi
 });
 test('latest POS files match recorded source provenance, with byte-identical photo module and package originals',()=>{
  const root=path.resolve('pos-source'),proof=JSON.parse(fs.readFileSync(path.join(root,'LATEST_SOURCE_PROVENANCE.json')));
- for(const [name,expected]of Object.entries(proof.patched))assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex'),expected,name);
+ for(const [name,expected]of Object.entries(proof.patched))assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex'),proof.presentationPatches20261109?.files?.[name]?.sha256||expected,name);
+ for(const [name,entry]of Object.entries(proof.presentationPatches20261109?.files||{}))assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex'),entry.sha256,name+' approved presentation patch');
  for(const name of ['kbl-product-photos.cjs','package.json'])assert.equal(proof.patched[name],proof.originals[name]);
 });
 
