@@ -137,5 +137,21 @@
     "scope": "Retry buttons use existing btn/btn-blue and btn-outline theme classes;layout/callbacks unchanged",
     "readQueueChanged": false,
     "businessDataWritten": false
+  },
+  "presentationPatches20261109": {
+    "scope": "Only lost pawn-ticket preview and A4 issuer text; business data and all POS calculations unchanged",
+    "protectedBaseline": "originals and patched retained as source provenance, not overwritten",
+    "files": {
+      "renderer.js": {
+        "sha256": "8970fcf1b7319d43100790a9a0adeff4e5c27c2b896891ffec3cc99c46d8f18d",
+        "reason": "Lost-ticket A4 and preview issuer name, removed jewelry-company tax line, signer label"
+      },
+      "pawn-pro-addon.js": {
+        "sha256": "c0d3792c068f062477d564f1c64a5a46c294bddd1d1d88efe0fe7342b98e56e1",
+        "reason": "Standalone lost-ticket A4 issuer pinned to pawn business, not gold-shop profile"
+      }
+    },
+    "windowsInstalled": false,
+    "realPawnPrintTested": false
   }
 }
