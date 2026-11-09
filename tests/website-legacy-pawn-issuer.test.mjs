@@ -25,7 +25,7 @@ test('both lost-ticket A4 routes use the pawn business name, not jewelry-company
 });
 
 test('approved storefront keeps prices, catalog, real market, footer, news and customer utilities',()=>{
- for(const part of ['home-price-table','home-price-two-col','<MarketSnapshot/>','home-categories','<RestoredSections','<RestoredFooter','<FloatingControls'])
+ for(const part of ['home-price-table','home-price-two-col','<MarketSnapshot onOpenTool={openTool}/>','home-categories','<RestoredSections','<RestoredFooter','<FloatingControls'])
   assert.ok(home.includes(part),part);
  assert.match(extras,/public\/market/);
  assert.match(extras,/public\/fx/);
