@@ -1,0 +1,61 @@
+/* Add back previously approved public sections without overriding POS, prices, or checkout. */
+.kbl-home .home-price-two-col{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(0,1fr);gap:24px;align-items:stretch}
+.kbl-home .home-market-card{display:flex;flex-direction:column;gap:9px;padding:28px 24px;min-width:0;border:1px solid #ead8ca;background:#fffaf7;border-radius:16px;color:#153448}
+.home-market-title{color:#9b4d2d;font-size:12px;font-weight:800;letter-spacing:.08em}
+.kbl-home .home-market-xau{font:700 clamp(15px,1.7vw,24px)/1.35 Georgia,'Times New Roman',serif;color:#153448;white-space:nowrap;overflow-wrap:normal;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.home-market-card small{display:block;color:#536875;font-size:12px;line-height:1.5}
+.kbl-home .home-market-card a{color:#9b4d2d;font-size:13px;text-decoration:underline;text-underline-offset:3px}
+.home-market-chart-link{margin-top:auto;min-height:44px;display:flex;align-items:center}
+.home-market-divider{height:1px;width:100%;background:#ead8ca;margin:8px 0}
+.home-market-card h3{font-size:16px;color:#153448}
+.kbl-home .home-market-usd{font:700 22px/1.35 Georgia,serif;white-space:nowrap;font-variant-numeric:tabular-nums}
+.home-market-disclaimer{font-size:11px;color:#536875;margin-top:auto!important}
+.kbl-home .home-categories{position:sticky;top:84px;z-index:95;background:#fffdf9;padding:10px 0;border-bottom:1px solid #ead8ca;box-shadow:0 9px 12px -14px #15344870;scroll-margin-top:84px}
+.kbl-home .home-restored{padding-block:44px}
+.home-story>p{max-width:780px;color:#536875;font-size:15px;margin-bottom:24px!important}
+.home-restored-band{background:#fbf4ee;border-block:1px solid #ead8ca;padding-block:44px}
+.home-restored-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kbl-home .home-restored-tiles>*{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;min-width:0;min-height:135px;text-align:left;padding:20px;background:#fff;border:1px solid #ead8ca;border-radius:5px;color:#153448}
+.kbl-home .home-restored-tiles strong{font-size:16px;font-weight:700;line-height:1.45}
+.kbl-home .home-restored-tiles span{font-size:13px;color:#9b4d2d;margin-top:16px}
+.kbl-home .home-restored-tiles :is(a,button):hover{border-color:#c99478;background:#fff9f5}
+.home-story-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.home-story-list article{background:white;border:1px solid #ead8ca;padding:22px;min-width:0}
+.home-story-list article p{color:#536875;font-size:13px;line-height:1.6;margin-top:6px!important}
+.home-story-list article h3{margin:9px 0!important}
+.home-story-list article>a{display:inline-block;color:#9b4d2d;margin-top:14px;font-size:14px;text-decoration:underline}
+.home-no-news{font-size:14px;color:#536875}
+.home-faq{border-top:1px solid #ead8ca}
+.home-faq details{border-bottom:1px solid #ead8ca;padding:15px 4px}
+.home-faq summary{cursor:pointer;font-weight:700;min-height:38px}
+.home-faq p{margin:10px 0!important;color:#536875}
+.home-faq a,.home-faq button{color:#9b4d2d;text-decoration:underline}
+.kbl-home .home-full-footer{background:#fff3eb;border-top:1px solid #ead1bf;padding:0;color:#42596a}
+.kbl-home .home-full-footer>.home-footer-grid{display:grid;grid-template-columns:minmax(250px,2.05fr) repeat(3,minmax(110px,1fr)) minmax(160px,1.3fr);gap:26px;padding-block:43px;align-items:start}
+.home-full-footer nav,.home-footer-connect{display:flex;flex-direction:column;align-items:flex-start;gap:9px;font-size:12px}
+.home-full-footer nav a{min-height:24px!important;display:block}
+.home-full-footer nav>a:hover,.home-footer-connect a:hover{color:#9b4d2d}
+.home-full-footer :is(nav,.home-footer-connect)>strong{color:#9b4d2d;font-size:14px;margin-bottom:5px}
+.home-footer-brand{min-width:0;display:flex;flex-direction:column;gap:5px}
+.home-footer-brand>.home-brand{margin-bottom:10px}
+.home-footer-brand>p{font-size:12px;line-height:1.55;margin:0!important}
+.home-footer-brand>strong{margin-top:10px;font:700 12px/1.4 Arial,sans-serif;color:#9b4d2d}
+.home-footer-brand a{overflow-wrap:anywhere}
+.home-footer-social{display:flex;align-items:center;gap:12px}
+.kbl-home .home-footer-social>*{width:38px;height:38px;display:grid;place-items:center;border:1px solid #e7ccb9;border-radius:9px;color:#9b4d2d;font-weight:bold}
+.kbl-home .home-footer-social button{background:#9b4d2d;color:white}
+.home-footer-connect>p{font-size:12px;margin:9px 0!important}
+.home-footer-cert{display:flex;flex-direction:column;gap:9px;border:1px solid #ead8ca;background:white;padding:10px;border-radius:5px;width:100%;margin-top:14px}
+.home-footer-cert>strong{color:#9b4d2d;font-size:12px}
+.home-footer-cert img{height:44px;width:auto;max-width:100%;object-fit:contain}
+.kbl-home .home-full-footer>.home-footer-bottom{display:flex;justify-content:space-between;gap:12px;padding:15px 0;border-top:1px solid #ead8ca;font-size:11px}
+.home-footer-bottom a{color:#9b4d2d}
+.kbl-home .home-floating-controls{position:fixed;bottom:20px;right:18px;z-index:110;display:flex;flex-direction:column;align-items:center;gap:10px}
+.kbl-home .home-floating-controls>button{display:flex;align-items:center;justify-content:center;width:48px;height:48px;min-width:48px;min-height:48px;border:1px solid #ead8ca;border-radius:50%;background:#fff;color:#153448;font-size:23px;box-shadow:0 6px 20px #9b4d2d16}
+.kbl-home .home-floating-controls>button.home-floating-ai{width:62px;height:62px;gap:2px;flex-direction:column;border-color:#d79c76}
+.home-floating-ai span{font-size:10px;font-weight:700;color:#9b4d2d}
+.kbl-home .home-floating-controls>button:hover{border-color:#9b4d2d;color:#9b4d2d}
+@media(max-width:1100px){.kbl-home .home-full-footer>.home-footer-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.home-footer-brand{grid-column:span 2}.home-footer-connect{grid-column:span 1}.home-restored-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1000px){.kbl-home .home-price-two-col{grid-template-columns:minmax(0,1fr)}.kbl-home .home-market-card{padding:22px 20px}.kbl-home .home-market-xau{font-size:clamp(17px,3vw,24px)}}
+@media(max-width:760px){.kbl-home .home-categories{top:70px;display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overscroll-behavior-inline:contain;padding-block:9px}.kbl-home .home-categories button{white-space:nowrap;flex:0 0 auto}.kbl-home .home-restored{padding-block:30px}.home-restored-band{padding-block:30px}.home-story-list{grid-template-columns:1fr}.kbl-home .home-full-footer>.home-footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}.home-footer-brand{grid-column:span 2}.home-footer-connect{grid-column:span 2}.kbl-home .home-full-footer>.home-footer-bottom{flex-direction:column}.kbl-home .home-floating-controls{right:8px;bottom:max(10px,env(safe-area-inset-bottom));gap:8px}.kbl-home .home-floating-controls>button{width:44px;height:44px;min-width:44px;min-height:44px}.kbl-home .home-floating-controls>button.home-floating-ai{width:50px;height:50px}.kbl-home .home-market-xau{font-size:clamp(15px,4.6vw,22px)}}
+@media(max-width:460px){.home-restored-tiles{grid-template-columns:1fr}.kbl-home .home-full-footer>.home-footer-grid{grid-template-columns:minmax(0,1fr)}.home-footer-brand,.home-footer-connect{grid-column:1}.kbl-home .home-market-card{padding:17px 14px}.kbl-home .home-market-xau{font-size:clamp(14px,4.1vw,19px)}}
