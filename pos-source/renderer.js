@@ -11115,8 +11115,8 @@ function pawnLostDocHtml() {
     const phone = getEl('lost-confirm-phone')?.value.trim() || r.phone || '……………………';
     const reason = getEl('lost-reason')?.value.trim() || 'Không ghi thêm';
     const today = new Date().toLocaleDateString('vi-VN');
-    return `<div style="text-align:center;font-weight:bold;">CÔNG TY TNHH MTV VÀNG BẠC ĐÁ QUÝ KIM BẢO LÂM</div>
-        <div style="text-align:center;font-size:10.5px;">MST: 3703496362 · 59/1 Nguyễn Thị Tươi, P. Tân Đông Hiệp, TP. Hồ Chí Minh</div>
+    return `<div style="text-align:center;font-weight:bold;">HỘ KINH DOANH CẦM ĐỒ NGUYỄN VĂN LÂM</div>
+        <div style="text-align:center;font-size:10.5px;">Địa chỉ: 59/1 Nguyễn Thị Tươi, P. Tân Đông Hiệp, TP. Hồ Chí Minh</div>
         <h1>BIÊN BẢN XÁC NHẬN MẤT PHIẾU CẦM<br>VÀ ĐỀ NGHỊ NHẬN LẠI TÀI SẢN</h1>
         <div style="text-align:center;font-size:11px;">Phiếu cầm gốc: <b>${escapeHtml(r.id || '……………………')}</b> · Ngày lập: ${escapeHtml(today)}</div>
         <h2>1. THÔNG TIN KHÁCH HÀNG VÀ GIAO DỊCH CẦM CỐ</h2>
@@ -11139,7 +11139,7 @@ function pawnLostDocHtml() {
         <h2>4. XÁC MINH CỦA CƠ SỞ</h2>
         <div>☐ Đã đối chiếu CCCD/CMND bản gốc &nbsp;&nbsp; ☐ Đã đối chiếu hồ sơ phiếu cầm &nbsp;&nbsp; ☐ Khách đã đọc và tự nguyện ký.</div>
         <div style="text-align:justify;margin-top:5px;font-size:10.5px;">Biên bản này ghi nhận việc mất phiếu và nội dung xác minh/cam kết của khách hàng; không thay thế nghĩa vụ thanh toán hoặc các điều kiện của phiếu/hợp đồng cầm cố. Việc tính lãi, tính tiền chuộc và xác nhận giao tài sản vẫn thực hiện theo chức năng Cầm Đồ hiện tại.</div>
-        <div class="doc-sign"><div><b>KHÁCH HÀNG</b><br><small>Ký, ghi rõ họ tên</small></div><div><b>NGƯỜI KIỂM TRA KBL</b><br><small>Ký, ghi rõ họ tên</small></div><div><b>NGƯỜI DUYỆT</b><br><small>Ký, ghi rõ họ tên</small></div></div>`;
+        <div class="doc-sign"><div><b>KHÁCH HÀNG</b><br><small>Ký, ghi rõ họ tên</small></div><div><b>ĐẠI DIỆN CƠ SỞ CẦM ĐỒ</b><br><small>Ký, ghi rõ họ tên</small></div><div><b>NGƯỜI DUYỆT</b><br><small>Ký, ghi rõ họ tên</small></div></div>`;
 }
 
 function renderPawnLostDocument() {
