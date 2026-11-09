@@ -5,7 +5,7 @@
 .kbl-home .home-market-xau{font:700 clamp(15px,1.7vw,24px)/1.35 Georgia,'Times New Roman',serif;color:#153448;white-space:nowrap;overflow-wrap:normal;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
 .home-market-card small{display:block;color:#536875;font-size:12px;line-height:1.5}
 .kbl-home .home-market-card a{color:#9b4d2d;font-size:13px;text-decoration:underline;text-underline-offset:3px}
-.home-market-chart-link{margin-top:auto;min-height:44px;display:flex;align-items:center}
+.kbl-home .home-market-chart-link{margin-top:auto;min-height:44px;display:flex;align-items:center;align-self:flex-start;padding:0;color:#9b4d2d;text-decoration:underline;text-underline-offset:3px;font-size:13px;text-align:left}
 .home-market-divider{height:1px;width:100%;background:#ead8ca;margin:8px 0}
 .home-market-card h3{font-size:16px;color:#153448}
 .kbl-home .home-market-usd{font:700 22px/1.35 Georgia,serif;white-space:nowrap;font-variant-numeric:tabular-nums}
