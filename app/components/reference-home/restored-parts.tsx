@@ -5,7 +5,7 @@ import {date} from '../ui';
 type Props={onAsk:(question?:string)=>void;onTry:()=>void;onFeedback:()=>void;onOpenTool:(tool:string)=>void;articles?:any[]};
 type FooterProps={onAsk:(question?:string)=>void};
 
-export function MarketSnapshot(){
+export function MarketSnapshot({onOpenTool}:{onOpenTool:(tool:string)=>void}){
  const [market,setMarket]=useState<any>(null),[fx,setFx]=useState<any>(null);
  useEffect(()=>{
   let active=true;
@@ -35,7 +35,7 @@ export function MarketSnapshot(){
   <div className="home-market-title">GIÁ VÀNG THẾ GIỚI · THAM KHẢO</div>
   <strong className="home-market-xau" aria-label={'XAU/USD '+goldText+' trên một ounce'}>XAU/USD · {goldText} / oz</strong>
   <small>{market?.stale?'Bản lưu · ':''}Nguồn: {market?.goldUpdatedAt||'chưa có giờ nguồn'}{market?.fetchedAt?' · Đọc '+date(market.fetchedAt):''}</small>
-  <a className="home-market-chart-link" href="#price-board">Xem chi tiết & biểu đồ →</a>
+  <button type="button" className="home-market-chart-link" onClick={()=>onOpenTool('history')}>Xem chi tiết & biểu đồ →</button>
   <div className="home-market-divider"/>
   <h3>Tỷ giá Vietcombank · USD bán ra</h3>
   <strong className="home-market-usd">{usdText} / USD</strong>
